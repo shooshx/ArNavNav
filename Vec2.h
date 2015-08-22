@@ -1,0 +1,118 @@
+#pragma once
+#include <cmath>
+
+template<typename T>
+inline T imin(T a, T b) {
+    return (a < b)?a:b;
+}
+
+template<typename T>
+inline T imax(T a, T b) {
+    return (a > b)?a:b;
+}
+
+class Vec2
+{
+public:
+    Vec2() : x(0.0f), y(0.0f) 
+    {}
+
+    Vec2(float _x, float _y) : x(_x), y(_y)
+    {}
+
+    union {
+        struct {
+            float x, y;
+        };
+        float v[2];
+    };
+
+
+    void operator+=(const Vec2 &o)
+    {
+        x += o.x;
+        y += o.y;
+    }
+
+    void mmax(const Vec2& v) {
+        x = imax(x, v.x);
+        y = imax(y, v.y);
+    }
+    void mmin(const Vec2& v) {
+        x = imin(x, v.x);
+        y = imin(y, v.y);
+    }
+};
+
+inline Vec2 operator+(const Vec2& a, const Vec2& b) {
+    return Vec2(a.x + b.x, a.y + b.y);
+}
+inline Vec2 operator-(const Vec2& a, const Vec2& b) {
+    return Vec2(a.x - b.x, a.y - b.y);
+}
+
+// dot product
+inline float operator*(const Vec2& a, const Vec2& b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+inline float dot(const Vec2& a, const Vec2& b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+
+inline Vec2 operator*(const Vec2& a, float v) {
+    return Vec2(a.x * v, a.y * v);
+}
+inline Vec2 operator*(float v, const Vec2& a) {
+    return Vec2(a.x * v, a.y * v);
+}
+
+inline float absSq(const Vec2& v) {
+    return v * v;
+}
+
+inline float distSq(const Vec2& a, const Vec2& b) {
+    return absSq(a - b);
+}
+
+inline float abs(const Vec2& v) {
+    return std::sqrt(v * v);
+}
+
+inline float det(const Vec2& a, const Vec2& b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+inline Vec2 operator/(const Vec2& a, float v) {
+    const float inv = 1.0f / v;
+    return Vec2(a.x * inv, a.y * inv);
+}
+
+inline Vec2 normalize(const Vec2 &v) {
+    return v / abs(v);
+}
+
+inline Vec2 normal(const Vec2& a, const Vec2& b) {
+    return normalize(Vec2(b.y - a.y, a.x - b.x));
+}
+
+inline Vec2 operator-(const Vec2& v) {
+    return Vec2(-v.x, -v.y);
+}
+
+inline float atan(const Vec2& v) {
+    return std::atan2(v.y, v.x);
+}
+
+inline float sqr(float scalar) {
+    return scalar * scalar;
+}
+
+inline Vec2 project(const Vec2& p, const Vec2& a, const Vec2& b) {
+    Vec2 ab = (b-a);
+    Vec2 ap = (p-a);
+    float d = dot(ap, ab) / dot(ab, ab);
+    d = imin(1.0f, imax(0.0f, d));
+    return a + d * ab;
+}

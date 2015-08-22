@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Debug">
+      <UniqueIdentifier>{b38fece2-36e5-4810-81f1-bd7a83cd6677}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Release">
+      <UniqueIdentifier>{ccd8ec5d-4fb0-427f-8c54-2324a1d33a56}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="main">
+      <UniqueIdentifier>{d6fdfe90-9423-499a-b6c5-c6d4f5f473ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hrvo">
+      <UniqueIdentifier>{b7c84f50-0087-4456-a1cf-ff61933e261b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="poly2tri">
+      <UniqueIdentifier>{ef25bacc-be65-4b07-a6d6-9894b51a724a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GeneratedFiles\qrc_nav.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_NavGraphicsView.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_NavGraphicsView.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="NavGraphicsView.cpp" />
+    <ClCompile Include="GeneratedFiles\Debug\moc_NavDialog.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_NavDialog.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="NavDialog.cpp" />
+    <ClCompile Include="GeneratedFiles\Debug\moc_Document.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_Document.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Document.cpp" />
+    <ClCompile Include="main.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="BihTree.cpp" />
+    <ClCompile Include="Simulator.cpp">
+      <Filter>hrvo</Filter>
+    </ClCompile>
+    <ClCompile Include="Agent.cpp">
+      <Filter>hrvo</Filter>
+    </ClCompile>
+    <ClCompile Include="Circle.cpp">
+      <Filter>hrvo</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="poly2tri\advancing_front.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+    <ClCompile Include="poly2tri\cdt.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+    <ClCompile Include="poly2tri\shapes.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+    <ClCompile Include="poly2tri\sweep.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+    <ClCompile Include="poly2tri\sweep_context.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+    <ClCompile Include="poly2tri\adapter.cc">
+      <Filter>poly2tri</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="NavGraphicsView.h" />
+    <CustomBuild Include="NavDialog.h" />
+    <CustomBuild Include="Document.h" />
+    <CustomBuild Include="nav.qrc">
+      <Filter>main</Filter>
+    </CustomBuild>
+    <CustomBuild Include="nav.ui">
+      <Filter>main</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeneratedFiles\ui_nav.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Except.h" />
+    <ClInclude Include="BihTree.h" />
+    <ClInclude Include="Agent.h">
+      <Filter>hrvo</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulator.h">
+      <Filter>hrvo</Filter>
+    </ClInclude>
+    <ClInclude Include="Vec2.h" />
+    <ClInclude Include="Objects.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="poly2tri\advancing_front.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\cdt.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\poly2tri.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\shapes.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\sweep.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\sweep_context.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="poly2tri\utils.h">
+      <Filter>poly2tri</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
