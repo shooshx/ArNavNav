@@ -2,3 +2,7 @@
 /GeneratedFiles
 /Release_x64
 /Debug_x64
+*.suo
+*.vcxproj.user
+*.sdf
+*.opensdf
