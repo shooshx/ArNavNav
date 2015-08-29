@@ -42,6 +42,11 @@ public:
         x = imin(x, v.x);
         y = imin(y, v.y);
     }
+
+    Vec2 abs() const {
+        return Vec2(x>0?x:-x, y>0?y:-y);
+    }
+    Vec2& normalize();
 };
 
 inline Vec2 operator+(const Vec2& a, const Vec2& b) {
@@ -68,6 +73,10 @@ inline Vec2 operator*(float v, const Vec2& a) {
     return Vec2(a.x * v, a.y * v);
 }
 
+inline bool operator==(const Vec2& a, const Vec2& b) {
+    return a.x == b.x && a.y == b.y;
+}
+
 inline float absSq(const Vec2& v) {
     return v * v;
 }
@@ -90,11 +99,18 @@ inline Vec2 operator/(const Vec2& a, float v) {
 }
 
 inline Vec2 normalize(const Vec2 &v) {
-    return v / abs(v);
+    return v / ::abs(v);
 }
 
 inline Vec2 normal(const Vec2& a, const Vec2& b) {
     return normalize(Vec2(b.y - a.y, a.x - b.x));
+}
+
+inline Vec2& Vec2::normalize() {
+    float d = 1.0f / ::abs(*this);
+    x *= d;
+    y *= d;
+    return *this;
 }
 
 inline Vec2 operator-(const Vec2& v) {

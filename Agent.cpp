@@ -67,13 +67,15 @@ void Agent::computeNewVelocity(VODump* dump)
         }
         else  // not a circle
         { 
-            const AABB* otherAab = dynamic_cast<const AABB*>(otherObj);
+            const Object* otherAab = dynamic_cast<const Object*>(otherObj);
 
             Vec2 p1, p2;
-            if (otherAab->spanningPoints(m_position, 0, &p1, &p2)) //m_radius
+            if (otherAab->spanningPoints(m_position, m_radius, &p1, &p2)) //m_radius
             {// outside
                 velocityObstacle.m_side1 = normalize(p1 - m_position);
                 velocityObstacle.m_side2 = normalize(p2 - m_position);
+                if (det(velocityObstacle.m_side1, velocityObstacle.m_side2) < 0)
+                    continue; // ignore
             }
             else {
                 velocityObstacle.m_side1 = normal(m_position, otherAab->m_position);

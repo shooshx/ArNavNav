@@ -168,6 +168,7 @@ int Triangle::Index(const Point* p)
 
 int Triangle::EdgeIndex(const Point* p1, const Point* p2)
 {
+    // crash here means vertices of two different polylines are the same
   if (points_[0] == p1) {
     if (points_[1] == p2) {
       return 2;

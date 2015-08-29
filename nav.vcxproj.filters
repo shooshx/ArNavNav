@@ -109,7 +109,6 @@
       <Filter>hrvo</Filter>
     </ClInclude>
     <ClInclude Include="Vec2.h" />
-    <ClInclude Include="Objects.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="poly2tri\advancing_front.h">
       <Filter>poly2tri</Filter>
@@ -131,6 +130,9 @@
     </ClInclude>
     <ClInclude Include="poly2tri\utils.h">
       <Filter>poly2tri</Filter>
+    </ClInclude>
+    <ClInclude Include="Objects.h">
+      <Filter>hrvo</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

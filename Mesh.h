@@ -8,7 +8,7 @@ using namespace std;
 
 class HalfEdge;
 class Triangle;
-
+class Vertex;
 
 class Vertex
 {
@@ -50,6 +50,46 @@ public:
 };
 
 
+struct Polyline
+{
+    void clear() {
+        for(auto v: m_d)
+            delete v;
+    }
+    Vertex* add(const Vec2& v) {
+        auto* av = new Vertex(m_d.size(), v);
+        m_d.push_back(av);
+        return av;
+    }
+    // not always owns these vertices (yes in MapDef, no in Mesh)
+    vector<Vertex*> m_d;
+};
+
+class MapDef
+{
+public:
+    ~MapDef() {
+        clear();
+    }
+    Polyline* add() {
+        m_p.push_back(new Polyline());
+        return m_p.back();
+    }
+    Polyline* top() {
+        if (m_p.empty())
+            m_p.push_back(new Polyline());
+        return m_p.back();
+    }
+    void clear() {
+        for(auto p: m_p)
+            p->clear();
+        m_p.clear();
+    }
+
+    vector<Polyline*> m_p;
+};
+
+
 class Mesh
 {
 public:
@@ -84,7 +124,9 @@ public:
     static void makePath(vector<Triangle*>& tripath, Vec2 start, Vec2 end, vector<Vec2>& output);
 
 
+
     // owns these vertices
     vector<Vertex*> m_vtx;
     vector<Triangle*> m_tri;
+    vector<Polyline> m_perimiters;
 };

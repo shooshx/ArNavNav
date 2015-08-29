@@ -66,7 +66,7 @@ public:
     Circle* m_cobj;
 };
 
-#define VELOCITY_SCALE 70.0f
+#define VELOCITY_SCALE 30.0f
 
 // little indicators of velocity
 class VelocityItem : public CircleItem
@@ -135,6 +135,27 @@ public:
     AABB* m_cobj;
 
 };
+
+
+class SegmentItem : public BaseItem
+{
+public:
+    SegmentItem(Segment* obj, NavDialog* ctrl)
+        :BaseItem(ctrl, obj), m_cobj(obj)
+    {}
+
+    virtual QString strDim() const {
+        return QString();
+    }
+    virtual void setDim(const QString& s) {
+    }
+
+    virtual void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget);
+    virtual QRectF boundingRect() const;
+
+    Segment* m_cobj;
+};
+
 
 // part of a triangulation
 class TriItem  : public QGraphicsItem

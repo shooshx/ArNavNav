@@ -71,17 +71,20 @@ void NavDialog::readDoc()
     if (m_doc->m_prob != nullptr) {
         m_vos = new VOSItem(dynamic_cast<Agent*>(m_doc->m_prob), this);
         m_scene->addItem(m_vos);
+        m_vos->setZValue(-7);
+        
     }
 
-
+    m_objects.clear();
     for (auto* obj : m_doc->m_objs) 
     {
-        BaseItem *p;
+        BaseItem *p = nullptr;
         auto a = dynamic_cast<Agent*>(obj);
         if (a != nullptr) {
-            Vec2 velpos = a->m_position + a->m_velocity * VELOCITY_SCALE;
+            VelocityItem *vp = nullptr;
+           /* Vec2 velpos = a->m_position + a->m_velocity * VELOCITY_SCALE;
             VelocityItem *vp = new VelocityItem(a, new Circle(velpos, 6.0f, -a->index), this);
-            m_scene->addItem(vp);
+            m_scene->addItem(vp);*/
             p = new AgentItem(a, vp, this);
         }
         else {
@@ -90,11 +93,21 @@ void NavDialog::readDoc()
                 p = new CircleItem(c, this);
             else {
                 auto b = dynamic_cast<AABB*>(obj);
-                if (b != nullptr)
+                if (b != nullptr) 
                     p = new AABBItem(b, this);
+                else {
+                    auto s = dynamic_cast<Segment*>(obj);
+                    if (s != nullptr)
+                        p = new SegmentItem(s, this);
+                }
             }
+            if (p)
+                p->setZValue(-5);
         }
-        m_scene->addItem(p);
+        if (p) {
+            m_objects.push_back(shared_ptr<BaseItem>(p));
+            m_scene->addItem(p);
+        }
         //m_gobjs.push_back(p);
     }
 
@@ -106,15 +119,23 @@ void NavDialog::readDoc()
 
     readPolyPoints();
 
-    m_startitem.reset(new PolyPointItem(this, m_doc->m_start));
-    m_startitem->m_color = QColor(50, 255, 50);
-    m_startitem->m_radius = 7;
-    m_scene->addItem(m_startitem.get());
-
-    m_enditem.reset(new PolyPointItem(this, m_doc->m_end));
-    m_enditem->m_color = QColor(255, 50, 50);
-    m_enditem->m_radius = 7;
-    m_scene->addItem(m_enditem.get());
+    if (m_doc->m_start) {
+        m_startitem.reset(new PolyPointItem(this, m_doc->m_start));
+        m_startitem->m_color = QColor(50, 255, 50);
+        m_startitem->m_radius = 7;
+        m_scene->addItem(m_startitem.get());
+    }
+    if (m_doc->m_end) {
+        m_enditem.reset(new PolyPointItem(this, m_doc->m_end));
+        m_enditem->m_color = QColor(255, 50, 50);
+        m_enditem->m_radius = 7;
+        m_scene->addItem(m_enditem.get());
+    }
+    m_markeritems.clear();
+    for(auto* m: m_doc->m_markers) {
+        m_markeritems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, m)));
+        m_scene->addItem(m_markeritems.back().get());
+    }
 
     m_pathitem.reset(new PathItem(this, &m_doc->m_path));
     m_scene->addItem(m_pathitem.get());
@@ -140,6 +161,11 @@ QString strFromVec2(const Vec2& v) {
     return QString("(%1, %2)").arg(v.x).arg(v.y);
 }
 
+static QPointF toQ(const Vec2& v) {
+    return QPointF(v.x, v.y);
+}
+
+
 
 void NavDialog::update()
 {
@@ -160,7 +186,6 @@ void NavDialog::update()
     }
 
     m_doc->runTriangulate();
-
     readMesh();
 
 
@@ -168,17 +193,77 @@ void NavDialog::update()
         obj->highlight = false;
     }
 
+    //---------------- path
+    if (m_doc->m_prob) 
+    {
+        vector<Vec2> startPoss; // save start so we could recreate it
+        // simulator test
+        Simulator sim;
+        for(auto* obj: m_doc->m_objs) 
+        {
+            sim.addObject(obj);
+            startPoss.push_back(obj->m_position);
 
-    // simulator test
-/*    Simulator sim;
-    for(auto* obj: m_doc->m_objs) {
-        sim.addObject(obj);
+            auto *agent = dynamic_cast<Agent*>(obj);
+            if (!agent)
+                continue;
+            agent->m_goalPos = m_doc->m_end->p;
+            agent->m_velocity = Vec2();
+        }
+
+        m_agentPath.clear();
+        m_agentPath.push_back( m_doc->m_prob->m_position );
+        for(int i = 0; i < 500; ++i) {
+            sim.doStep(0.25, true);
+            m_agentPath.push_back( m_doc->m_prob->m_position );
+        }
+
+        m_pathitem->m_v = &m_agentPath;
+
+        // go back to backup
+        int i = 0;
+        for(auto* obj: m_doc->m_objs) {
+            obj->m_position = startPoss[i++];
+            auto *agent = dynamic_cast<Agent*>(obj);
+            if (!agent)
+                continue;
+            agent->m_velocity = Vec2();
+        }
+
+        //---------------------- VO
+
+        //if (false) 
+        {
+            auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
+            float origNeiDist = agentProb->m_neighborDist;
+            agentProb->m_neighborDist = 50;
+            sim.doStep(0.25, false);
+            if (m_vos != nullptr)
+                agentProb->computeNewVelocity(&m_vos->m_data);
+            agentProb->m_neighborDist = origNeiDist;
+        }
     }
-    sim.doStep(0.25, false);
+    //std::cout << m_vos->m_data.selected << endl;
+   
+    for(int i = 0; i < m_markeritems.size(); ++i)
+        m_markeritems[i]->setPos(toQ(m_doc->m_markers[i]->p));
 
-    dynamic_cast<Agent*>(m_doc->m_prob)->computeNewVelocity(&m_vos->m_data);
-    std::cout << m_vos->m_data.selected << endl;
-    */
+    // markers intersection
+/*    if (m_doc->m_markers.size() == 5) {
+        Vec2 a = m_doc->m_markers[0]->p;
+        Vec2 a2 = m_doc->m_markers[1]->p;
+        Vec2 b = m_doc->m_markers[2]->p;
+        Vec2 b2 = m_doc->m_markers[3]->p;
+
+        Vec2 v = a2-a;
+        Vec2 u = b2-b;
+        float k = (v.x*(b.y-a.y) + v.y*(a.x-b.x))/(u.x*v.y - u.y*v.x);
+        
+        Vec2 p = b+k*u;
+        m_doc->m_markers[4]->p = p;
+        m_markeritems[4]->setPos(toQ(p));
+    }*/
+
 
     // BihTree test
 /*    BihTree bt;
@@ -235,6 +320,7 @@ void NavDialog::on_actionSave_triggered(bool)
     }
     ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
     ofs << "end " << m_doc->m_end->p.x << " " << m_doc->m_end->p.y << "\n";
+    ofs << "prob " << m_doc->m_prob->m_position.x << " " << m_doc->m_prob->m_position.y << "\n";
 
     cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_p.size() << " polylines" << endl;
 }
@@ -269,6 +355,11 @@ void NavDialog::on_actionLoad_triggered(bool)
         }
         else if (h == "end") {
             iss >> m_doc->m_end->p.x >> m_doc->m_end->p.y;
+        }
+        else if (h == "prob") {
+            Vec2 v;
+            iss >> v.x >> v.y;
+            m_doc->m_prob->m_position = v;
         }
 
     }

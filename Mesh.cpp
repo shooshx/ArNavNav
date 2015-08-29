@@ -8,7 +8,7 @@ typedef pair<Vertex*, Vertex*> VPair;
 // map (from,to) -> halfedge
 map<VPair, HalfEdge*> unpaired;
 
-HalfEdge* seekPair(Vertex* v1, Vertex* v2, HalfEdge* add) {
+void seekPair(Vertex* v1, Vertex* v2, HalfEdge* add) {
     VPair ko(v2, v1);
     auto it = unpaired.find(ko);
     if (it != unpaired.end()) {
@@ -16,18 +16,20 @@ HalfEdge* seekPair(Vertex* v1, Vertex* v2, HalfEdge* add) {
         unpaired.erase(it);
         p->opposite = add;
         add->opposite = p;
+        return;
     }
     VPair ks(v1, v2);
     if (unpaired.find(ks) != unpaired.end())
         throw Exception("Not all triangles are clockwise");
     unpaired[ks] = add;
-    return nullptr;
+    return;
 }
 
 
 void Mesh::connectTri()
 {
     unpaired.clear();
+    m_perimiters.clear();
 
     for(auto t: m_tri) 
     {
@@ -68,6 +70,36 @@ void Mesh::connectTri()
             if (t->h[i]->opposite != nullptr)
                 t->nei[i] = t->h[i]->opposite->tri;
         }
+    }
+
+    // from the unpaired, make ordered perminiters
+    while (!unpaired.empty())
+    {
+        m_perimiters.push_back(Polyline()); // TBD reserve
+        Polyline& poly = m_perimiters.back();
+
+        HalfEdge* h = unpaired.begin()->second;
+        unpaired.erase(unpaired.begin());
+        // find the adjacent unpaired
+        HalfEdge* start = h;
+
+        while(true) 
+        {
+            poly.m_d.push_back(h->from);
+            // rotate around the vertex until finding the next unpaired
+            while(h->next->opposite != nullptr) {
+                h = h->next->opposite;
+            }
+            h = h->next;
+            if (h == start)
+                break;
+
+            auto it = unpaired.find(VPair(h->from, h->to));
+            if (it == unpaired.end())
+                throw Exception("Stange half edge connection");
+            unpaired.erase(it);
+        }
+
     }
 
 }
@@ -327,6 +359,8 @@ void commonVtx(Triangle* a, Triangle* b, Vertex** right, Vertex** left)
 
 void Mesh::makePath(vector<Triangle*>& tripath, Vec2 start, Vec2 end, vector<Vec2>& output)
 {
+    if (tripath.size() == 0)
+        return;
     vector<Vec2*> leftPath, rightPath;
     leftPath.reserve(tripath.size() + 1);
     rightPath.reserve(tripath.size() + 1);

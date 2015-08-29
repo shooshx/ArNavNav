@@ -12,6 +12,9 @@ public:
     {}
     virtual ~Object() {}
     virtual float distSqToSurface(const Vec2& fromp) const = 0;
+    virtual bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const {
+        return false;
+    }
 
     virtual void setPos(const Vec2& p) {
         m_position = p;
@@ -71,11 +74,11 @@ public:
     virtual float distSqToSurface(const Vec2& fromp) const
     {
         switch(inSector(fromp, maxp, minp)) {
-        case 4+8:  return sqr(fromp.y - maxp.y);
+        case 4+8:  return sqr(fromp.y - maxp.y); // distance to axis-aligned segment
         case 4+16: return sqr(fromp.y - minp.y);
         case 32+1: return sqr(fromp.x - maxp.x);
         case 32+2: return sqr(fromp.x - minp.x);
-        case 1+8:  return absSq(maxp - fromp);
+        case 1+8:  return absSq(maxp - fromp);  // distance to point
         case 16+2: return absSq(minp - fromp);
         case 1+16: return absSq(Vec2(maxp.x, minp.y) - fromp);
         case 8+2:  return absSq(Vec2(minp.x, maxp.y) - fromp);
@@ -83,7 +86,7 @@ public:
         }
     }
 
-    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    virtual bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
     {
         Vec2 a = maxp + Vec2(keepDist, keepDist);
         Vec2 b = minp - Vec2(keepDist, keepDist);;
@@ -106,3 +109,102 @@ public:
 
     Vec2 maxp, minp;
 };
+
+
+
+class Segment : public Object
+{
+public:
+    Segment()
+    {}
+    Segment(const Vec2& _a, const Vec2& _b, const Vec2& _dpa, const Vec2& _dpb, int _index)
+        : Object((_a + _b)*0.5f, (_a - _b).abs(), _index)
+        , a(_a), b(_b), dpa(_dpa), dpb(_dpb) 
+    {}
+
+    Segment(const Vec2& _a, const Vec2& _b, int _index) 
+        : Object((_a + _b)*0.5f, (_a - _b).abs(), _index), a(_a), b(_b)
+    {
+        Vec2 nab = normalize(a - b);
+        Vec2 dp = Vec2(nab.y, -nab.x);
+        dpa = dp + nab;
+        dpb = dp - nab;
+    }
+
+    virtual float distSqToSurface(const Vec2& fromp) const
+    {
+        Vec2 prj = project(fromp, a, b);
+        return distSq(fromp, prj);
+    }
+
+    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    {
+        *p1 = a + dpa * keepDist;
+        *p2 = b + dpb * keepDist;
+        return true; 
+        // if its on the other size of the segment, it means nothing since its not necessarily inside the object, will be ignored by Agent
+    }
+
+    Vec2 a, b;
+    Vec2 dpa, dpb; // these point in diagonal away from the points. they are an approximation of a circle around the point
+};
+
+class PointSegment : public Object
+{
+public:
+    PointSegment(const Vec2& _b, const Vec2& _dpa, const Vec2& _dpb, int _index)
+        : Object(_b, Vec2(0,0), _index), b(_b), dpa(_dpa), dpb(_dpb) 
+    {}
+
+    virtual float distSqToSurface(const Vec2& fromp) const
+    {
+        return distSq(b, fromp);
+    }
+
+    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    {
+        *p1 = b + dpa * keepDist;
+        *p2 = b + dpb * keepDist;
+        return true; 
+    }
+
+
+    Vec2 b, dpa, dpb;
+};
+
+
+
+
+
+/*
+class SegmentRef : public Object
+{
+public:
+    SegmentRef(MultiSegment* ms, int p0index, int objIndex)
+        :m_ms(ms), m_p0index(p0index), Object()
+    {
+        const Vec2& p0 = ms->get(p0index);
+        const Vec2& p1 = ms->get(p0index + 1);
+        m_position = (p0 + p1)*0.5f;
+        size = (_a - _b).abs();
+        index = objIndex;
+    }
+
+    virtual float distSqToSurface(const Vec2& fromp) const
+    {
+        Vec2 prj = project(fromp, ms->get(p0index), ms->get(p0index + 1));
+        return distSq(fromp, prj);
+    }
+
+    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    {
+        *p1 = a + dpa * keepDist;
+        *p2 = b + dpb * keepDist;
+        return true; 
+        // if its on the other size of the segment, it means nothing since its not necessarily inside the object, will be ignored by Agent
+    }
+
+
+    int m_p0index;
+};
+*/

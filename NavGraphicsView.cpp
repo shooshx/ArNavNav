@@ -67,7 +67,7 @@ void BaseItem::mousePressEvent(QGraphicsSceneMouseEvent * event) {
 //    return QGraphicsItem::itemChange(change, value);
 //}
 
-QPointF toQ(const Vec2& v) {
+static QPointF toQ(const Vec2& v) {
     return QPointF(v.x, v.y);
 }
 
@@ -92,10 +92,12 @@ QRectF CircleItem::boundingRect() const
 void AgentItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
     CircleItem::paint(painter, option, widget);
-    QPen pen(QColor(0,0,0));
-    pen.setWidth(2);
-    painter->setPen(pen);
-    painter->drawLine(QPointF(0,0), m_vel->pos() - pos());
+    if (m_vel) {
+        QPen pen(QColor(0,0,0));
+        pen.setWidth(2);
+        painter->setPen(pen);
+        painter->drawLine(QPointF(0,0), m_vel->pos() - pos());
+    }
 }
 QRectF AgentItem::boundingRect() const {
     return CircleItem::boundingRect();
@@ -103,8 +105,10 @@ QRectF AgentItem::boundingRect() const {
 
 void AgentItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
     CircleItem::mouseMoveEvent(event);
-    Vec2 velpos = m_cobj->m_position + m_cobj->m_velocity * VELOCITY_SCALE;
-    m_vel->setPos(toQ(velpos));
+    if (m_vel) {
+        Vec2 velpos = m_cobj->m_position + m_cobj->m_velocity * VELOCITY_SCALE;
+        m_vel->setPos(toQ(velpos));
+    }
     m_ctrl->update();
 }
 
@@ -122,13 +126,17 @@ void VelocityItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
 
 void VOSItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
-    painter->setBrush(QBrush(QColor(150, 150, 255)));
+    
     Vec2 center = m_agent->m_position;
     for(const auto& vo: m_data.vos) {
         QPointF p[3];
         p[0] = toQ(center + vo.m_apex);
         p[1] = toQ(center + vo.m_apex + vo.m_side1 * 200.0f);
         p[2] = toQ(center + vo.m_apex + vo.m_side2 * 200.0f);
+        if (det(vo.m_side1, vo.m_side2) < 0)
+            painter->setBrush(QBrush(QColor(150, 0, 0)));
+        else
+            painter->setBrush(QBrush(QColor(150, 150, 255)));
         painter->drawPolygon(p, 3);
     }
     painter->setBrush(QBrush(QColor(50, 50, 255)));
@@ -153,15 +161,30 @@ void AABBItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
 {
     preparePainter(painter, option);
     auto sz = m_obj->size / 2;
-    painter->drawRect(-sz.x, -sz.y, m_obj->size.x, m_obj->size.y);
+    painter->drawRect(-sz.x, -sz.y, sz.x, sz.y); // object is centered at 0,0
 }
 
 QRectF AABBItem::boundingRect() const
 {
     auto sz = m_obj->size / 2;
-    return QRectF(-sz.x, -sz.y, m_obj->size.x, m_obj->size.y);
+    return QRectF(-sz.x, -sz.y, sz.x, sz.y);
 }
 
+// --------------------------------------------------------
+
+
+void SegmentItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
+{
+    preparePainter(painter, option);
+    auto sz = m_obj->size / 2;
+    painter->drawLine(-sz.x, -sz.y, sz.x, sz.y);
+}
+
+QRectF SegmentItem::boundingRect() const
+{
+    auto sz = m_obj->size / 2;
+    return QRectF(-sz.x, -sz.y, m_obj->size.x, m_obj->size.y);
+}
 
 // ------------------------------------------------------------------
 
@@ -202,6 +225,8 @@ QRectF TriItem::boundingRect() const {
 
 void PolyPointItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
+    auto qp = pos();
+    //Vec2 p(pos().x(), pos.y());
     painter->setBrush(QBrush(m_color));
     painter->drawEllipse(-m_radius, -m_radius, 2 * m_radius, 2 * m_radius);
 }

@@ -41,11 +41,15 @@ public:
     VOSItem* m_vos = nullptr;
     vector<Vec2> m_currentPoly;
 
+    vector<shared_ptr<BaseItem>> m_objects;
     vector<shared_ptr<TriItem>> m_meshitems;
     vector<shared_ptr<PolyPointItem>> m_polypointitems;
     shared_ptr<MapDefItem> m_mapitem;
     shared_ptr<PolyPointItem> m_startitem, m_enditem;
+    vector<shared_ptr<PolyPointItem>> m_markeritems;
     shared_ptr<PathItem> m_pathitem;
+
+    vector<Vec2> m_agentPath;
 };
 
 #endif // NAV_H
