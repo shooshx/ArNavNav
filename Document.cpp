@@ -61,16 +61,16 @@ Vec2 lineIntersect(const Vec2& a, const Vec2& v, const Vec2& b, const Vec2& u)
 }
 
 
-class MultiSegment 
+class MultiSegMaker 
 {
 public:
-    MultiSegment(vector<Vertex*>& v, Document* doc)
-        :m_v(v), m_doc(doc)
+    MultiSegMaker(vector<Vertex*>& v, Document* doc, MultiSegment* ms)
+        :m_v(v), m_doc(doc), m_ms(ms)
     {}
 
     Segment* addSegment(const Vec2& a, const Vec2& b, const Vec2& dpa, const Vec2& dpb)
     {
-        auto s = new Segment(a, b, dpa, dpb, m_doc->m_objs.size());
+        auto s = new Segment(a, b, dpa, dpb, m_doc->m_objs.size(), m_ms);
         m_doc->m_objs.push_back(s);
         return s;
     }
@@ -135,6 +135,7 @@ public:
 
     vector<Vertex*>& m_v;
     Document* m_doc;
+    MultiSegment* m_ms;
 
 };
 
@@ -175,10 +176,12 @@ void Document::runTriangulate()
 
     clearObst();
 
-    for(auto& poly: m_mesh.m_perimiters)
+    m_multisegs.resize(m_mesh.m_perimiters.size()); // elements will not change address
+    for(int i = 0; i < m_mesh.m_perimiters.size(); ++i)
     {
+        auto& poly = m_mesh.m_perimiters[i];
         int sz = poly.m_d.size();
-        MultiSegment ms(poly.m_d, this);
+        MultiSegMaker ms(poly.m_d, this, &m_multisegs[i]); 
         ms.makeSegments();
 
 /*        for(int i = 0; i < sz; ++i) 
@@ -285,6 +288,7 @@ void Document::init_test()
 
 }
 
+/*
 void Document::init_preset()
 {
     m_prob = new Circle(Vec2(0, -40), 15, -1);
@@ -299,6 +303,7 @@ void Document::init_preset()
     }
 
 }
+*/
 
 void Document::init_preset_grid()
 {
@@ -330,9 +335,51 @@ void Document::init_preset_grid()
         }
     }
 
+}
+
+// ----------------------------------------------
 
 
+void Document::clearSegMinDist()
+{
+    for(auto& ms: m_multisegs)
+        ms.clear();
 }
 
 
+bool Document::doStep(float deltaTime, bool doUpdate)
+{
+    if (deltaTime <= 0.0f)
+        return false;
+
+    BihTree bihTree;
+    bihTree.build(m_objs);
+
+    for(Object* obj: m_objs)
+    {
+        Agent* agent = dynamic_cast<Agent*>(obj);
+        if (agent == nullptr || !agent->m_isMobile)
+            continue;
+        agent->computePreferredVelocity(deltaTime);
+
+        clearSegMinDist();
+        agent->computeNeighbors(bihTree);
+        agent->computeNewVelocity();
+    }
+
+    if (!doUpdate)
+        return false;
+
+    bool reachedGoals = true;
+    for (Object* obj: m_objs) 
+    {
+        Agent* agent = dynamic_cast<Agent*>(obj);
+        if (agent == nullptr || !agent->m_isMobile)
+            continue;
+        reachedGoals &= agent->update(deltaTime);
+    }
+
+    //m_globalTime += deltaTime;
+    return reachedGoals;
+}
 

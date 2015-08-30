@@ -33,16 +33,22 @@ public:
 
     void clearObst();
 
+    void clearSegMinDist();
+    bool doStep(float deltaTime, bool doUpdate);
+
+public:
     vector<Object*> m_objs; // owning
-    Object *m_prob = nullptr;
+    vector<MultiSegment> m_multisegs; // owning
 
     Mesh m_mesh;
     MapDef m_mapdef;
+
     Vertex *m_start = nullptr;
     Vertex *m_end = nullptr;
     vector<Vec2> m_path;
-
     vector<Vertex*> m_markers;
+    Object *m_prob = nullptr;
+
 };
 
 

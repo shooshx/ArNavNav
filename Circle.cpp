@@ -5,8 +5,9 @@
 
 using namespace std;
 
-#include "Simulator.h"
+
 #include "Agent.h"
+#include "Document.h"
 
 
 
@@ -19,7 +20,7 @@ const float HRVO_TWO_PI = 6.283185307179586f;
 
 int xxmain()
 {
-	Simulator simulator;
+	Document simulator(nullptr);
 
     //ofstream outf("/Users/shyshalom/Projects/collision/hrvo_test/output.txt");
     ofstream outf("C:\\projects\\nav\\output.txt");
@@ -38,7 +39,7 @@ int xxmain()
     int agentIndex = 0;
     for(auto i = 0; i < _countof(obs); ++i)
     {
-        simulator.addObject(new Circle(obs[i], 20, agentIndex++));
+        simulator.m_objs.push_back(new Circle(obs[i], 20, agentIndex++));
         //simulator.addObject(new AABB(obs[i], Vec2(40+12,50+12), agentIndex++));
         //outf << "[40,50],";
         outf << "20, ";
@@ -57,7 +58,7 @@ int xxmain()
         //Vec2 pos((i%20)*15 - 150, 70+(i/20)*15);
         //Vec2 goal = pos - Vec2(0, 140);
 
-        simulator.addObject(new Agent(agentIndex++, pos,
+        simulator.m_objs.push_back(new Agent(agentIndex++, pos,
                 goal, // goal 
                 15.0, //15.0, // nei dist
                 10, // max nei
@@ -80,11 +81,12 @@ int xxmain()
     outf << "],\ncolors: [" << colors.str() << "],\nframes: [";
 
     int frameCount = 0;
+    bool reachedGoals = false;
 	do {
 		//outf << simulator.getGlobalTime();
         outf << "[";
-		for (int i = 0; i < simulator.getNumAgents(); ++i) {
-            auto p = simulator.getObject(i)->m_position;
+		for (int i = 0; i < simulator.m_objs.size(); ++i) {
+            auto p = simulator.m_objs[i]->m_position;
 			outf << p.x << "," << p.y << ", ";
 		}
 		outf << "], //" << frameCount << endl;
@@ -92,7 +94,7 @@ int xxmain()
             cout << "here";
         }
 
-        simulator.doStep(0.25f);
+        reachedGoals = simulator.doStep(0.25f, true);
 
         ++frameCount;
         if ((frameCount % 50) == 0) {
@@ -101,7 +103,7 @@ int xxmain()
         if (frameCount > 5000)
             break;
     }
-	while (!simulator.haveReachedGoals());
+	while (!reachedGoals);
     cout << frameCount << endl;
     outf << "]}";
     outf.close();

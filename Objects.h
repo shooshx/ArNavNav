@@ -110,6 +110,21 @@ public:
     Vec2 maxp, minp;
 };
 
+class Segment;
+
+// all segments of a polyline have a pointer to one such object 
+class MultiSegment
+{
+public:
+    void clear() {
+        m_minInPass_sqDist = FLT_MAX;
+        m_minInPass = nullptr;
+    }
+    // in every pass, for every agent that's relevant, keep track of which segment was closest to it 
+    // used for finding if the agent is inside the polyline
+    float m_minInPass_sqDist;
+    const Segment* m_minInPass;
+};
 
 
 class Segment : public Object
@@ -117,38 +132,51 @@ class Segment : public Object
 public:
     Segment()
     {}
-    Segment(const Vec2& _a, const Vec2& _b, const Vec2& _dpa, const Vec2& _dpb, int _index)
+    Segment(const Vec2& _a, const Vec2& _b, const Vec2& _dpa, const Vec2& _dpb, int _index, MultiSegment* ms)
         : Object((_a + _b)*0.5f, (_a - _b).abs(), _index)
-        , a(_a), b(_b), dpa(_dpa), dpb(_dpb) 
+        , a(_a), b(_b), dpa(_dpa), dpb(_dpb), ms(ms)
     {}
 
-    Segment(const Vec2& _a, const Vec2& _b, int _index) 
+  /*  Segment(const Vec2& _a, const Vec2& _b, int _index) 
         : Object((_a + _b)*0.5f, (_a - _b).abs(), _index), a(_a), b(_b)
     {
         Vec2 nab = normalize(a - b);
         Vec2 dp = Vec2(nab.y, -nab.x);
         dpa = dp + nab;
         dpb = dp - nab;
-    }
+    }*/
 
     virtual float distSqToSurface(const Vec2& fromp) const
     {
         Vec2 prj = project(fromp, a, b);
-        return distSq(fromp, prj);
+        float d = distSq(fromp, prj);
+        if (d < ms->m_minInPass_sqDist) {
+            ms->m_minInPass = this;
+            ms->m_minInPass_sqDist = d;
+        }
+        return d;
     }
 
     bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
     {
         *p1 = a + dpa * keepDist;
         *p2 = b + dpb * keepDist;
+        if (det(*p1 - fromp, *p2 - fromp) < 0) {
+            if (ms->m_minInPass == this) {
+                return false;
+            }
+        }
         return true; 
         // if its on the other size of the segment, it means nothing since its not necessarily inside the object, will be ignored by Agent
     }
 
     Vec2 a, b;
     Vec2 dpa, dpb; // these point in diagonal away from the points. they are an approximation of a circle around the point
+    MultiSegment* ms = nullptr;
 };
 
+
+// used for the gap between VOs on a sharp angle of a polyline
 class PointSegment : public Object
 {
 public:

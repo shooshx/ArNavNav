@@ -2,7 +2,7 @@
 #include "NavGraphicsView.h"
 #include "BihTree.h"
 #include "Agent.h"
-#include "Simulator.h"
+
 #include <QGraphicsScene>
 #include <QMenu>
 #include <QFileDialog>
@@ -196,12 +196,10 @@ void NavDialog::update()
     //---------------- path
     if (m_doc->m_prob) 
     {
-        vector<Vec2> startPoss; // save start so we could recreate it
+        vector<Vec2> startPoss; // backup start so we could restore the initial state
         // simulator test
-        Simulator sim;
         for(auto* obj: m_doc->m_objs) 
         {
-            sim.addObject(obj);
             startPoss.push_back(obj->m_position);
 
             auto *agent = dynamic_cast<Agent*>(obj);
@@ -214,13 +212,13 @@ void NavDialog::update()
         m_agentPath.clear();
         m_agentPath.push_back( m_doc->m_prob->m_position );
         for(int i = 0; i < 500; ++i) {
-            sim.doStep(0.25, true);
+            m_doc->doStep(0.25, true);
             m_agentPath.push_back( m_doc->m_prob->m_position );
         }
 
         m_pathitem->m_v = &m_agentPath;
 
-        // go back to backup
+        // restore backup
         int i = 0;
         for(auto* obj: m_doc->m_objs) {
             obj->m_position = startPoss[i++];
@@ -237,7 +235,7 @@ void NavDialog::update()
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
             float origNeiDist = agentProb->m_neighborDist;
             agentProb->m_neighborDist = 50;
-            sim.doStep(0.25, false);
+            m_doc->doStep(0.25, false);
             if (m_vos != nullptr)
                 agentProb->computeNewVelocity(&m_vos->m_data);
             agentProb->m_neighborDist = origNeiDist;

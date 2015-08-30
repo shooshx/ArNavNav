@@ -52,6 +52,7 @@ public:
 
 	float m_globalTime;
 	bool m_reachedGoals;
+    Document* m_doc;
 	std::vector<Object*> m_objects;
 
 	friend class Agent;

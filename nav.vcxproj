@@ -118,7 +118,6 @@
     <ClCompile Include="poly2tri\shapes.cc" />
     <ClCompile Include="poly2tri\sweep.cc" />
     <ClCompile Include="poly2tri\sweep_context.cc" />
-    <ClCompile Include="Simulator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="nav.ui">
@@ -145,7 +144,6 @@
     <ClInclude Include="poly2tri\sweep.h" />
     <ClInclude Include="poly2tri\sweep_context.h" />
     <ClInclude Include="poly2tri\utils.h" />
-    <ClInclude Include="Simulator.h" />
     <ClInclude Include="Vec2.h" />
     <CustomBuild Include="Document.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>

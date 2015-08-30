@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
-#include "Simulator.h"
+#include "BihTree.h"
+
+using namespace std;
 
 //const float HRVO_EPSILON = 0.00001f;
 //const float HRVO_PI = 3.141592653589793f;
@@ -69,6 +72,8 @@ void Agent::computeNewVelocity(VODump* dump)
         { 
             const Object* otherAab = dynamic_cast<const Object*>(otherObj);
 
+            velocityObstacle.m_apex = Vec2(0.0f, 0.0f);
+
             Vec2 p1, p2;
             if (otherAab->spanningPoints(m_position, m_radius, &p1, &p2)) //m_radius
             {// outside
@@ -78,10 +83,13 @@ void Agent::computeNewVelocity(VODump* dump)
                     continue; // ignore
             }
             else {
-                velocityObstacle.m_side1 = normal(m_position, otherAab->m_position);
-                velocityObstacle.m_side2 = -velocityObstacle.m_side1;
+            //    velocityObstacle.m_side1 = normal(m_position, otherAab->m_position);
+            //    velocityObstacle.m_side2 = -velocityObstacle.m_side1;
+
+                velocityObstacle.m_side1 = normalize(p1 - m_position);
+                velocityObstacle.m_side2 = normalize(p2 - m_position);
+
             }
-            velocityObstacle.m_apex = Vec2(0.0f, 0.0f);
 
         }
 

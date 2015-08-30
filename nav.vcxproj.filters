@@ -56,9 +56,6 @@
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="BihTree.cpp" />
-    <ClCompile Include="Simulator.cpp">
-      <Filter>hrvo</Filter>
-    </ClCompile>
     <ClCompile Include="Agent.cpp">
       <Filter>hrvo</Filter>
     </ClCompile>
@@ -103,9 +100,6 @@
     <ClInclude Include="Except.h" />
     <ClInclude Include="BihTree.h" />
     <ClInclude Include="Agent.h">
-      <Filter>hrvo</Filter>
-    </ClInclude>
-    <ClInclude Include="Simulator.h">
       <Filter>hrvo</Filter>
     </ClInclude>
     <ClInclude Include="Vec2.h" />
