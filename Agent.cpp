@@ -86,6 +86,7 @@ void Agent::computeNewVelocity(VODump* dump)
             //    velocityObstacle.m_side1 = normal(m_position, otherAab->m_position);
             //    velocityObstacle.m_side2 = -velocityObstacle.m_side1;
 
+                // alternate segment inside handling
                 velocityObstacle.m_side1 = normalize(p1 - m_position);
                 velocityObstacle.m_side2 = normalize(p2 - m_position);
 
@@ -96,9 +97,31 @@ void Agent::computeNewVelocity(VODump* dump)
         velocityObstacles.push_back(velocityObstacle);
 	}
 
-    std::multimap<float, Candidate> candidates;
+    Candidate candidate;
 
-	Candidate candidate;
+    Candidate minCandidate;
+    float minScore = FLT_MAX;
+
+    auto checkCandidate = [&]() {
+        float score = absSq(m_prefVelocity - candidate.m_position);
+        if (score >= minScore)
+            return;
+
+        for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
+        {
+            if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2 && 
+                det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex) < 0.0f && 
+                det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex) > 0.0f) 
+            {
+                return;
+            }
+        }
+        minCandidate = candidate;
+        minScore = score;
+    };
+
+    //std::multimap<float, Candidate> candidates;
+
 
 	candidate.m_velocityObstacle1 = std::numeric_limits<int>::max();
 	candidate.m_velocityObstacle2 = std::numeric_limits<int>::max();
@@ -109,33 +132,42 @@ void Agent::computeNewVelocity(VODump* dump)
 	else {
 		candidate.m_position = m_maxSpeed * normalize(m_prefVelocity);
 	}
+    // first candidate, the preferred velocity capped to the max speed
+    checkCandidate();
+	//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
 
-	candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
-
-	for (int i = 0; i < (int)velocityObstacles.size(); ++i) {
+#if 1
+    // project perf velocity on sides of all vos
+	for (int i = 0; i < (int)velocityObstacles.size(); ++i) 
+    {
 		candidate.m_velocityObstacle1 = i;
 		candidate.m_velocityObstacle2 = i;
 
 		const float dotProduct1 = (m_prefVelocity - velocityObstacles[i].m_apex) * velocityObstacles[i].m_side1;
 		const float dotProduct2 = (m_prefVelocity - velocityObstacles[i].m_apex) * velocityObstacles[i].m_side2;
 
-		if (dotProduct1 > 0.0f && det(velocityObstacles[i].m_side1, m_prefVelocity - velocityObstacles[i].m_apex) > 0.0f) {
+		if (dotProduct1 > 0.0f && det(velocityObstacles[i].m_side1, m_prefVelocity - velocityObstacles[i].m_apex) > 0.0f) 
+        {
 			candidate.m_position = velocityObstacles[i].m_apex + dotProduct1 * velocityObstacles[i].m_side1;
 
 			if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 		}
 
-		if (dotProduct2 > 0.0f && det(velocityObstacles[i].m_side2, m_prefVelocity - velocityObstacles[i].m_apex) < 0.0f) {
+		if (dotProduct2 > 0.0f && det(velocityObstacles[i].m_side2, m_prefVelocity - velocityObstacles[i].m_apex) < 0.0f) 
+        {
 			candidate.m_position = velocityObstacles[i].m_apex + dotProduct2 * velocityObstacles[i].m_side2;
 
 			if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 		}
 	}
-
+#endif
+#if 1
 	for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
     {
 		candidate.m_velocityObstacle1 = std::numeric_limits<int>::max();
@@ -150,12 +182,14 @@ void Agent::computeNewVelocity(VODump* dump)
 
 			if (t1 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t1 * velocityObstacles[j].m_side1;
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 
 			if (t2 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t2 * velocityObstacles[j].m_side1;
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 		}
 
@@ -168,15 +202,20 @@ void Agent::computeNewVelocity(VODump* dump)
 
 			if (t1 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t1 * velocityObstacles[j].m_side2;
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 
 			if (t2 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t2 * velocityObstacles[j].m_side2;
-				candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+				//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                checkCandidate();
 			}
 		}
 	}
+#endif
+#if 1
+
 
 	for (int i = 0; i < (int)velocityObstacles.size() - 1; ++i) 
     {
@@ -191,11 +230,13 @@ void Agent::computeNewVelocity(VODump* dump)
 				const float s = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[j].m_side1) / d;
 				const float t = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[i].m_side1) / d;
 
-				if (s >= 0.0f && t >= 0.0f) {
+				if (s >= 0.0f && t >= 0.0f) 
+                {
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side1;
 
 					if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-						candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+						//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                        checkCandidate();
 					}
 				}
 			}
@@ -210,7 +251,8 @@ void Agent::computeNewVelocity(VODump* dump)
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side2;
 
 					if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-						candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+						//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                        checkCandidate();
 					}
 				}
 			}
@@ -225,7 +267,8 @@ void Agent::computeNewVelocity(VODump* dump)
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side1;
 
 					if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-						candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+						//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                        checkCandidate();
 					}
 				}
 			}
@@ -240,17 +283,21 @@ void Agent::computeNewVelocity(VODump* dump)
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side2;
 
 					if (absSq(candidate.m_position) < m_maxSpeed * m_maxSpeed) {
-						candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+						//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
+                        checkCandidate();
 					}
 				}
 			}
 		}
 	}
+#endif
 
 	int optimal = -1;
-    bool hasAny = false;
 
-	for (auto iter = candidates.begin(); iter != candidates.end(); ++iter) 
+    m_newVelocity = Vec2();
+    if (minScore != FLT_MAX)
+        m_newVelocity = minCandidate.m_position;
+/*	for (auto iter = candidates.begin(); iter != candidates.end(); ++iter) 
     {
 		candidate = iter->second;
 
@@ -266,8 +313,8 @@ void Agent::computeNewVelocity(VODump* dump)
 
 				if (j > optimal) {
 					optimal = j;
-    		        m_newVelocity = candidate.m_position;
-                    hasAny = true;
+                    // I don't know WTF is this shit but it's not good.
+    		        //m_newVelocity = candidate.m_position;
 				}
 
 				break;
@@ -276,14 +323,13 @@ void Agent::computeNewVelocity(VODump* dump)
 
 		if (valid) {
     	    m_newVelocity = candidate.m_position;
-            hasAny = true;
 			break;
 		}
-	}
+	}*/
 
     if (dump != nullptr) {
         dump->vos = velocityObstacles;
-        dump->candidates = candidates;
+//        dump->candidates = candidates;
         dump->selected = m_newVelocity;
     }
 

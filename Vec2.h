@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <cfloat>
 
 template<typename T>
 inline T imin(T a, T b) {
@@ -10,6 +11,8 @@ template<typename T>
 inline T imax(T a, T b) {
     return (a > b)?a:b;
 }
+
+#define INVALID_VEC2 Vec2(FLT_MAX, FLT_MAX)
 
 class Vec2
 {
@@ -47,6 +50,10 @@ public:
         return Vec2(x>0?x:-x, y>0?y:-y);
     }
     Vec2& normalize();
+
+    bool isValid() const {
+        return x != FLT_MAX;
+    }
 };
 
 inline Vec2 operator+(const Vec2& a, const Vec2& b) {

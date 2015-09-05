@@ -27,6 +27,7 @@ public slots:
     void on_addPolyBut_toggled(bool checked);
     void on_actionSave_triggered(bool);
     void on_actionLoad_triggered(bool);
+    void on_frameSlider_valueChanged(int);
 
 public:
     Ui::navClass ui;
@@ -45,11 +46,13 @@ public:
     vector<shared_ptr<TriItem>> m_meshitems;
     vector<shared_ptr<PolyPointItem>> m_polypointitems;
     shared_ptr<MapDefItem> m_mapitem;
-    shared_ptr<PolyPointItem> m_startitem, m_enditem;
+    shared_ptr<PolyPointItem> m_startitem;
+    vector<shared_ptr<GoalItem>> m_goalitems;
     vector<shared_ptr<PolyPointItem>> m_markeritems;
-    shared_ptr<PathItem> m_pathitem;
+    vector<shared_ptr<PathItem>> m_pathitems; // for every agent in m_doc->m_agents
+    PathItem* m_probPath = nullptr; // used for ghost vo
 
-    vector<Vec2> m_agentPath;
+    vector<VODump> m_pathVos;
 };
 
 #endif // NAV_H

@@ -161,11 +161,11 @@ public:
     {
         *p1 = a + dpa * keepDist;
         *p2 = b + dpb * keepDist;
-        if (det(*p1 - fromp, *p2 - fromp) < 0) {
+       /* if (det(*p1 - fromp, *p2 - fromp) < 0) {
             if (ms->m_minInPass == this) {
                 return false;
             }
-        }
+        }*/
         return true; 
         // if its on the other size of the segment, it means nothing since its not necessarily inside the object, will be ignored by Agent
     }

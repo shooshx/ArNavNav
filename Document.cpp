@@ -8,9 +8,16 @@ Document::Document(QObject *parent)
     : QObject(parent)
 {
     //init_preset();
-    init_test();
+    //init_test();
 
     //init_tri();
+
+    //init_circle();
+    init_grid();
+
+    for(int i = 0;i < 100; ++i)
+        m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
+
 }
 
 static ostream& operator<<(ostream& os, const Vec2& p) {
@@ -32,7 +39,8 @@ void Document::init_tri()
     }*/
     
     m_start = new Vertex(0, Vec2(200, 0));
-    m_end = new Vertex(1, Vec2(-200, 0));
+    m_end = new Goal(Vec2(-200, 0));
+    m_goals.push_back(m_end);
 
 /*
     m_markers.push_back(new Vertex(0, Vec2(-100, -100)));
@@ -41,8 +49,6 @@ void Document::init_tri()
     m_markers.push_back(new Vertex(4, Vec2(50, 50)));
     m_markers.push_back(new Vertex(5, Vec2(0,0)));
     */
-    for(int i = 0;i < 100; ++i)
-        m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
 
 }
 
@@ -219,10 +225,19 @@ void Document::runTriangulate()
         if (seg == nullptr)
             continue;
         Vec2 p1, p2;
-        seg->spanningPoints(m_prob->m_position, 30, &p1, &p2);
+        seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
         m_markers[cnt++]->p = p1;
         m_markers[cnt++]->p = p2;
     }
+}
+
+void Document::clearAllObj()
+{
+    for(auto* obj: m_objs)
+        delete obj;
+    m_objs.clear();
+    m_agents.clear();
+    m_prob = nullptr;
 }
 
 void Document::clearObst()
@@ -231,7 +246,7 @@ void Document::clearObst()
     while (it != m_objs.end()) 
     {
         Object* o = *it;
-        if (dynamic_cast<Agent*>(o) == nullptr) {
+        if (dynamic_cast<Segment*>(o) != nullptr || dynamic_cast<PointSegment*>(o) != nullptr) {
             delete o;
             it = m_objs.erase(it);
         }
@@ -240,25 +255,35 @@ void Document::clearObst()
     }
 }
 
+void Document::addAgent(const Vec2& pos, Goal* g)
+{
+    Agent* a = new Agent(100, pos,
+        g->p, // goal 
+        30.0, //30 for r=15, 15 for r=6, // 400 nei dist
+        10, // max nei
+        15.0, // 15 radius
+        20, // goal radius
+        5.0f, // pref speed
+        7.0f); // max speed
+               //a->m_velocity = Vec2(0, 1);
+    m_objs.push_back(a);
+    m_agents.push_back(a);
+    if (m_agents.size() == 1)
+        m_prob = a;
+    g->agents.push_back(a);
+}
+
 void Document::init_test()
 {
-    m_end = new Vertex(1, Vec2(-200, 0));
+    m_end = new Goal(Vec2(-200, 0));
+    m_goals.push_back(m_end);
     m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-
-    Agent* a = new Agent(100, Vec2(0, -140),
-        Vec2(0,140), // goal 
-        45.0, //30, 15.0, // 400 nei dist
-        10, // max nei
-        30.0, // 15 radius
-        1.5f, // goal radius
-        5.0f, // pref speed
-        7.0f); // max speed
-    //a->m_velocity = Vec2(0, 1);
-    m_objs.push_back(a);
-    m_prob = a;
-    
+    for(int i = 0; i < 2; ++i)
+    {
+        addAgent(Vec2(0, -140 + 50*i), m_end);
+    }    
 
   /*  Agent* a2 = new Agent(100, Vec2(50, -140),
         Vec2(0,140), // goal 
@@ -271,11 +296,12 @@ void Document::init_test()
     a2->m_velocity = Vec2(0, 1);
     m_objs.push_back(a2);*/
 
-    //m_objs.push_back(new Circle(Vec2(0, 0), 30.0, 0));
+   // m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
+   // m_objs.push_back(new Circle(Vec2(100, 0), 50.0, 0));
 
     //m_objs.push_back(new AABB(Vec2(0, 0), Vec2(50+30, 50+30), 0));
 
-    //m_objs.push_back(new AABB(Vec2(0, 0), Vec2(50, 50), 1));
+    //m_objs.push_back(new AABB(Vec2(0, 0), Vec2(150, 150), 1));
 
    // m_objs.push_back(new Segment(Vec2(0, -50), Vec2(50, 50), 1));
     //m_objs.push_back(new Segment(Vec2(50, 50), Vec2(50, 100), 1));
@@ -283,9 +309,50 @@ void Document::init_test()
     //m_objs.push_back(new Circle(Vec2(-39, 0), 40.0, 0));
     //m_objs.push_back(new Circle(Vec2(39, 0), 40.0, 0));
 
-    for(int i = 0;i < 100; ++i)
-        m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
 
+}
+
+#define TWO_PI (6.283185307179586f)
+
+#define COUNT 10
+#define ANG_OFFST 0
+
+void Document::init_circle()
+{
+    float d = 1.0/COUNT;
+
+    for (int i = 0; i < COUNT; ++i) 
+    {
+        Vec2 pos = 200.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
+        Goal *g = new Goal(-pos);
+        m_goals.push_back(g);
+        addAgent(pos, g); 
+    }
+
+    m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
+}
+
+void Document::init_grid()
+{
+    float d = 1.0/COUNT;
+
+    for (int i = 0; i < COUNT; ++i) 
+    {
+        Vec2 pos(-200, -200+i*(400/COUNT));
+        Goal *g = new Goal(pos+Vec2(400,0));
+        m_goals.push_back(g);
+        addAgent(pos, g); 
+    }
+    for (int i = 1; i < COUNT+1; ++i) 
+    {
+        Vec2 pos(-200+i*(400/COUNT), -200);
+        Goal *g = new Goal(pos+Vec2(0,400));
+        m_goals.push_back(g);
+        addAgent(pos, g); 
+    }
+
+
+    //m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
 }
 
 /*
@@ -355,16 +422,21 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     BihTree bihTree;
     bihTree.build(m_objs);
 
-    for(Object* obj: m_objs)
+
+    for(auto* agent: m_agents)
     {
-        Agent* agent = dynamic_cast<Agent*>(obj);
-        if (agent == nullptr || !agent->m_isMobile)
+        if (!agent->m_isMobile)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
         clearSegMinDist();
         agent->computeNeighbors(bihTree);
-        agent->computeNewVelocity();
+
+        VODump* vod = nullptr;
+        if (m_debugVoDump != nullptr && agent == m_prob)
+            vod = m_debugVoDump;
+
+        agent->computeNewVelocity(vod);
     }
 
     if (!doUpdate)

@@ -14,7 +14,16 @@
 
 
 using namespace std;
+class Agent;
+struct VODump;
 
+class Goal
+{
+public:
+    Goal(const Vec2& _p) :p(_p){}
+    Vec2 p;
+    vector<Agent*> agents;
+};
 
 class Document : public QObject
 {
@@ -31,7 +40,13 @@ public:
     void init_test();
     void init_tri();
 
+    void init_circle();
+    void init_grid();
+
     void clearObst();
+    void clearAllObj();
+
+    void addAgent(const Vec2& pos, Goal* g);
 
     void clearSegMinDist();
     bool doStep(float deltaTime, bool doUpdate);
@@ -40,15 +55,18 @@ public:
     vector<Object*> m_objs; // owning
     vector<MultiSegment> m_multisegs; // owning
 
+    vector<Agent*> m_agents;
     Mesh m_mesh;
     MapDef m_mapdef;
 
     Vertex *m_start = nullptr;
-    Vertex *m_end = nullptr;
+    Goal *m_end = nullptr;
+    vector<Goal*> m_goals;
     vector<Vec2> m_path;
     vector<Vertex*> m_markers;
     Object *m_prob = nullptr;
 
+    VODump* m_debugVoDump = nullptr; 
 };
 
 

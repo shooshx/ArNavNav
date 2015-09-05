@@ -1,5 +1,4 @@
-#ifndef NAVGRAPHICSVIEW_H
-#define NAVGRAPHICSVIEW_H
+#pragma once
 
 #include <QGraphicsView>
 #include <QGraphicsItem>
@@ -66,7 +65,8 @@ public:
     Circle* m_cobj;
 };
 
-#define VELOCITY_SCALE 30.0f
+//#define VELOCITY_SCALE 30.0f
+#define VELOCITY_SCALE 10.0f
 
 // little indicators of velocity
 class VelocityItem : public CircleItem
@@ -103,14 +103,17 @@ public:
     VOSItem(Agent* ofAgent, NavDialog* ctrl) :m_ctrl(ctrl), m_agent(ofAgent)
     {
         setCacheMode(NoCache);
+        m_data = &m_ownData;
     }
 
     virtual void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget);
     virtual QRectF boundingRect() const;
 
-    VODump m_data;
+    VODump m_ownData;
+    VODump *m_data;
     NavDialog* m_ctrl;
     Agent* m_agent;
+    Vec2 m_ghostPos = INVALID_VEC2;
 };
 
 
@@ -195,6 +198,28 @@ public:
     int m_radius = 5;
 };
 
+class GoalItem : public QGraphicsItem
+{
+public:
+    GoalItem(NavDialog* ctrl, Goal* g) :m_ctrl(ctrl), m_g(g)
+    {
+        setFlag(ItemIsMovable);
+        setFlag(ItemIsSelectable);
+        setCacheMode(NoCache);
+        setPos(m_g->p.x, m_g->p.y);
+    }
+
+    virtual void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget);
+    virtual QRectF boundingRect() const;
+
+    void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
+
+    NavDialog* m_ctrl;
+    Goal* m_g;
+    QColor m_color = QColor(50, 50, 50);
+    int m_radius = 5;
+};
+
 class MapDefItem : public QGraphicsItem 
 {
 public:
@@ -213,7 +238,7 @@ public:
 class PathItem : public QGraphicsItem
 {
 public:
-    PathItem(NavDialog* ctrl, vector<Vec2>* v) :m_ctrl(ctrl), m_v(v)
+    PathItem(NavDialog* ctrl, Agent* agent) :m_ctrl(ctrl), m_agent(agent)
     {
         setCacheMode(NoCache);
     }
@@ -222,7 +247,9 @@ public:
     virtual QRectF boundingRect() const;
 
     NavDialog* m_ctrl;
-    vector<Vec2>* m_v;
+    vector<Vec2> m_v;
+    Agent* m_agent;
+    int m_atframe = -1; // -1 means no frame;
 };
 
-#endif // NAVGRAPHICSVIEW_H
+

@@ -119,26 +119,40 @@ void NavDialog::readDoc()
 
     readPolyPoints();
 
+    m_startitem.reset();
     if (m_doc->m_start) {
         m_startitem.reset(new PolyPointItem(this, m_doc->m_start));
         m_startitem->m_color = QColor(50, 255, 50);
         m_startitem->m_radius = 7;
         m_scene->addItem(m_startitem.get());
     }
-    if (m_doc->m_end) {
-        m_enditem.reset(new PolyPointItem(this, m_doc->m_end));
-        m_enditem->m_color = QColor(255, 50, 50);
-        m_enditem->m_radius = 7;
-        m_scene->addItem(m_enditem.get());
+
+    m_goalitems.clear();
+    for(auto g: m_doc->m_goals) {
+        auto gi = new GoalItem(this, g);
+        m_goalitems.push_back(shared_ptr<GoalItem>(gi));
+        gi->m_color = QColor(255, 50, 50);
+        gi->m_radius = 7;
+        m_scene->addItem(gi);
     }
+
     m_markeritems.clear();
     for(auto* m: m_doc->m_markers) {
         m_markeritems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, m)));
         m_scene->addItem(m_markeritems.back().get());
     }
 
-    m_pathitem.reset(new PathItem(this, &m_doc->m_path));
-    m_scene->addItem(m_pathitem.get());
+    m_pathitems.clear();
+    m_pathitems.reserve(m_doc->m_agents.size());
+    m_probPath = nullptr;
+    for(auto* agent: m_doc->m_agents) {
+        auto p = new PathItem(this, agent);
+        m_pathitems.push_back(shared_ptr<PathItem>(p));
+        p->setZValue(5);
+        m_scene->addItem(p);
+        if (agent == m_doc->m_prob)
+            m_probPath = p;
+    }
 
   /*  m_mark1 = new CircleItem(new Circle(Vec2(50, -40), 6, -1), this);
     m_mark2 = new CircleItem(new Circle(Vec2(60, -40), 6, -1), this);
@@ -205,22 +219,38 @@ void NavDialog::update()
             auto *agent = dynamic_cast<Agent*>(obj);
             if (!agent)
                 continue;
-            agent->m_goalPos = m_doc->m_end->p;
+            //agent->m_goalPos = m_doc->m_end->p;
             agent->m_velocity = Vec2();
         }
 
-        m_agentPath.clear();
-        m_agentPath.push_back( m_doc->m_prob->m_position );
-        for(int i = 0; i < 500; ++i) {
-            m_doc->doStep(0.25, true);
-            m_agentPath.push_back( m_doc->m_prob->m_position );
+
+        for(int i = 0; i < m_doc->m_agents.size(); ++i) {
+            m_pathitems[i]->m_v.clear();
+            m_pathitems[i]->m_v.push_back( m_doc->m_agents[i]->m_position );
+            m_pathitems[i]->m_atframe = -1;
         }
 
-        m_pathitem->m_v = &m_agentPath;
+        m_pathVos.clear();
+        int frame = 0;
+        for(; frame < 1500; ++frame) 
+        {
+            if (false)
+            {
+                m_pathVos.push_back(VODump());
+                m_doc->m_debugVoDump = &m_pathVos.back();
+            }
+
+            if (m_doc->doStep(0.25, true))
+                break;
+
+            for(int i = 0; i < m_doc->m_agents.size(); ++i)
+                m_pathitems[i]->m_v.push_back( m_doc->m_agents[i]->m_position );
+        }
 
         // restore backup
         int i = 0;
-        for(auto* obj: m_doc->m_objs) {
+        for(auto* obj: m_doc->m_objs) 
+        {
             obj->m_position = startPoss[i++];
             auto *agent = dynamic_cast<Agent*>(obj);
             if (!agent)
@@ -228,16 +258,19 @@ void NavDialog::update()
             agent->m_velocity = Vec2();
         }
 
+        ui.frameSlider->setRange(-1, frame);
+        ui.frameNum->setText("0");
+
         //---------------------- VO
 
-        //if (false) 
+        if (false) 
         {
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
             float origNeiDist = agentProb->m_neighborDist;
             agentProb->m_neighborDist = 50;
             m_doc->doStep(0.25, false);
             if (m_vos != nullptr)
-                agentProb->computeNewVelocity(&m_vos->m_data);
+                agentProb->computeNewVelocity(m_vos->m_data);
             agentProb->m_neighborDist = origNeiDist;
         }
     }
@@ -270,6 +303,25 @@ void NavDialog::update()
     bt.query(m_doc->m_prob->m_position, m_doc->m_prob->size.x / 2, [](Object* obj) {
         obj->highlight = true;
     });*/
+
+    m_scene->update();
+}
+
+void NavDialog::on_frameSlider_valueChanged(int v)
+{
+    ui.frameNum->setText(QString("%1").arg(v));
+    for(auto& item: m_pathitems)
+        item->m_atframe = v;
+
+    if (v != -1 && m_pathVos.size() > 0) {
+        m_vos->m_data = &m_pathVos[v];
+        m_vos->m_ghostPos = m_probPath->m_v[v];
+    }
+    else {
+        m_vos->m_data = &m_vos->m_ownData;
+        m_vos->m_ghostPos = INVALID_VEC2;
+    }
+
 
     m_scene->update();
 }
@@ -316,9 +368,19 @@ void NavDialog::on_actionSave_triggered(bool)
             ++count;
         }
     }
-    ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
-    ofs << "end " << m_doc->m_end->p.x << " " << m_doc->m_end->p.y << "\n";
-    ofs << "prob " << m_doc->m_prob->m_position.x << " " << m_doc->m_prob->m_position.y << "\n";
+    if (m_doc->m_start)
+        ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
+    //ofs << "end " << m_doc->m_end->p.x << " " << m_doc->m_end->p.y << "\n";
+
+    map<Agent*, int> agentToGoal;
+    for(int i = 0; i < m_doc->m_goals.size(); ++i) {
+        auto* g = m_doc->m_goals[i];
+        for(auto* ag: g->agents)
+            agentToGoal[ag] = i;
+        ofs << "goal" << g->p.x << " " << g->p.y << "\n";
+    }
+    for(auto* agent: m_doc->m_agents)
+        ofs << "agent " << agent->m_position.x << " " << agent->m_position.y << " " << agentToGoal[agent] << "\n";
 
     cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_p.size() << " polylines" << endl;
 }
@@ -332,6 +394,8 @@ void NavDialog::on_actionLoad_triggered(bool)
         return;
 
     m_doc->m_mapdef.clear();
+    m_doc->clearAllObj();
+
     int count = 0;
     while (!ifs.eof()) {
         string line;
@@ -352,12 +416,25 @@ void NavDialog::on_actionLoad_triggered(bool)
             iss >> m_doc->m_start->p.x >> m_doc->m_start->p.y;
         }
         else if (h == "end") {
-            iss >> m_doc->m_end->p.x >> m_doc->m_end->p.y;
+            //iss >> m_doc->m_end->p.x >> m_doc->m_end->p.y;
         }
         else if (h == "prob") {
             Vec2 v;
             iss >> v.x >> v.y;
-            m_doc->m_prob->m_position = v;
+            if (m_doc->m_prob != nullptr)
+                m_doc->m_prob->m_position = v;
+        }
+        else if (h == "goal") {
+            Vec2 v;
+            iss >> v.x >> v.y;
+            m_doc->m_goals.push_back(new Goal(v));
+        }
+        else if (h == "agent") {
+            Vec2 v;
+            int i = 0;
+            iss >> v.x >> v.y >> i;
+            CHECK(i < m_doc->m_goals.size(), "unknown goal");
+            m_doc->addAgent(v, m_doc->m_goals[i]);
         }
 
     }

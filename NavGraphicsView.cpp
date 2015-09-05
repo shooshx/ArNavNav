@@ -20,7 +20,7 @@ void BaseItem::preparePainter(QPainter* painter, const QStyleOptionGraphicsItem*
         bc = QColor(255,255,0);
     }
     if (option->state & QStyle::State_Selected) {
-        bc = bc.lighter(170); // currently pressed.
+        bc = QColor(150, 0, 0); // currently pressed.
     }
     painter->setBrush(QBrush(bc));
 }
@@ -126,27 +126,33 @@ void VelocityItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
 
 void VOSItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
-    
-    Vec2 center = m_agent->m_position;
-    for(const auto& vo: m_data.vos) {
+    Vec2 center = m_ghostPos;
+    int alpha = 128;
+    if (!m_ghostPos.isValid()) {
+        center = m_agent->m_position;
+        alpha = 255;
+    }
+    for(const auto& vo: m_data->vos) {
         QPointF p[3];
-        p[0] = toQ(center + vo.m_apex);
-        p[1] = toQ(center + vo.m_apex + vo.m_side1 * 200.0f);
-        p[2] = toQ(center + vo.m_apex + vo.m_side2 * 200.0f);
+        Vec2 apx = center + vo.m_apex * VELOCITY_SCALE;
+        p[0] = toQ(apx);
+        p[1] = toQ(apx + vo.m_side1 * 200.0f);
+        p[2] = toQ(apx + vo.m_side2 * 200.0f);
         if (det(vo.m_side1, vo.m_side2) < 0)
-            painter->setBrush(QBrush(QColor(150, 0, 0)));
+            painter->setBrush(QBrush(QColor(150, 0, 0, alpha)));
         else
-            painter->setBrush(QBrush(QColor(150, 150, 255)));
+            painter->setBrush(QBrush(QColor(150, 150, 255, alpha)));
         painter->drawPolygon(p, 3);
     }
     painter->setBrush(QBrush(QColor(50, 50, 255)));
-    for(auto it = m_data.candidates.begin(); it != m_data.candidates.end(); ++it) {
+    for(auto it = m_data->candidates.begin(); it != m_data->candidates.end(); ++it) {
         auto& ca = it->second;
         auto q = toQ(center + ca.m_position * VELOCITY_SCALE);
         painter->drawEllipse(q, 4, 4);
-
     }
-
+    auto sq = toQ(center + m_data->selected * VELOCITY_SCALE);
+    painter->setBrush(QBrush(QColor(50, 255, 255)));
+    painter->drawEllipse(sq, 6, 6);
 }
 
 QRectF VOSItem::boundingRect() const {
@@ -195,13 +201,13 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     pen.setWidth(1);
     painter->setPen(pen);
     //painter->drawPolyline(pv, 3);
-    QColor col(150, 150, 255);
+    QColor col(200, 200, 255);
     if (m_t->highlight == 1) 
-        col = QColor(0, 190, 0);
+        col = QColor(200, 255, 200);
     else if (m_t->highlight == 2)
-        col = QColor(190, 0, 0);
+        col = QColor(255, 200, 200);
     else if (m_t->highlight == 3)
-        col = QColor(255, 150, 150);
+        col = QColor(255, 255, 200);
 
     painter->setBrush(QBrush(col));
     painter->drawPolygon(pv, 3);
@@ -225,8 +231,6 @@ QRectF TriItem::boundingRect() const {
 
 void PolyPointItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
-    auto qp = pos();
-    //Vec2 p(pos().x(), pos.y());
     painter->setBrush(QBrush(m_color));
     painter->drawEllipse(-m_radius, -m_radius, 2 * m_radius, 2 * m_radius);
 }
@@ -239,7 +243,27 @@ void PolyPointItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
     QGraphicsItem::mouseMoveEvent(event);
     auto p = pos();
     m_v->p = Vec2(p.x(), p.y()); 
+    m_ctrl->update();
+}
 
+// ------------------------------------------------------------------
+
+void GoalItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
+{
+    painter->setBrush(QBrush(m_color));
+    painter->drawEllipse(-m_radius, -m_radius, 2 * m_radius, 2 * m_radius);
+}
+QRectF GoalItem::boundingRect() const {
+    return QRectF(-m_radius - 2, -m_radius - 2, 2 * m_radius + 3, 2 * m_radius + 3);
+}
+
+
+void GoalItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
+    QGraphicsItem::mouseMoveEvent(event);
+    auto p = pos();
+    m_g->p = Vec2(p.x(), p.y()); 
+    for(auto* agent: m_g->agents)
+        agent->m_goalPos = m_g->p;
     m_ctrl->update();
 }
 
@@ -269,16 +293,27 @@ QRectF MapDefItem::boundingRect() const {
 
 void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
-    if (m_v->size() == 0)
+    if (m_v.size() == 0)
         return;
     QPen pen(QColor(0,0,0));
     pen.setWidth(2);
     painter->setPen(pen);
     QVector<QPointF> lp;
-    for(auto v: *m_v) {
+    for(auto v: m_v) {
         lp.append(toQ(v));
     }
     painter->drawPolyline(lp);
+    
+    if (m_atframe != -1) 
+    {
+        CHECK(m_atframe < m_v.size(), "unexpected atframe");
+        pen.setWidth(1);
+        painter->setPen(pen);
+        painter->setBrush(QBrush(QColor(255, 200, 200, 120)));
+        int radius = m_agent->size.x / 2;
+        const auto& pos = m_v[m_atframe];
+        painter->drawEllipse(pos.x - radius, pos.y - radius, 2 * radius, 2 * radius);
+    }
 }
 QRectF PathItem::boundingRect() const {
     return QRectF(-350, -350, 700, 700);
