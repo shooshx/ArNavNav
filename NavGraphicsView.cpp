@@ -263,7 +263,7 @@ void GoalItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
     auto p = pos();
     m_g->p = Vec2(p.x(), p.y()); 
     for(auto* agent: m_g->agents)
-        agent->m_goalPos = m_g->p;
+        agent->m_endGoalPos = m_g->p;
     m_ctrl->update();
 }
 
@@ -314,6 +314,15 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
         const auto& pos = m_v[m_atframe];
         painter->drawEllipse(pos.x - radius, pos.y - radius, 2 * radius, 2 * radius);
     }
+
+    QVector<QPointF> sp;
+    for(const auto& subgoal: m_agent->m_plan) {
+        sp.append(toQ(subgoal.p));
+    }
+    QPen pen2(QColor(255,0,0));
+    pen2.setWidth(1);
+    painter->setPen(pen2);
+    painter->drawPolyline(sp);
 }
 QRectF PathItem::boundingRect() const {
     return QRectF(-350, -350, 700, 700);

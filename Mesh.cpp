@@ -30,24 +30,27 @@ void Mesh::connectTri()
 {
     unpaired.clear();
     m_perimiters.clear();
+    
+    m_he.clear();
+    m_he.reserve(m_tri.size() * 3);
 
     for(auto t: m_tri) 
     {
-        HalfEdge* h0 = new HalfEdge();
+        HalfEdge* h0 = addHe();
         h0->tri = t;
         h0->from = t->v[0];
         h0->to = t->v[1];
         h0->midPnt = (t->v[1]->p + t->v[0]->p) * 0.5f;
         t->h[0] = h0;
 
-        HalfEdge* h1 = new HalfEdge();
+        HalfEdge* h1 = addHe();
         h1->tri = t;
         h1->from = t->v[1];
         h1->to = t->v[2];
         h1->midPnt = (t->v[2]->p + t->v[1]->p) * 0.5f;
         t->h[1] = h1;
 
-        HalfEdge* h2 = new HalfEdge();
+        HalfEdge* h2 = addHe();
         h2->tri = t;
         h2->from = t->v[2];
         h2->to = t->v[0];
@@ -152,10 +155,16 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     if (start == end)
         return false;
     priority_queue<PrioNode, vector<PrioNode>, decltype(lessPrioNode)*> tq(lessPrioNode);
-    HalfEdge* dummy = (HalfEdge*)0xff;
-    vector<HalfEdge*> destEdges;
-    vector<float> destCost; // used when selecting the best dest reached
+    HalfEdge* dummy = (HalfEdge*)0xff; // dummy cameFrom to mark the start edge
+    vector<HalfEdge*> destEdges; // max 3 possible dest edges
+    vector<float> destCost; // used when selecting the best dest reached out of possible 3
 
+    // clear HalfEdge data
+    for(auto& he: m_he)
+        he.clearData();
+    
+    // set up start edges and dest edges. 
+    // Start from end and go to start so its easy to connect the cameFrom pointers
     for(int i = 0; i < 3; ++i) 
     {
         auto sh = start->h[i];
@@ -186,6 +195,7 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
         HalfEdge* cur = curn.h;
         tq.pop();    
 
+        // was any dest edge reached?
         auto dsit = std::find(destEdges.begin(), destEdges.end(), cur);
         if (dsit != destEdges.end()) 
         {
@@ -196,6 +206,7 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
             continue; // need to find more ways to get there
         }
 
+        // two ways to go from this triangle
         HalfEdge* next[2] = { cur->next->opposite, cur->next->next->opposite }; 
         for(int i = 0; i < 2; ++i) 
         {
@@ -203,8 +214,8 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
             if (!n)
                 continue;
             float costToThis = cur->costSoFar + distm(cur->midPnt, n->midPnt);
-            if (costToThis > n->costSoFar)
-                continue;
+            if (costToThis >= n->costSoFar) // need to update an edge that was already reached? 
+                continue;                   // Equals avoid endless loop in degenerate triangulation
             n->costSoFar = costToThis;
             n->cameFrom = cur;
             float heur = n->costSoFar + distm(n->midPnt, startPos);
@@ -229,23 +240,23 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
 
 
 
-inline float triarea2(const Vec2* a, const Vec2* b, const Vec2* c)
+inline float triarea2(const Vertex* a, const Vertex* b, const Vertex* c)
 {
-    const float ax = b->x - a->x;
-    const float ay = b->y - a->y;
-    const float bx = c->x - a->x;
-    const float by = c->y - a->y;
+    const float ax = b->p.x - a->p.x;
+    const float ay = b->p.y - a->p.y;
+    const float bx = c->p.x - a->p.x;
+    const float by = c->p.y - a->p.y;
     return bx*ay - ax*by;
 }
 
-float vdistsqr(const Vec2* a, const Vec2* b)
+float vdistsqr(const Vertex* a, const Vertex* b)
 {
-    float dx = a->x - b->x;
-    float dy = a->y - b->y;
+    float dx = a->p.x - b->p.x;
+    float dy = a->p.y - b->p.y;
     return dx*dx + dy*dy;
 }
 
-inline bool vequal(const Vec2* a, const Vec2* b)
+inline bool vequal(const Vertex* a, const Vertex* b)
 {
     static const float eq = 0.001f*0.001f;
     return vdistsqr(a, b) < eq;
@@ -253,7 +264,7 @@ inline bool vequal(const Vec2* a, const Vec2* b)
 
 // http://digestingduck.blogspot.co.il/2010/03/simple-stupid-funnel-algorithm.html
 // http://digestingduck.blogspot.co.il/2010/07/my-paris-game-ai-conference.html
-void stringPull(vector<Vec2*> portalsRight, vector<Vec2*> portalsLeft, vector<Vec2>& output)
+void PathMaker::stringPull(vector<Vertex*> portalsRight, vector<Vertex*> portalsLeft)
 {
 
     // Init scan state
@@ -263,7 +274,7 @@ void stringPull(vector<Vec2*> portalsRight, vector<Vec2*> portalsLeft, vector<Ve
     auto *portalRight = portalsRight[0];
 
     // Add start point.
-    output.push_back(*portalApex);
+    //m_outputCall(portalApex);
 
 
     for (int i = 1; i < portalsRight.size(); ++i)
@@ -283,7 +294,7 @@ void stringPull(vector<Vec2*> portalsRight, vector<Vec2*> portalsLeft, vector<Ve
             else
             {
                 // Right over left, insert left to path and restart scan from portal left point.
-                output.push_back(*portalLeft);
+                m_outputCall(portalLeft);
 
                 // Make current left the new apex.
                 portalApex = portalLeft;
@@ -311,7 +322,7 @@ void stringPull(vector<Vec2*> portalsRight, vector<Vec2*> portalsLeft, vector<Ve
             else
             {
                 // Left over right, insert right to path and restart scan from portal right point.
-                output.push_back(*portalRight);
+                m_outputCall(portalRight);
 
                 // Make current right the new apex.
                 portalApex = portalRight;
@@ -328,7 +339,7 @@ void stringPull(vector<Vec2*> portalsRight, vector<Vec2*> portalsLeft, vector<Ve
         }
     }
     // Append last point to path.
-    output.push_back(*portalsRight.back());
+    m_outputCall(portalsRight.back());
 }
 
 
@@ -357,26 +368,28 @@ void commonVtx(Triangle* a, Triangle* b, Vertex** right, Vertex** left)
 }
 
 
-void Mesh::makePath(vector<Triangle*>& tripath, Vec2 start, Vec2 end, vector<Vec2>& output)
+void PathMaker::makePath(vector<Triangle*>& tripath, const Vec2& start, const Vec2& end)
 {
     if (tripath.size() == 0)
         return;
-    vector<Vec2*> leftPath, rightPath;
+    Vertex startDummy(-1, start), endDummy(-1, end);
+
+    vector<Vertex*> leftPath, rightPath;
     leftPath.reserve(tripath.size() + 1);
     rightPath.reserve(tripath.size() + 1);
 
-    leftPath.push_back(&start);
-    rightPath.push_back(&start);
+    leftPath.push_back(&startDummy);
+    rightPath.push_back(&startDummy);
     for (int i = 0; i < tripath.size() - 1; ++i) {
         Vertex *right, *left;
         commonVtx(tripath[i], tripath[i + 1], &right, &left);
-        leftPath.push_back(&left->p);
-        rightPath.push_back(&right->p);
+        leftPath.push_back(left);
+        rightPath.push_back(right);
     }
 
-    leftPath.push_back(&end);
-    rightPath.push_back(&end);
+    leftPath.push_back(&endDummy);
+    rightPath.push_back(&endDummy);
 
-    stringPull(rightPath, leftPath, output);
+    stringPull(rightPath, leftPath);
 
 }

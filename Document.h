@@ -7,8 +7,7 @@
 
 #include <vector>
 
-
-
+#include "Agent.h"
 #include "Objects.h"
 #include "Mesh.h"
 
@@ -20,10 +19,22 @@ struct VODump;
 class Goal
 {
 public:
-    Goal(const Vec2& _p) :p(_p){}
+    explicit Goal(const Vec2& _p) :p(_p) {}
     Vec2 p;
-    vector<Agent*> agents;
+    vector<Agent*> agents; // agents that have this goal
 };
+
+
+
+class ISubGoalMaker
+{
+public:
+    virtual ~ISubGoalMaker() {}
+    virtual void make(float distAway, const Vec2& comingFrom, vector<SubGoal>& addto) = 0;
+};
+
+
+
 
 class Document : public QObject
 {
@@ -52,17 +63,19 @@ public:
     bool doStep(float deltaTime, bool doUpdate);
 
 public:
-    vector<Object*> m_objs; // owning
-    vector<MultiSegment> m_multisegs; // owning
-
+    // input
     vector<Agent*> m_agents;
-    Mesh m_mesh;
     MapDef m_mapdef;
 
-    Vertex *m_start = nullptr;
-    Goal *m_end = nullptr;
+    // state
+    vector<Object*> m_objs; // owning
+    vector<MultiSegment> m_multisegs; // owning
+    vector<ISubGoalMaker*> m_seggoals; // save size as m_mesh.m_vtx. for every vertex, get goals that are away from it
+
+    Mesh m_mesh;
     vector<Goal*> m_goals;
-    vector<Vec2> m_path;
+
+    // display
     vector<Vertex*> m_markers;
     Object *m_prob = nullptr;
 

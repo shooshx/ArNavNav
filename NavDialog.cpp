@@ -37,7 +37,7 @@ NavDialog::NavDialog(QWidget *parent)
 
 
 static ostream& operator<<(ostream& os, const Vec2& p) {
-    os << p.x << ", " << p.y;
+    os << p.x << "," << p.y;
     return os;
 }
 
@@ -119,13 +119,13 @@ void NavDialog::readDoc()
 
     readPolyPoints();
 
-    m_startitem.reset();
+    /*m_startitem.reset();
     if (m_doc->m_start) {
         m_startitem.reset(new PolyPointItem(this, m_doc->m_start));
         m_startitem->m_color = QColor(50, 255, 50);
         m_startitem->m_radius = 7;
         m_scene->addItem(m_startitem.get());
-    }
+    }*/
 
     m_goalitems.clear();
     for(auto g: m_doc->m_goals) {
@@ -219,7 +219,7 @@ void NavDialog::update()
             auto *agent = dynamic_cast<Agent*>(obj);
             if (!agent)
                 continue;
-            //agent->m_goalPos = m_doc->m_end->p;
+
             agent->m_velocity = Vec2();
         }
 
@@ -368,8 +368,8 @@ void NavDialog::on_actionSave_triggered(bool)
             ++count;
         }
     }
-    if (m_doc->m_start)
-        ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
+    //if (m_doc->m_start)
+    //    ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
     //ofs << "end " << m_doc->m_end->p.x << " " << m_doc->m_end->p.y << "\n";
 
     map<Agent*, int> agentToGoal;
@@ -377,7 +377,7 @@ void NavDialog::on_actionSave_triggered(bool)
         auto* g = m_doc->m_goals[i];
         for(auto* ag: g->agents)
             agentToGoal[ag] = i;
-        ofs << "goal" << g->p.x << " " << g->p.y << "\n";
+        ofs << "goal " << g->p.x << " " << g->p.y << "\n";
     }
     for(auto* agent: m_doc->m_agents)
         ofs << "agent " << agent->m_position.x << " " << agent->m_position.y << " " << agentToGoal[agent] << "\n";
@@ -395,6 +395,7 @@ void NavDialog::on_actionLoad_triggered(bool)
 
     m_doc->m_mapdef.clear();
     m_doc->clearAllObj();
+    m_doc->m_goals.clear();
 
     int count = 0;
     while (!ifs.eof()) {
@@ -413,7 +414,7 @@ void NavDialog::on_actionLoad_triggered(bool)
             ++count;
         }
         else if (h == "start") {
-            iss >> m_doc->m_start->p.x >> m_doc->m_start->p.y;
+            //iss >> m_doc->m_start->p.x >> m_doc->m_start->p.y;
         }
         else if (h == "end") {
             //iss >> m_doc->m_end->p.x >> m_doc->m_end->p.y;

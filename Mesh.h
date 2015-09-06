@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <functional>
 #include "Vec2.h"
 
 using namespace std;
@@ -28,6 +29,12 @@ public:
     HalfEdge *opposite = nullptr;
     HalfEdge *next = nullptr;
     Triangle *tri = nullptr; 
+
+    void clearData() {
+        midPnt = Vec2();
+        cameFrom = nullptr;
+        costSoFar = FLT_MAX;
+    }
 
     Vec2 midPnt;
     HalfEdge* cameFrom = nullptr; 
@@ -116,17 +123,36 @@ public:
             delete t;
         m_vtx.clear();
         m_tri.clear();
+        m_perimiters.clear();
+        m_he.clear();
     }
 
     void connectTri();
     Triangle* findContaining(const Vec2& p);
     bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor);
-    static void makePath(vector<Triangle*>& tripath, Vec2 start, Vec2 end, vector<Vec2>& output);
 
-
+    HalfEdge* addHe() {
+        m_he.push_back(HalfEdge());
+        return &m_he.back();
+    }
 
     // owns these vertices
     vector<Vertex*> m_vtx;
     vector<Triangle*> m_tri;
     vector<Polyline> m_perimiters;
+    vector<HalfEdge> m_he;
+};
+
+
+class PathMaker
+{
+public:
+    typedef std::function<void(Vertex*)> TCallback;
+    PathMaker(TCallback& callback) :m_outputCall(callback) 
+    {}
+
+    void stringPull(vector<Vertex*> portalsRight, vector<Vertex*> portalsLeft);
+    void makePath(vector<Triangle*>& tripath, const Vec2& start, const Vec2& end);
+
+    TCallback& m_outputCall;
 };

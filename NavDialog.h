@@ -46,7 +46,7 @@ public:
     vector<shared_ptr<TriItem>> m_meshitems;
     vector<shared_ptr<PolyPointItem>> m_polypointitems;
     shared_ptr<MapDefItem> m_mapitem;
-    shared_ptr<PolyPointItem> m_startitem;
+    //shared_ptr<PolyPointItem> m_startitem;
     vector<shared_ptr<GoalItem>> m_goalitems;
     vector<shared_ptr<PolyPointItem>> m_markeritems;
     vector<shared_ptr<PathItem>> m_pathitems; // for every agent in m_doc->m_agents

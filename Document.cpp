@@ -8,12 +8,12 @@ Document::Document(QObject *parent)
     : QObject(parent)
 {
     //init_preset();
-    //init_test();
+    init_test();
 
     //init_tri();
 
     //init_circle();
-    init_grid();
+    //init_grid();
 
     for(int i = 0;i < 100; ++i)
         m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
@@ -21,7 +21,7 @@ Document::Document(QObject *parent)
 }
 
 static ostream& operator<<(ostream& os, const Vec2& p) {
-    os << p.x << ", " << p.y;
+    os << p.x << "," << p.y;
     return os;
 }
 
@@ -38,9 +38,9 @@ void Document::init_tri()
         //std::cout << gt[i] << "  " << gt[i + 1] << "  " << gt[i + 2] << endl;
     }*/
     
-    m_start = new Vertex(0, Vec2(200, 0));
-    m_end = new Goal(Vec2(-200, 0));
-    m_goals.push_back(m_end);
+    //m_start = new Vertex(0, Vec2(200, 0));
+    //auto _end = ;
+    m_goals.push_back(new Goal(Vec2(-200, 0)));
 
 /*
     m_markers.push_back(new Vertex(0, Vec2(-100, -100)));
@@ -52,7 +52,46 @@ void Document::init_tri()
 
 }
 
-void runTri(MapDef* mapdef, Mesh& out);
+class SubGoalFromSegment : public ISubGoalMaker
+{
+public:
+    SubGoalFromSegment(Segment* s) :m_seg(s) 
+    {}
+    virtual void make(float keepDist, const Vec2& comingFrom, vector<SubGoal>& addto) {
+        Vec2 a, b;
+        m_seg->justExtPoints(keepDist, &a, &b);
+        addto.push_back( SubGoal(a) ); // always take the first, that's how they are built
+    }
+
+    Segment* m_seg;
+};
+
+class SubGoalFromPointSeg : public ISubGoalMaker
+{
+public:
+    SubGoalFromPointSeg(PointSegment* ps) :m_pnseg(ps)
+    {}
+    virtual void make(float keepDist, const Vec2& comingFrom, vector<SubGoal>& addto) {
+        Vec2 a, b;
+        m_pnseg->justExtPoints(keepDist, &a, &b);
+        // don't know which order to put them, middle will be enough?
+        Vec2 mid = (a + b)*0.5f - m_pnseg->b;
+        Vec2 toPrev = comingFrom - m_pnseg->b;
+        if (det(mid, toPrev) > 0) { // check which side of the mid line we're coming from and decide what order should the points be
+            addto.push_back(SubGoal(a));
+            addto.push_back(SubGoal(b));
+        }
+        else {
+            addto.push_back(SubGoal(b));
+            addto.push_back(SubGoal(a));
+        }
+
+        //addto.push_back( SubGoal(mid) );
+    }
+
+    PointSegment* m_pnseg;
+};
+
 
 #define SQRT_2 (1.4142135623730950488016887242097f)
 
@@ -74,15 +113,19 @@ public:
         :m_v(v), m_doc(doc), m_ms(ms)
     {}
 
-    Segment* addSegment(const Vec2& a, const Vec2& b, const Vec2& dpa, const Vec2& dpb)
+    Segment* addSegment(const Vec2& a, const Vec2& b, const Vec2& dpa, const Vec2& dpb, int vtxIndex)
     {
         auto s = new Segment(a, b, dpa, dpb, m_doc->m_objs.size(), m_ms);
         m_doc->m_objs.push_back(s);
+        if (vtxIndex >= 0)
+            m_doc->m_seggoals[vtxIndex] = new SubGoalFromSegment(s);
         return s;
     }
-    void addPSegment(const Vec2& b, const Vec2& dpa, const Vec2& dpb)
+    void addPSegment(const Vec2& b, const Vec2& dpa, const Vec2& dpb, int vtxIndex)
     {
-        m_doc->m_objs.push_back(new PointSegment(b, dpa, dpb, m_doc->m_objs.size()));
+        auto ps = new PointSegment(b, dpa, dpb, m_doc->m_objs.size());
+        m_doc->m_objs.push_back(ps);
+        m_doc->m_seggoals[vtxIndex] = new SubGoalFromPointSeg(ps);
     }
 
     void makeSegments()
@@ -113,8 +156,8 @@ public:
 
                 prevSeg->dpb = dpb1_m;
              //   addSegment(a, b, dpa, dpb1_m);
-                addPSegment(b, dpb1, dpb2);
-                prevSeg = addSegment(b, c, dpb2_m, dpc);
+                addPSegment(b, dpb1, dpb2, m_v[i]->index);
+                prevSeg = addSegment(b, c, dpb2_m, dpc, -1); // PointSegment takes precedence for representing this vertex in m_seggoals
             }
             else
             {
@@ -125,9 +168,9 @@ public:
 
                 Vec2 amid = normalize(nab - nbc) * SQRT_2;
                 prevSeg->dpb = mid + nab * ANTI_OVERLAP_FACTOR; // avoid overlap
-                prevSeg = addSegment(b, c, mid, mid);
+                prevSeg = addSegment(b, c, mid, mid, m_v[i]->index);
             }
-            // TBD exactly 1
+            // TBD exactly 0
 
         }
         prevSeg->dpb = beforeFirst.dpb;
@@ -139,12 +182,14 @@ public:
         return m_v[(i + sz)% sz]->p;
     }
 
-    vector<Vertex*>& m_v;
+    vector<Vertex*>& m_v; // vertices of polyline
     Document* m_doc;
     MultiSegment* m_ms;
 
 };
 
+
+void runTri(MapDef* mapdef, Mesh& out);
 
 
 void Document::runTriangulate()
@@ -156,69 +201,22 @@ void Document::runTriangulate()
     m_mesh.connectTri();
 
 
-    if (m_start && m_end)
-    {
-        Triangle* startTri = m_mesh.findContaining(m_start->p);
-        //if (startTri)
-        //     startTri->highlight = 1;
-        Triangle* endTri = m_mesh.findContaining(m_end->p);
-        //if (endTri)
-        //    endTri->highlight = 2;
-
-        if (endTri && startTri)
-        {
-            vector<Triangle*> corridor;
-            m_mesh.edgesAstarSearch(m_start->p, m_end->p, startTri, endTri, corridor);
-
-            for(auto* t: corridor)
-                if (t->highlight == 0)
-                    t->highlight = 3;
-
-            m_path.clear();
-            Mesh::makePath(corridor, m_start->p, m_end->p, m_path);
-        }
-    }
-    // ---------------------
-
     clearObst();
 
+    m_multisegs.clear();
     m_multisegs.resize(m_mesh.m_perimiters.size()); // elements will not change address
+    m_seggoals.clear();
+    m_seggoals.resize(m_mesh.m_vtx.size());
+
     for(int i = 0; i < m_mesh.m_perimiters.size(); ++i)
     {
         auto& poly = m_mesh.m_perimiters[i];
         int sz = poly.m_d.size();
         MultiSegMaker ms(poly.m_d, this, &m_multisegs[i]); 
         ms.makeSegments();
-
-/*        for(int i = 0; i < sz; ++i) 
-        {
-            Vertex* c = poly.m_d[(i - 1 + sz) % sz];
-            Vertex* a = poly.m_d[i];
-            Vertex* b = poly.m_d[(i + 1) % sz];
-
-            Vec2 ca = a->p - c->p;
-            Vec2 perp_ca = Vec2(ca.y, -ca.x).normalize() * 25;
-            Vec2 near_c = c->p + perp_ca;
-            
-            
-            Vec2 ab = b->p - a->p;
-            Vec2 perp_ab = Vec2(ab.y, -ab.x).normalize() * 25;
-            Vec2 near_a = a->p + perp_ab;
-
-            Vec2 p = lineIntersect(near_c, ca, near_a, ab);
-
-            //if (cnt < m_markers.size())
-            //    m_markers[cnt++]->p = p;
-            
-            auto s = new Segment(a->p, b->p, i+1);
-            m_objs.push_back(s);
-            Vec2 p1, p2;
-            s->spanningPoints(m_prob->m_position, 15, &p1, &p2);
-            m_markers[cnt++]->p = p1;
-            m_markers[cnt++]->p = p2;
-        }*/
     }
 
+    // set segment markers
     int cnt = 0;
     for(auto* obj: m_objs) {
         auto* seg = dynamic_cast<Segment*>(obj);
@@ -229,6 +227,64 @@ void Document::runTriangulate()
         m_markers[cnt++]->p = p1;
         m_markers[cnt++]->p = p2;
     }
+
+    //------------------------------------
+
+    for(auto agent: m_agents)
+    {
+        const Vec2& startp = agent->m_position;
+        const Vec2& endp = agent->m_endGoalPos;
+        Triangle* startTri = m_mesh.findContaining(startp);
+        Triangle* endTri = m_mesh.findContaining(endp);
+
+        if (!endTri || !startTri) {
+            continue;
+        }
+        if (startTri == endTri) 
+        {
+            agent->m_plan.push_back(SubGoal(endp));
+            agent->m_indexInPlan = 0;
+            agent->m_curGoalPos = agent->m_plan[0];
+            continue;
+        }
+
+        vector<Triangle*> corridor;
+        if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor))
+        {
+
+            //for(auto* t: corridor)
+            //    if (t->highlight == 0)
+            //        t->highlight = 3;
+
+            agent->m_plan.clear();
+            Vec2 prevInPath = startp;
+            std::function<void(Vertex*)> f([&](Vertex* v) {
+                if (v->index < 0) { // means its a dummy vertex
+                    agent->m_plan.push_back(SubGoal(v->p));
+                }
+                else {
+                    auto* subGoalMaker = m_seggoals[v->index];
+                    CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+                    
+                    subGoalMaker->make(agent->m_radius, prevInPath, agent->m_plan);
+                    prevInPath = agent->m_plan.back().p;
+                }   
+            });
+            PathMaker pm(f);
+            pm.makePath(corridor, startp, endp);
+
+            
+            //for(auto& sg: agent->m_plan)
+            //    cout << sg.p << "  ";
+
+            agent->m_indexInPlan = 0;
+            agent->m_curGoalPos = agent->m_plan[0];
+        }
+
+
+    }
+
+
 }
 
 void Document::clearAllObj()
@@ -275,14 +331,14 @@ void Document::addAgent(const Vec2& pos, Goal* g)
 
 void Document::init_test()
 {
-    m_end = new Goal(Vec2(-200, 0));
-    m_goals.push_back(m_end);
-    m_start = new Vertex(0, Vec2(200, 0));
+    auto gend = new Goal(Vec2(-200, 0));
+    m_goals.push_back(gend);
+    //m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-    for(int i = 0; i < 2; ++i)
+    for(int i = 0; i < 1 ; ++i)
     {
-        addAgent(Vec2(0, -140 + 50*i), m_end);
+        addAgent(Vec2(0, -140 + 50*i), gend);
     }    
 
   /*  Agent* a2 = new Agent(100, Vec2(50, -140),

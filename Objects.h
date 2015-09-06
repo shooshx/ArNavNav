@@ -157,10 +157,15 @@ public:
         return d;
     }
 
-    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    void justExtPoints(float keepDist, Vec2* p1, Vec2* p2) const
     {
         *p1 = a + dpa * keepDist;
         *p2 = b + dpb * keepDist;
+    }
+
+    virtual bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    {
+        justExtPoints(keepDist, p1, p2);
        /* if (det(*p1 - fromp, *p2 - fromp) < 0) {
             if (ms->m_minInPass == this) {
                 return false;
@@ -189,10 +194,15 @@ public:
         return distSq(b, fromp);
     }
 
-    bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    void justExtPoints(float keepDist, Vec2* p1, Vec2* p2) const
     {
         *p1 = b + dpa * keepDist;
         *p2 = b + dpb * keepDist;
+    }
+
+    virtual bool spanningPoints(const Vec2& fromp, float keepDist, Vec2* p1, Vec2* p2) const
+    {
+        justExtPoints(keepDist, p1, p2);
         return true; 
     }
 

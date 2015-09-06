@@ -59,9 +59,6 @@
     <ClCompile Include="Agent.cpp">
       <Filter>hrvo</Filter>
     </ClCompile>
-    <ClCompile Include="Circle.cpp">
-      <Filter>hrvo</Filter>
-    </ClCompile>
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="poly2tri\advancing_front.cc">
       <Filter>poly2tri</Filter>

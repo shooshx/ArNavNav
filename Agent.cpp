@@ -292,7 +292,7 @@ void Agent::computeNewVelocity(VODump* dump)
 	}
 #endif
 
-	int optimal = -1;
+	//int optimal = -1;
 
     m_newVelocity = Vec2();
     if (minScore != FLT_MAX)
@@ -337,13 +337,13 @@ void Agent::computeNewVelocity(VODump* dump)
 
 void Agent::computePreferredVelocity(float deltaTime)
 {
-	const float distSqToGoal = absSq(m_goalPos - m_position);
+	const float distSqToGoal = absSq(m_curGoalPos.p - m_position);
 
 	if (sqr(m_prefSpeed * deltaTime) > distSqToGoal) {
-		m_prefVelocity = (m_goalPos - m_position) / deltaTime;
+		m_prefVelocity = (m_curGoalPos.p - m_position) / deltaTime;
 	}
 	else {
-		m_prefVelocity = m_prefSpeed * (m_goalPos - m_position) / std::sqrt(distSqToGoal);
+		m_prefVelocity = m_prefSpeed * (m_curGoalPos.p - m_position) / std::sqrt(distSqToGoal);
 	}
 }
 
@@ -396,11 +396,19 @@ bool Agent::update(float deltaTime)
 
 	m_position += m_velocity * deltaTime;
 
-    bool reachedGoal = ( (absSq(m_goalPos - m_position) < m_goalRadius * m_goalRadius) );
+    bool reachedGoal = ( (absSq(m_curGoalPos.p - m_position) < m_goalRadius * m_goalRadius) );
+    bool reachedEnd = false;
+    if (reachedGoal) {
+        ++m_indexInPlan;
+        if (m_indexInPlan < m_plan.size())
+            m_curGoalPos = m_plan[m_indexInPlan];
+        else
+            reachedEnd = true;
+    }
 
-	if (!reachedGoal) {
+	/*if (!reachedEnd) {
 		m_orientation = atan(m_prefVelocity);
-	}
-    return reachedGoal;
+	}*/
+    return reachedEnd;
 }
 

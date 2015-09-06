@@ -83,7 +83,6 @@
   <ItemGroup>
     <ClCompile Include="Agent.cpp" />
     <ClCompile Include="BihTree.cpp" />
-    <ClCompile Include="Circle.cpp" />
     <ClCompile Include="Document.cpp" />
     <ClCompile Include="GeneratedFiles\Debug\moc_Document.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
