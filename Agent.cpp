@@ -335,15 +335,23 @@ void Agent::computeNewVelocity(VODump* dump)
 
 }
 
+
+
 void Agent::computePreferredVelocity(float deltaTime)
 {
-	const float distSqToGoal = absSq(m_curGoalPos.p - m_position);
+    //Vec2 toGoal = m_curGoalPos.p - m_position;
+    Vec2 goalPnt = m_curGoalPos->getDest(m_position);
+    Vec2 toGoal = goalPnt - m_position;
 
-	if (sqr(m_prefSpeed * deltaTime) > distSqToGoal) {
-		m_prefVelocity = (m_curGoalPos.p - m_position) / deltaTime;
+	const float distSqToGoal = absSq(toGoal);
+
+	if (m_curGoalPos->shouldTaper() && sqr(m_prefSpeed * deltaTime) > distSqToGoal) 
+    { // close to the goal? the point goal is the final one and we should not overshoot it
+		m_prefVelocity = (toGoal) / deltaTime;
 	}
-	else {
-		m_prefVelocity = m_prefSpeed * (m_curGoalPos.p - m_position) / std::sqrt(distSqToGoal);
+	else 
+    { // in segment goals we can overshoot the line, that's intended.
+		m_prefVelocity = (m_prefSpeed / std::sqrt(distSqToGoal)) * toGoal;
 	}
 }
 
@@ -396,12 +404,13 @@ bool Agent::update(float deltaTime)
 
 	m_position += m_velocity * deltaTime;
 
-    bool reachedGoal = ( (absSq(m_curGoalPos.p - m_position) < m_goalRadius * m_goalRadius) );
+    //bool reachedGoal = ( (absSq(m_curGoalPos.p - m_position) < m_goalRadius * m_goalRadius) );
+    bool reachedGoal = m_curGoalPos->isPassed(m_position);
     bool reachedEnd = false;
     if (reachedGoal) {
         ++m_indexInPlan;
-        if (m_indexInPlan < m_plan.size())
-            m_curGoalPos = m_plan[m_indexInPlan];
+        if (m_indexInPlan < m_plan.m_d.size())
+            m_curGoalPos = m_plan.m_d[m_indexInPlan];
         else
             reachedEnd = true;
     }

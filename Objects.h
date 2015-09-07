@@ -207,7 +207,8 @@ public:
     }
 
 
-    Vec2 b, dpa, dpb;
+    Vec2 b;
+    Vec2 dpa, dpb; 
 };
 
 

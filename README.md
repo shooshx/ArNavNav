@@ -7,8 +7,9 @@ Current features
 
 TBD
 - finalize base features
-- extract polylines from terrain mesh
+- add agent radius consideration in A*
 - reduce allocation and small objects
-- better GUI for defining the scene
+- extract polylines from terrain mesh
 - more accurate A* - not between mid-segments
+- better GUI for defining the scene
 - connect different meshes to make floors?

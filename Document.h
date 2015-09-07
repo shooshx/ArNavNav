@@ -30,7 +30,7 @@ class ISubGoalMaker
 {
 public:
     virtual ~ISubGoalMaker() {}
-    virtual void make(float distAway, const Vec2& comingFrom, vector<SubGoal>& addto) = 0;
+    virtual void make(float distAway, const Vec2& comingFrom, Plan& addto) = 0;
 };
 
 

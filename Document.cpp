@@ -57,33 +57,39 @@ class SubGoalFromSegment : public ISubGoalMaker
 public:
     SubGoalFromSegment(Segment* s) :m_seg(s) 
     {}
-    virtual void make(float keepDist, const Vec2& comingFrom, vector<SubGoal>& addto) {
+    virtual void make(float keepDist, const Vec2& comingFrom, Plan& addto) {
         Vec2 a, b;
         m_seg->justExtPoints(keepDist, &a, &b);
-        addto.push_back( SubGoal(a) ); // always take the first, that's how they are built
+        Vec2 outv = a - m_seg->a;
+        Vec2 toPrev = comingFrom - m_seg->a;
+        bool rev = det(outv, toPrev) < 0;
+        addto.addSeg(a, m_seg->dpa, rev); // always take the first, that's how they are built
+        // dpa is not normalized, but it's close to 1 and the length of the SubGoalSegment does not need to be accurate
     }
 
     Segment* m_seg;
 };
+
 
 class SubGoalFromPointSeg : public ISubGoalMaker
 {
 public:
     SubGoalFromPointSeg(PointSegment* ps) :m_pnseg(ps)
     {}
-    virtual void make(float keepDist, const Vec2& comingFrom, vector<SubGoal>& addto) {
+    virtual void make(float keepDist, const Vec2& comingFrom, Plan& addto) 
+    {
         Vec2 a, b;
         m_pnseg->justExtPoints(keepDist, &a, &b);
         // don't know which order to put them, middle will be enough?
         Vec2 mid = (a + b)*0.5f - m_pnseg->b;
         Vec2 toPrev = comingFrom - m_pnseg->b;
         if (det(mid, toPrev) > 0) { // check which side of the mid line we're coming from and decide what order should the points be
-            addto.push_back(SubGoal(a));
-            addto.push_back(SubGoal(b));
-        }
+            addto.addSeg(a, m_pnseg->dpa, false);
+            addto.addSeg(b, m_pnseg->dpb, false);
+        }  // dpa,dpb are not normalized, but close enough, see above
         else {
-            addto.push_back(SubGoal(b));
-            addto.push_back(SubGoal(a));
+            addto.addSeg(b, m_pnseg->dpb, true); // rev true since if we're coming from this size, determining the isPassed half-plane is reveresed
+            addto.addSeg(a, m_pnseg->dpa, true);
         }
 
         //addto.push_back( SubGoal(mid) );
@@ -242,9 +248,9 @@ void Document::runTriangulate()
         }
         if (startTri == endTri) 
         {
-            agent->m_plan.push_back(SubGoal(endp));
+            agent->m_plan.setEnd(endp, agent->m_goalRadius);
             agent->m_indexInPlan = 0;
-            agent->m_curGoalPos = agent->m_plan[0];
+            agent->m_curGoalPos = agent->m_plan.m_d[0];
             continue;
         }
 
@@ -256,18 +262,23 @@ void Document::runTriangulate()
             //    if (t->highlight == 0)
             //        t->highlight = 3;
 
-            agent->m_plan.clear();
+            agent->m_plan.clearAndReserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
+
             Vec2 prevInPath = startp;
+            int prevVtxIndex = -2;
             std::function<void(Vertex*)> f([&](Vertex* v) {
-                if (v->index < 0) { // means its a dummy vertex
-                    agent->m_plan.push_back(SubGoal(v->p));
+                if (v->index == prevVtxIndex)
+                    return; // string pull may produce the same vertex multiple times, ignore it
+                prevVtxIndex = v->index;
+                if (v->index < 0) { // means its the end dummy vertex
+                    agent->m_plan.setEnd(v->p, agent->m_goalRadius);
                 }
                 else {
                     auto* subGoalMaker = m_seggoals[v->index];
                     CHECK(subGoalMaker != nullptr, "null subGoalMaker");
                     
                     subGoalMaker->make(agent->m_radius, prevInPath, agent->m_plan);
-                    prevInPath = agent->m_plan.back().p;
+                    prevInPath = agent->m_plan.m_d.back()->representPoint();
                 }   
             });
             PathMaker pm(f);
@@ -278,7 +289,7 @@ void Document::runTriangulate()
             //    cout << sg.p << "  ";
 
             agent->m_indexInPlan = 0;
-            agent->m_curGoalPos = agent->m_plan[0];
+            agent->m_curGoalPos = agent->m_plan.m_d[0];
         }
 
 
@@ -481,7 +492,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
 
     for(auto* agent: m_agents)
     {
-        if (!agent->m_isMobile)
+        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
@@ -502,7 +513,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     for (Object* obj: m_objs) 
     {
         Agent* agent = dynamic_cast<Agent*>(obj);
-        if (agent == nullptr || !agent->m_isMobile)
+        if (agent == nullptr || !agent->m_isMobile || agent->m_curGoalPos == nullptr)
             continue;
         reachedGoals &= agent->update(deltaTime);
     }

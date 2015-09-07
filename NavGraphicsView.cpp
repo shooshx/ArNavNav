@@ -291,6 +291,8 @@ QRectF MapDefItem::boundingRect() const {
 
 // ------------------------------------------------------------------
 
+
+
 void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
     if (m_v.size() == 0)
@@ -316,13 +318,16 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
     }
 
     QVector<QPointF> sp;
-    for(const auto& subgoal: m_agent->m_plan) {
-        sp.append(toQ(subgoal.p));
+    for(const auto& subgoal: m_agent->m_plan.m_d) {
+        sp.append(toQ(subgoal->representPoint()));
     }
+
+
     QPen pen2(QColor(255,0,0));
     pen2.setWidth(1);
     painter->setPen(pen2);
     painter->drawPolyline(sp);
+
 }
 QRectF PathItem::boundingRect() const {
     return QRectF(-350, -350, 700, 700);
