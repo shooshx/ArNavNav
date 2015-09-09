@@ -1,0 +1,40 @@
+goal200 -200
+goal200 -160
+goal200 -120
+goal200 -80
+goal200 -40
+goal200 0
+goal200 40
+goal200 80
+goal200 120
+goal200 160
+goal-160 200
+goal-120 200
+goal-80 200
+goal-40 200
+goal0 200
+goal40 200
+goal80 200
+goal120 200
+goal160 200
+goal200 200
+agent -200 -200 0
+agent -200 -160 1
+agent -200 -120 2
+agent -200 -80 3
+agent -200 -40 4
+agent -200 0 5
+agent -200 40 6
+agent -200 80 7
+agent -200 120 8
+agent -200 160 9
+agent -160 -200 10
+agent -120 -200 11
+agent -80 -200 12
+agent -40 -200 13
+agent 0 -200 14
+agent 40 -200 15
+agent 80 -200 16
+agent 120 -200 17
+agent 160 -200 18
+agent 200 -200 19

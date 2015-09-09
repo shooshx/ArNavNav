@@ -31,10 +31,21 @@ public:
     };
 
 
-    void operator+=(const Vec2 &o)
-    {
+    void operator+=(const Vec2 &o) {
         x += o.x;
         y += o.y;
+    }
+    void operator-=(const Vec2 &o) {
+        x -= o.x;
+        y -= o.y;
+    }
+    void operator/=(float v) {
+        x /= v;
+        y /= v;
+    }
+    void operator*=(float v) {
+        x *= v;
+        y *= v;
     }
 
     void mmax(const Vec2& v) {

@@ -30,7 +30,11 @@ class ISubGoalMaker
 {
 public:
     virtual ~ISubGoalMaker() {}
-    virtual void make(float distAway, const Vec2& comingFrom, Plan& addto) = 0;
+    // add points to the path that. PointSegment adds 2 goal segments for a sharp corner 
+    // normal segment adds 1 goal segment
+    virtual void makeSubGoal(float keepDist, const Vec2& comingFrom, Plan& addto) = 0;
+    // return a single "representative" point for this vertex so that extracting the path from the corridor would be accurate
+    virtual Vec2 makePathRef(float keepDist) = 0;
 };
 
 

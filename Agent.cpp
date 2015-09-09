@@ -408,9 +408,10 @@ bool Agent::update(float deltaTime)
     bool reachedGoal = m_curGoalPos->isPassed(m_position);
     bool reachedEnd = false;
     if (reachedGoal) {
-        ++m_indexInPlan;
-        if (m_indexInPlan < m_plan.m_d.size())
+        if (m_indexInPlan < m_plan.m_d.size()) {
             m_curGoalPos = m_plan.m_d[m_indexInPlan];
+            ++m_indexInPlan;
+        }
         else
             reachedEnd = true;
     }

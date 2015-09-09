@@ -52,13 +52,13 @@ class SegmentSubGoal : public ISubGoal
 {
 public:
     SegmentSubGoal() {}
-    SegmentSubGoal(const Vec2& _a, const Vec2& _b) :a(_a), b(_b), ab(_b - _a)
+    SegmentSubGoal(const Vec2& _a, const Vec2& _b, int _passCheckSign) :a(_a), b(_b), ab(_b - _a), passCheckSign(_passCheckSign)
     {}
     virtual Vec2 getDest(const Vec2& comingFrom) const {
         return project(comingFrom, a, b);
     }
     virtual bool isPassed(const Vec2& amAt) const {
-        return det(ab, amAt - a) < 0; // did we pass the line
+        return (passCheckSign * det(ab, amAt - a)) < 0; // did we pass the line
     }
     virtual bool shouldTaper() const {
         return false;
@@ -67,7 +67,7 @@ public:
         return a;
     }
     Vec2 a, b, ab;
-
+    int passCheckSign = 1;
 };
 
 // for the end point
@@ -109,9 +109,8 @@ public:
     void addSeg(Vec2 a, const Vec2& dir, bool rev) {
         Vec2 b = a + dir * GOAL_SEGMENT_LEN;
         CHECK(m_segs.size() < m_segs.capacity(), "You did not reserve enough space");
-        if (rev)
-            iswap(a, b);
-        m_segs.push_back(SegmentSubGoal(a, b));
+
+        m_segs.push_back(SegmentSubGoal(a, b, rev ? -1 : 1));
         m_d.push_back(&m_segs.back());
     }
     void setEnd(const Vec2& p, float radius) {

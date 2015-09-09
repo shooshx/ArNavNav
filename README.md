@@ -5,6 +5,11 @@ Current features
 - Fast collision detection of multiple agents that move in the scene
 - A* planning on the navigation mesh
 
+next fixes
+- BUG - achieving goal and then backing up due to collision
+- goal point should not be projection, should be as tight as possible
+- midPnt is changed in the mesh - bad for reusing the mesh
+
 TBD
 - finalize base features
 - add agent radius consideration in A*
@@ -13,3 +18,4 @@ TBD
 - more accurate A* - not between mid-segments
 - better GUI for defining the scene
 - connect different meshes to make floors?
+

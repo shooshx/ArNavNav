@@ -57,14 +57,20 @@ class SubGoalFromSegment : public ISubGoalMaker
 public:
     SubGoalFromSegment(Segment* s) :m_seg(s) 
     {}
-    virtual void make(float keepDist, const Vec2& comingFrom, Plan& addto) {
+    virtual void makeSubGoal(float keepDist, const Vec2& comingFrom, Plan& addto) {
         Vec2 a, b;
-        m_seg->justExtPoints(keepDist, &a, &b);
+        m_seg->justExtPoints(keepDist, &a, &b); // TBD superflous b
         Vec2 outv = a - m_seg->a;
         Vec2 toPrev = comingFrom - m_seg->a;
         bool rev = det(outv, toPrev) < 0;
         addto.addSeg(a, m_seg->dpa, rev); // always take the first, that's how they are built
         // dpa is not normalized, but it's close to 1 and the length of the SubGoalSegment does not need to be accurate
+    }
+
+    virtual Vec2 makePathRef(float keepDist) {
+        Vec2 a, b;
+        m_seg->justExtPoints(keepDist, &a, &b); // TBD superflous b
+        return a;
     }
 
     Segment* m_seg;
@@ -76,7 +82,7 @@ class SubGoalFromPointSeg : public ISubGoalMaker
 public:
     SubGoalFromPointSeg(PointSegment* ps) :m_pnseg(ps)
     {}
-    virtual void make(float keepDist, const Vec2& comingFrom, Plan& addto) 
+    virtual void makeSubGoal(float keepDist, const Vec2& comingFrom, Plan& addto) 
     {
         Vec2 a, b;
         m_pnseg->justExtPoints(keepDist, &a, &b);
@@ -91,8 +97,15 @@ public:
             addto.addSeg(b, m_pnseg->dpb, true); // rev true since if we're coming from this size, determining the isPassed half-plane is reveresed
             addto.addSeg(a, m_pnseg->dpa, true);
         }
-
         //addto.push_back( SubGoal(mid) );
+    }
+
+    virtual Vec2 makePathRef(float keepDist)
+    {
+        Vec2 a, b;
+        m_pnseg->justExtPoints(keepDist, &a, &b);
+        Vec2 mid = (a + b)*0.5f;
+        return mid;
     }
 
     PointSegment* m_pnseg;
@@ -266,7 +279,7 @@ void Document::runTriangulate()
 
             Vec2 prevInPath = startp;
             int prevVtxIndex = -2;
-            std::function<void(Vertex*)> f([&](Vertex* v) {
+            PathMaker::TOutputCallback outf([&](Vertex* v) {
                 if (v->index == prevVtxIndex)
                     return; // string pull may produce the same vertex multiple times, ignore it
                 prevVtxIndex = v->index;
@@ -277,11 +290,19 @@ void Document::runTriangulate()
                     auto* subGoalMaker = m_seggoals[v->index];
                     CHECK(subGoalMaker != nullptr, "null subGoalMaker");
                     
-                    subGoalMaker->make(agent->m_radius, prevInPath, agent->m_plan);
+                    subGoalMaker->makeSubGoal(agent->m_radius, prevInPath, agent->m_plan);
                     prevInPath = agent->m_plan.m_d.back()->representPoint();
                 }   
             });
-            PathMaker pm(f);
+            PathMaker::TGetPosCallback posf([&](Vertex* v)->Vec2 {
+                if (v->index < 0) { // means its the end dummy vertex
+                    return v->p;
+                }
+                auto* subGoalMaker = m_seggoals[v->index];
+                CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+                return subGoalMaker->makePathRef(agent->m_radius);
+            });
+            PathMaker pm(outf, posf);
             pm.makePath(corridor, startp, endp);
 
             
@@ -347,7 +368,7 @@ void Document::init_test()
     //m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-    for(int i = 0; i < 1 ; ++i)
+    for(int i = 0; i < 6 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
@@ -510,10 +531,9 @@ bool Document::doStep(float deltaTime, bool doUpdate)
         return false;
 
     bool reachedGoals = true;
-    for (Object* obj: m_objs) 
+    for (auto* agent: m_agents) 
     {
-        Agent* agent = dynamic_cast<Agent*>(obj);
-        if (agent == nullptr || !agent->m_isMobile || agent->m_curGoalPos == nullptr)
+        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
             continue;
         reachedGoals &= agent->update(deltaTime);
     }

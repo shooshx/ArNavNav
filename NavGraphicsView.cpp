@@ -213,8 +213,21 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     painter->drawPolygon(pv, 3);
 
     painter->setPen(QPen());
+    Vec2 trimid;
     for(int i = 0; i < 3; ++i) {
         painter->drawEllipse(toQ(m_t->h[i]->midPnt), 2, 2);
+        trimid += m_t->v[i]->p;
+    }
+    trimid /= 3.0f;
+
+    for(int i = 0; i < 3; ++i) {
+        const HalfEdge* he = m_t->h[i];
+        Vec2 mid = (0.4 * he->to->p + 0.6 * he->from->p);
+        float d = abs(mid - trimid);
+        Vec2 towardsMid = ((mid - trimid)*((d-10)/d)) + trimid;
+
+        painter->drawText(towardsMid.x - 20, towardsMid.y - 20, 40, 40, Qt::AlignCenter, QString("%1").arg(he->index));
+
     }
 }
 QRectF TriItem::boundingRect() const {

@@ -31,11 +31,13 @@ public:
     Triangle *tri = nullptr; 
 
     void clearData() {
-        midPnt = Vec2();
+        //midPnt = Vec2();
+        // TBD- save midPnt before A-star change
         cameFrom = nullptr;
         costSoFar = FLT_MAX;
     }
 
+    int index = 0;
     Vec2 midPnt;
     HalfEdge* cameFrom = nullptr; 
     float costSoFar = FLT_MAX;
@@ -131,8 +133,11 @@ public:
     Triangle* findContaining(const Vec2& p);
     bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor);
 
+
+
     HalfEdge* addHe() {
         m_he.push_back(HalfEdge());
+        m_he.back().index = m_he.size() - 1;
         return &m_he.back();
     }
 
@@ -143,16 +148,27 @@ public:
     vector<HalfEdge> m_he;
 };
 
+// for the stringPull algorithm we need both the vertex pointer to know 
+// what point is related to what vertex and the position that is related to this vertex 
+// that will be used for calculating the path
+struct VtxWrap
+{
+    VtxWrap(Vertex* _v, const Vec2& _p) :v(_v), p(_p) {}
+    Vertex* v = nullptr;
+    Vec2 p;
+};
 
 class PathMaker
 {
 public:
-    typedef std::function<void(Vertex*)> TCallback;
-    PathMaker(TCallback& callback) :m_outputCall(callback) 
+    typedef std::function<void(Vertex*)> TOutputCallback;
+    typedef std::function<Vec2(Vertex*)> TGetPosCallback;
+    PathMaker(const TOutputCallback& outCallback, const TGetPosCallback& posCallback) :m_outputCall(outCallback), m_getPos(posCallback)
     {}
 
-    void stringPull(vector<Vertex*> portalsRight, vector<Vertex*> portalsLeft);
-    void makePath(vector<Triangle*>& tripath, const Vec2& start, const Vec2& end);
+    void stringPull(const vector<VtxWrap>& portalsRight, const vector<VtxWrap>& portalsLeft);
+    void makePath(const vector<Triangle*>& tripath, const Vec2& start, const Vec2& end);
 
-    TCallback& m_outputCall;
+    const TOutputCallback& m_outputCall;
+    const TGetPosCallback& m_getPos;
 };
