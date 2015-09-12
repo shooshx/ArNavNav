@@ -238,6 +238,17 @@ void Document::runTriangulate()
         ms.makeSegments();
     }
 
+    m_mesh.m_altVtxPosByRadius.clear();
+    auto possibleRadiuses = { m_agents[0]->m_radius };
+    for(float radius: possibleRadiuses)
+    {
+        vector<Vec2>& altVtx = m_mesh.m_altVtxPosByRadius[radius];
+        altVtx.resize(m_mesh.m_vtx.size());
+        for(int i = 0; i < m_mesh.m_vtx.size(); ++i) {
+            altVtx[i] = m_seggoals[i]->makePathRef(radius);
+        }
+    }
+
     // set segment markers
     int cnt = 0;
     for(auto* obj: m_objs) {
@@ -250,14 +261,20 @@ void Document::runTriangulate()
         m_markers[cnt++]->p = p2;
     }
 
+
+
     //------------------------------------
 
     for(auto agent: m_agents)
     {
         const Vec2& startp = agent->m_position;
         const Vec2& endp = agent->m_endGoalPos;
-        Triangle* startTri = m_mesh.findContaining(startp);
-        Triangle* endTri = m_mesh.findContaining(endp);
+        
+        auto it = m_mesh.m_altVtxPosByRadius.find(agent->m_radius);
+        CHECK(it != m_mesh.m_altVtxPosByRadius.end(), "unexpected radius");
+        auto posReference = it->second;
+        Triangle* startTri = m_mesh.findContaining(startp, posReference);
+        Triangle* endTri = m_mesh.findContaining(endp, posReference);
 
         if (!endTri || !startTri) {
             continue;
@@ -387,7 +404,7 @@ void Document::init_test()
     //m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-    for(int i = 0; i < 6 ; ++i)
+    for(int i = 0; i < 1 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    

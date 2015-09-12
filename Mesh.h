@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <functional>
+#include <map>
 #include "Vec2.h"
 
 using namespace std;
@@ -133,7 +134,7 @@ public:
     }
 
     void connectTri();
-    Triangle* findContaining(const Vec2& p);
+    Triangle* findContaining(const Vec2& p, vector<Vec2>& posRef);
     bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor);
 
 
@@ -149,6 +150,9 @@ public:
     vector<Triangle*> m_tri;
     vector<Polyline> m_perimiters;
     vector<HalfEdge> m_he;
+
+    // for every radius, have a set of alternative position per vertex for plan creation
+    map<float, vector<Vec2>> m_altVtxPosByRadius;
 };
 
 // for the stringPull algorithm we need both the vertex pointer to know 

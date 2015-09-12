@@ -120,22 +120,26 @@ static float sign(const Vec2& p1, const Vec2& p2, const Vec2& p3)
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
-static bool isPointInTri(const Vec2& pt, Triangle* t)//const Vec2& v1, const Vec2& v2, const Vec2& v3)
+static bool isPointInTri(const Vec2& pt, Triangle* t, vector<Vec2>& posRef)//const Vec2& v1, const Vec2& v2, const Vec2& v3)
 {
+    Vec2 a = posRef[t->v[0]->index];
+    Vec2 b = posRef[t->v[1]->index];
+    Vec2 c = posRef[t->v[2]->index];
+
     bool b1, b2, b3;
 
-    b1 = sign(pt, t->v[0]->p, t->v[1]->p) < 0.0f;
-    b2 = sign(pt, t->v[1]->p, t->v[2]->p) < 0.0f;
-    b3 = sign(pt, t->v[2]->p, t->v[0]->p) < 0.0f;
+    b1 = sign(pt, a, b) < 0.0f;
+    b2 = sign(pt, b, c) < 0.0f;
+    b3 = sign(pt, c, a) < 0.0f;
 
     return ((b1 == b2) && (b2 == b3));
 }
 
-
-Triangle* Mesh::findContaining(const Vec2& p)
+// take vertex positions from posRef
+Triangle* Mesh::findContaining(const Vec2& p, vector<Vec2>& posRef)
 {
     for(auto t: m_tri) {
-        if (isPointInTri(p, t))
+        if (isPointInTri(p, t, posRef))
             return t;
     }
     return nullptr;
@@ -266,15 +270,34 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     return reached;
 }
 
+inline float triarea2X(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
+{
+    const double ax = b.p.x - a.p.x;
+    const double ay = b.p.y - a.p.y;
+    const double bx = c.p.x - a.p.x;
+    const double by = c.p.y - a.p.y;
+    return (float)(bx*ay - ax*by);
+}
 
+inline bool checkNormalize(Vec2& a) {
+    float l = ::abs(a);
+    if (l == 0.0f)
+        return false;
+    float d = 1.0f / l;
+    a.x *= d;
+    a.y *= d;
+    return true;
+}
 
 inline float triarea2(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
 {
-    const float ax = b.p.x - a.p.x;
-    const float ay = b.p.y - a.p.y;
-    const float bx = c.p.x - a.p.x;
-    const float by = c.p.y - a.p.y;
-    return bx*ay - ax*by;
+    Vec2 ab = b.p - a.p;
+    if (!checkNormalize(ab))
+        return 0.0f;
+    Vec2 ac = c.p - a.p;
+    if (!checkNormalize(ac))
+        return 0.0f;
+    return det(ac, ab);
 }
 
 float vdistsqr(const VtxWrap& a, const VtxWrap& b)
