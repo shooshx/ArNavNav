@@ -16,9 +16,9 @@ BaseItem::BaseItem(NavDialog* ctrl, Object* obj)
 void BaseItem::preparePainter(QPainter* painter, const QStyleOptionGraphicsItem* option)
 {
     QColor bc = QColor(255, 0, 0);
-    if (m_obj->highlight) {
+/*    if (m_obj->highlight) {
         bc = QColor(255,255,0);
-    }
+    }*/
     if (option->state & QStyle::State_Selected) {
         bc = QColor(150, 0, 0); // currently pressed.
     }
@@ -223,7 +223,7 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     for(int i = 0; i < 3; ++i) {
         const HalfEdge* he = m_t->h[i];
         Vec2 mid = (0.4 * he->to->p + 0.6 * he->from->p);
-        float d = abs(mid - trimid);
+        float d = length(mid - trimid);
         Vec2 towardsMid = ((mid - trimid)*((d-10)/d)) + trimid;
 
         painter->drawText(towardsMid.x - 20, towardsMid.y - 20, 40, 40, Qt::AlignCenter, QString("%1").arg(he->index));

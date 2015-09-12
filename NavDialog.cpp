@@ -204,9 +204,9 @@ void NavDialog::update()
     readMesh();
 
 
-    for(auto* obj: m_doc->m_objs) {
+ /*   for(auto* obj: m_doc->m_objs) {
         obj->highlight = false;
-    }
+    }*/
 
     //---------------- path
     if (m_doc->m_prob) 

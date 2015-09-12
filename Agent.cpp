@@ -10,15 +10,113 @@
 
 using namespace std;
 
-//const float HRVO_EPSILON = 0.00001f;
-//const float HRVO_PI = 3.141592653589793f;
+template<typename T>
+T iabs(T a) {
+    return (a < 0)?-a:a;
+}
+
+namespace mtrig 
+{
+
+// from http://http.developer.nvidia.com/Cg/atan2.html
+float atan2(float y, float x)
+{
+    float t0, t1, t2, t3, t4;
+
+    t3 = iabs(x);
+    t1 = iabs(y);
+    t0 = imax(t3, t1);
+    t1 = imin(t3, t1);
+    t3 = float(1) / t0;
+    t3 = t1 * t3;
+
+    t4 = t3 * t3;
+    t0 =         - float(0.013480470);
+    t0 = t0 * t4 + float(0.057477314);
+    t0 = t0 * t4 - float(0.121239071);
+    t0 = t0 * t4 + float(0.195635925);
+    t0 = t0 * t4 - float(0.332994597);
+    t0 = t0 * t4 + float(0.999995630);
+    t3 = t0 * t3;
+
+    t3 = (abs(y) > abs(x)) ? float(1.570796327) - t3 : t3;
+    t3 = (x < 0) ?  float(3.141592654) - t3 : t3;
+    t3 = (y < 0) ? -t3 : t3;
+
+    return t3;
+}
+
+float asin(float x) {
+    float negate = float(x < 0);
+    x = iabs(x);
+    float ret = -0.0187293;
+    ret *= x;
+    ret += 0.0742610;
+    ret *= x;
+    ret -= 0.2121144;
+    ret *= x;
+    ret += 1.5707288;
+    ret = 3.14159265358979*0.5 - sqrt(1.0 - x)*ret;
+    return ret - 2 * negate * ret;
+}
 
 
+// from http://www.flipcode.com/archives/Fast_Trigonometry_Functions_Using_Lookup_Tables.shtml
+#define MAX_CIRCLE_ANGLE      512
+#define HALF_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE/2)
+#define QUARTER_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE/4)
+#define MASK_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE - 1)
+#define PI 3.14159265358979323846f
 
+static bool g_wasInited = false;
+static float fast_cossin_table[MAX_CIRCLE_ANGLE];
+
+void build_table() {
+    // Build cossin table
+    for (int i = 0 ; i < MAX_CIRCLE_ANGLE ; i++)
+    {
+        fast_cossin_table[i] = (float)sin((double)i * PI / HALF_MAX_CIRCLE_ANGLE);
+    }
+}
+
+inline float cos(float n)
+{
+    float f = n * HALF_MAX_CIRCLE_ANGLE / PI;
+    int i = (int)f;
+    if (i < 0)
+    {
+        return fast_cossin_table[((-i) + QUARTER_MAX_CIRCLE_ANGLE) & MASK_MAX_CIRCLE_ANGLE];
+    }
+    else
+    {
+        return fast_cossin_table[(i + QUARTER_MAX_CIRCLE_ANGLE) & MASK_MAX_CIRCLE_ANGLE];
+    }
+}
+
+inline float sin(float n)
+{
+    float f = n * HALF_MAX_CIRCLE_ANGLE / PI;
+    int i = (int)f;
+    if (i < 0)
+    {
+        return fast_cossin_table[(-((-i) & MASK_MAX_CIRCLE_ANGLE)) + MAX_CIRCLE_ANGLE];
+    }
+    else
+    {
+        return fast_cossin_table[i & MASK_MAX_CIRCLE_ANGLE];
+    }
+}
+
+}
 
 void Agent::computeNewVelocity(VODump* dump)
 {
-    vector<VelocityObstacle> velocityObstacles;
+    if (!mtrig::g_wasInited) {
+        mtrig::build_table();
+        mtrig::g_wasInited = true;
+    }
+    m_voStore.clear();
+    vector<VelocityObstacle>& velocityObstacles = m_voStore;
 	velocityObstacles.reserve(m_neighbors.size());
 
 	VelocityObstacle velocityObstacle;
@@ -26,29 +124,32 @@ void Agent::computeNewVelocity(VODump* dump)
 	for (auto iter = m_neighbors.begin(); iter != m_neighbors.end(); ++iter)
     {
 		const Object* otherObj = iter->second;
-        const Circle* otherCirc = dynamic_cast<const Circle*>(otherObj);
-        if (otherCirc != nullptr)
+        if (otherObj->m_type == TypeCircle || otherObj->m_type == TypeAgent)
         {
-            const Agent* otherAgent = dynamic_cast<const Agent*>(otherCirc);
+            const Circle* otherCirc = static_cast<const Circle*>(otherObj);
+            const Agent* otherAgent = static_cast<const Agent*>(otherCirc); // may not be valid if type is not TypeAgent
+
 		    if (absSq(otherCirc->m_position - m_position) > sqr(otherCirc->m_radius + m_radius)) // not intersecting
 		    {
-			    const float angle = atan(otherCirc->m_position - m_position);
-			    const float openingAngle = std::asin((otherCirc->m_radius + m_radius) / abs(otherCirc->m_position - m_position));
+                Vec2 posDiff = otherCirc->m_position - m_position;
+			    const float angle = mtrig::atan2(posDiff.y, posDiff.x);
+			    const float openingAngle = mtrig::asin((otherCirc->m_radius + m_radius) / length(otherCirc->m_position - m_position));
 
-			    velocityObstacle.m_side1 = Vec2(std::cos(angle - openingAngle), std::sin(angle - openingAngle));
-			    velocityObstacle.m_side2 = Vec2(std::cos(angle + openingAngle), std::sin(angle + openingAngle));
+			    velocityObstacle.m_side1 = Vec2(mtrig::cos(angle - openingAngle), mtrig::sin(angle - openingAngle));
+			    velocityObstacle.m_side2 = Vec2(mtrig::cos(angle + openingAngle), mtrig::sin(angle + openingAngle));
 
-			    const float d = 2.0f * std::sin(openingAngle) * std::cos(openingAngle);
+			    const float d = 2.0f * mtrig::sin(openingAngle) * mtrig::cos(openingAngle);
 
-                if (otherAgent != nullptr && otherAgent->m_isMobile) {
-                    if (det(otherAgent->m_position - m_position, m_prefVelocity - otherAgent->m_prefVelocity) > 0.0f) {
+                if (otherObj->m_type == TypeAgent && otherAgent->m_isMobile) 
+                {
+                    if (det(otherAgent->m_position - m_position, m_prefVelocity - otherAgent->m_prefVelocity) > 0.0f)
+                    {
                         const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, velocityObstacle.m_side2) / d;
-
                         velocityObstacle.m_apex = otherAgent->m_velocity + s * velocityObstacle.m_side1; 
                     }
-                    else {
+                    else 
+                    {
                         const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, velocityObstacle.m_side1) / d;
-
                         velocityObstacle.m_apex = otherAgent->m_velocity + s * velocityObstacle.m_side2;
                     }
                 }
@@ -57,8 +158,9 @@ void Agent::computeNewVelocity(VODump* dump)
                 }
 
 		    }
-		    else {
-                if (otherAgent != nullptr && otherAgent->m_isMobile) {
+		    else 
+            {
+                if (otherObj->m_type == TypeAgent && otherAgent->m_isMobile) {
 				    velocityObstacle.m_apex = 0.5f * (otherAgent->m_velocity + m_velocity); 
                 }
                 else {
@@ -71,12 +173,10 @@ void Agent::computeNewVelocity(VODump* dump)
         }
         else  // not a circle
         { 
-            const Object* otherAab = dynamic_cast<const Object*>(otherObj);
-
             velocityObstacle.m_apex = Vec2(0.0f, 0.0f);
 
             Vec2 p1, p2;
-            if (otherAab->spanningPoints(m_position, m_radius, &p1, &p2)) //m_radius
+            if (otherObj->spanningPoints(m_position, m_radius, &p1, &p2)) //m_radius
             {// outside
                 velocityObstacle.m_side1 = normalize(p1 - m_position);
                 velocityObstacle.m_side2 = normalize(p2 - m_position);
@@ -123,13 +223,13 @@ void Agent::computeNewVelocity(VODump* dump)
             // avoid points that are in the middle between two VOs
             if (candidate.m_velocityObstacle1 == INT_MAX && j != candidate.m_velocityObstacle2) {
                 float d2 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (abs(d2) < 0.0001)
+                if (iabs(d2) < 0.0001)
                     return;
             }
 
             if (candidate.m_velocityObstacle2 == INT_MAX && j != candidate.m_velocityObstacle1) {
                 float d1 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (abs(d1) < 0.0001)
+                if (iabs(d1) < 0.0001)
                     return;
             }
 
@@ -418,7 +518,7 @@ void Agent::insertNeighbor(Object* otherObj, float &rangeSq)
 
 bool Agent::update(float deltaTime)
 {
-	const float dv = abs(m_newVelocity - m_velocity);
+	const float dv = length(m_newVelocity - m_velocity);
 
 	if (dv < m_maxAccel * deltaTime) {
 		m_velocity = m_newVelocity;

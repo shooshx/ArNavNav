@@ -245,7 +245,8 @@ void Document::runTriangulate()
         vector<Vec2>& altVtx = m_mesh.m_altVtxPosByRadius[radius];
         altVtx.resize(m_mesh.m_vtx.size());
         for(int i = 0; i < m_mesh.m_vtx.size(); ++i) {
-            altVtx[i] = m_seggoals[i]->makePathRef(radius);
+            if (m_seggoals[i] != nullptr)
+                altVtx[i] = m_seggoals[i]->makePathRef(radius);
         }
     }
 

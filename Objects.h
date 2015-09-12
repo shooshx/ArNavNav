@@ -6,9 +6,15 @@
 class Object
 {
 public:
+    enum EType {
+        TypeCircle = 1,
+        TypeAgent = 2,
+        TypeOther = 3
+    };
+
     Object() {}
-    Object(const Vec2& _center, const Vec2& _size, int _index)
-        : m_position(_center), size(_size), index(_index)
+    Object(const Vec2& _center, const Vec2& _size, int _index, EType type = TypeOther)
+        : m_position(_center), size(_size), index(_index), m_type(type)
     {}
     virtual ~Object() {}
     virtual float distSqToSurface(const Vec2& fromp) const = 0;
@@ -23,18 +29,20 @@ public:
         size = v;
     }
 
+
+    EType m_type;  // used for avoiding dynamic_cast
     int index = 0;
     Vec2 m_position;
     Vec2 size;
 
-    bool highlight = false;
+    //bool highlight = false;
 };
 
 class Circle : public Object
 {
 public:
-    Circle(const Vec2& center, float r, int _index) 
-        : Object(center, Vec2(2 * r, 2 * r), _index), m_radius(r) 
+    Circle(const Vec2& center, float r, int _index, EType type = TypeCircle) 
+        : Object(center, Vec2(2 * r, 2 * r), _index, type), m_radius(r) 
     {}
     virtual ~Circle() {}
 

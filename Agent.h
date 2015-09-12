@@ -148,7 +148,7 @@ class Agent : public Circle
 {
 public:
     Agent(int index, const Vec2& position, const Vec2& goalPos, float neighborDist, int maxNeighbors, float radius, float goalRadius, float prefSpeed, float maxSpeed)
-        : Circle(position, radius, index)
+        : Circle(position, radius, index, TypeAgent)
         , m_endGoalPos(goalPos)
         , m_maxNeighbors(maxNeighbors), m_goalRadius(goalRadius)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
@@ -199,6 +199,7 @@ public:
 
     Vec2 m_velocity;
     Vec2 m_newVelocity;
+    std::vector<VelocityObstacle> m_voStore; // used in computeNewVelocity, should not be reallocated every time
     //float m_orientation = 0.0;
 
 	std::set<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range

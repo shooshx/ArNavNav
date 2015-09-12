@@ -103,7 +103,7 @@ inline float distSq(const Vec2& a, const Vec2& b) {
     return absSq(a - b);
 }
 
-inline float abs(const Vec2& v) {
+inline float length(const Vec2& v) {
     return std::sqrt(v * v);
 }
 
@@ -117,7 +117,7 @@ inline Vec2 operator/(const Vec2& a, float v) {
 }
 
 inline Vec2 normalize(const Vec2 &v) {
-    return v / ::abs(v);
+    return v / ::length(v);
 }
 
 inline Vec2 normal(const Vec2& a, const Vec2& b) {
@@ -125,7 +125,7 @@ inline Vec2 normal(const Vec2& a, const Vec2& b) {
 }
 
 inline Vec2& Vec2::normalize() {
-    float d = 1.0f / ::abs(*this);
+    float d = 1.0f / ::length(*this);
     x *= d;
     y *= d;
     return *this;
@@ -135,9 +135,9 @@ inline Vec2 operator-(const Vec2& v) {
     return Vec2(-v.x, -v.y);
 }
 
-inline float atan(const Vec2& v) {
-    return std::atan2(v.y, v.x);
-}
+//inline float atan(const Vec2& v) {
+//    return std::atan2(v.y, v.x);
+//}
 
 inline float sqr(float scalar) {
     return scalar * scalar;

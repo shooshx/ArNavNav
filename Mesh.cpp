@@ -270,7 +270,7 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     return reached;
 }
 
-inline float triarea2X(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
+inline float triarea2(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
 {
     const double ax = b.p.x - a.p.x;
     const double ay = b.p.y - a.p.y;
@@ -279,26 +279,6 @@ inline float triarea2X(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
     return (float)(bx*ay - ax*by);
 }
 
-inline bool checkNormalize(Vec2& a) {
-    float l = ::abs(a);
-    if (l == 0.0f)
-        return false;
-    float d = 1.0f / l;
-    a.x *= d;
-    a.y *= d;
-    return true;
-}
-
-inline float triarea2(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
-{
-    Vec2 ab = b.p - a.p;
-    if (!checkNormalize(ab))
-        return 0.0f;
-    Vec2 ac = c.p - a.p;
-    if (!checkNormalize(ac))
-        return 0.0f;
-    return det(ac, ab);
-}
 
 float vdistsqr(const VtxWrap& a, const VtxWrap& b)
 {
