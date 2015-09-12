@@ -30,6 +30,9 @@ public slots:
     void on_actionReload_triggered(bool);
     void on_frameSlider_valueChanged(int);
 
+private:
+    void updateSliderVOs(int v);
+
 public:
     Ui::navClass ui;
 

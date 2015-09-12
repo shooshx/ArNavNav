@@ -202,20 +202,20 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     painter->setPen(pen);
     //painter->drawPolyline(pv, 3);
     QColor col(200, 200, 255);
-    if (m_t->highlight == 1) 
+/*    if (m_t->highlight == 1) 
         col = QColor(200, 255, 200);
     else if (m_t->highlight == 2)
         col = QColor(255, 200, 200);
     else if (m_t->highlight == 3)
         col = QColor(255, 255, 200);
-
+        */
     painter->setBrush(QBrush(col));
     painter->drawPolygon(pv, 3);
 
     painter->setPen(QPen());
     Vec2 trimid;
     for(int i = 0; i < 3; ++i) {
-        painter->drawEllipse(toQ(m_t->h[i]->midPnt), 2, 2);
+        painter->drawEllipse(toQ(*m_t->h[i]->curMidPntPtr), 2, 2);
         trimid += m_t->v[i]->p;
     }
     trimid /= 3.0f;
@@ -304,7 +304,7 @@ QRectF MapDefItem::boundingRect() const {
 
 // ------------------------------------------------------------------
 
-
+extern Vec2 g1, g2;
 
 void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
@@ -333,7 +333,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
         Vec2 velpnt = pos + m_vel[m_atframe] * VELOCITY_SCALE;
         radius = 5;
         // perfVelocity yellow point
-        painter->drawEllipse(velpnt.x - radius, velpnt.y - radius, 2 * radius, 2 * radius);
+        //painter->drawEllipse(velpnt.x - radius, velpnt.y - radius, 2 * radius, 2 * radius);
     }
 
     QVector<QPointF> sp;
@@ -341,6 +341,8 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
         sp.append(toQ(subgoal->representPoint()));
     }
 
+    //painter->drawLine(0, 0, g1.x, g1.y);
+    //painter->drawLine(0, 0, g2.x, g2.y);
 
     QPen pen2(QColor(255,0,0));
     pen2.setWidth(1);

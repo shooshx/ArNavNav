@@ -14,6 +14,7 @@ class Vertex;
 class Vertex
 {
 public:
+    Vertex() :index(-1) {}
     Vertex(int idx, float x, float y) : index(idx), p(x, y) {}
     Vertex(int idx, const Vec2& v) : index(idx), p(v) {}
     int index;
@@ -29,16 +30,18 @@ public:
     HalfEdge *opposite = nullptr;
     HalfEdge *next = nullptr;
     Triangle *tri = nullptr; 
+    int index = 0;
 
     void clearData() {
         //midPnt = Vec2();
         // TBD- save midPnt before A-star change
         cameFrom = nullptr;
         costSoFar = FLT_MAX;
+        curMidPntPtr = &_midPnt;
     }
 
-    int index = 0;
-    Vec2 midPnt;
+    Vec2* curMidPntPtr = nullptr; // points to midPnt or to an override in astar
+    Vec2 _midPnt; // not referenced directly
     HalfEdge* cameFrom = nullptr; 
     float costSoFar = FLT_MAX;
 };
@@ -55,7 +58,7 @@ public:
     Vertex* v[3];
     HalfEdge* h[3];
     Triangle* nei[3]; // nei[0] is across of h[0]
-    int highlight = false;
+    //int highlight = false;
 };
 
 
@@ -171,4 +174,6 @@ public:
 
     const TOutputCallback& m_outputCall;
     const TGetPosCallback& m_getPos;
+
+    Vertex m_startDummy, m_endDummy;
 };

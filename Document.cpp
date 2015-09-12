@@ -52,17 +52,20 @@ void Document::init_tri()
 
 }
 
+//Vec2 g1,g2;
+
 class SubGoalFromSegment : public ISubGoalMaker
 {
 public:
     SubGoalFromSegment(Segment* s) :m_seg(s) 
     {}
-    virtual void makeSubGoal(float keepDist, const Vec2& comingFrom, Plan& addto) {
+    virtual void makeSubGoal(float keepDist, const Vec2& goingTo, Plan& addto) {
         Vec2 a, b;
         m_seg->justExtPoints(keepDist, &a, &b); // TBD superflous b
-        Vec2 outv = a - m_seg->a;
-        Vec2 toPrev = comingFrom - m_seg->a;
-        bool rev = det(outv, toPrev) < 0;
+        Vec2 outv = a - m_seg->a; // from segment point outside
+        Vec2 toNext = goingTo - m_seg->a;
+        //g1 = outv; g2 = toNext;
+        bool rev = det(outv, toNext) > 0;
         addto.addSeg(a, m_seg->dpa, rev); // always take the first, that's how they are built
         // dpa is not normalized, but it's close to 1 and the length of the SubGoalSegment does not need to be accurate
     }
@@ -82,14 +85,14 @@ class SubGoalFromPointSeg : public ISubGoalMaker
 public:
     SubGoalFromPointSeg(PointSegment* ps) :m_pnseg(ps)
     {}
-    virtual void makeSubGoal(float keepDist, const Vec2& comingFrom, Plan& addto) 
+    virtual void makeSubGoal(float keepDist, const Vec2& goingTo, Plan& addto) 
     {
         Vec2 a, b;
         m_pnseg->justExtPoints(keepDist, &a, &b);
         // don't know which order to put them, middle will be enough?
         Vec2 mid = (a + b)*0.5f - m_pnseg->b;
-        Vec2 toPrev = comingFrom - m_pnseg->b;
-        if (det(mid, toPrev) > 0) { // check which side of the mid line we're coming from and decide what order should the points be
+        Vec2 toNext = goingTo - m_pnseg->b;
+        if (det(mid, toNext) < 0) { // check which side of the mid line we're coming from and decide what order should the points be
             addto.addSeg(a, m_pnseg->dpa, false);
             addto.addSeg(b, m_pnseg->dpb, false);
         }  // dpa,dpb are not normalized, but close enough, see above
@@ -114,7 +117,7 @@ public:
 
 #define SQRT_2 (1.4142135623730950488016887242097f)
 
-#define ANTI_OVERLAP_FACTOR 0.1 //0.1
+#define ANTI_OVERLAP_FACTOR 0.0 //0.1
 
 
 // return the intersection point of lines L1=a+tv L2=b+ku
@@ -277,22 +280,14 @@ void Document::runTriangulate()
 
             agent->m_plan.clearAndReserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
 
-            Vec2 prevInPath = startp;
+           
             int prevVtxIndex = -2;
+            vector<Vertex*> planSketch;
             PathMaker::TOutputCallback outf([&](Vertex* v) {
                 if (v->index == prevVtxIndex)
                     return; // string pull may produce the same vertex multiple times, ignore it
                 prevVtxIndex = v->index;
-                if (v->index < 0) { // means its the end dummy vertex
-                    agent->m_plan.setEnd(v->p, agent->m_goalRadius);
-                }
-                else {
-                    auto* subGoalMaker = m_seggoals[v->index];
-                    CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-                    
-                    subGoalMaker->makeSubGoal(agent->m_radius, prevInPath, agent->m_plan);
-                    prevInPath = agent->m_plan.m_d.back()->representPoint();
-                }   
+                planSketch.push_back(v);
             });
             PathMaker::TGetPosCallback posf([&](Vertex* v)->Vec2 {
                 if (v->index < 0) { // means its the end dummy vertex
@@ -305,12 +300,36 @@ void Document::runTriangulate()
             PathMaker pm(outf, posf);
             pm.makePath(corridor, startp, endp);
 
+            // make the actual plan when all vertices are known since we need to reference the next vertex
+            //Vec2 prevInPath = startp;
+            for(int i = 0; i < planSketch.size(); ++i) 
+            {
+                Vertex* v = planSketch[i];
+                if (v->index < 0) { // means its the end dummy vertex
+                    agent->m_plan.setEnd(v->p, agent->m_goalRadius);
+                }
+                else {
+                    auto* subGoalMaker = m_seggoals[v->index];
+                    CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+
+                    Vec2 nextPosInPath;
+                    int nextIndex = planSketch[i+1]->index;
+                    if (nextIndex < 0)
+                        nextPosInPath = planSketch[i+1]->p;
+                    else
+                        nextPosInPath = m_seggoals[nextIndex]->makePathRef(agent->m_radius);
+                    subGoalMaker->makeSubGoal(agent->m_radius, nextPosInPath, agent->m_plan);
+                    
+                }   
+
+            }
             
             //for(auto& sg: agent->m_plan)
             //    cout << sg.p << "  ";
 
+            //agent->m_indexInPlan = agent->m_plan.m_d.size()-1;
             agent->m_indexInPlan = 0;
-            agent->m_curGoalPos = agent->m_plan.m_d[0];
+            agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
         }
 
 

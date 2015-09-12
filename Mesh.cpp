@@ -43,21 +43,21 @@ void Mesh::connectTri()
         h0->tri = t;
         h0->from = t->v[0];
         h0->to = t->v[1];
-        h0->midPnt = (t->v[1]->p + t->v[0]->p) * 0.5f;
+        h0->_midPnt = (t->v[1]->p + t->v[0]->p) * 0.5f;
         t->h[0] = h0;
 
         HalfEdge* h1 = addHe();
         h1->tri = t;
         h1->from = t->v[1];
         h1->to = t->v[2];
-        h1->midPnt = (t->v[2]->p + t->v[1]->p) * 0.5f;
+        h1->_midPnt = (t->v[2]->p + t->v[1]->p) * 0.5f;
         t->h[1] = h1;
 
         HalfEdge* h2 = addHe();
         h2->tri = t;
         h2->from = t->v[2];
         h2->to = t->v[0];
-        h2->midPnt = (t->v[0]->p + t->v[2]->p) * 0.5f;
+        h2->_midPnt = (t->v[0]->p + t->v[2]->p) * 0.5f;
         t->h[2] = h2;
 
         h0->next = h1;
@@ -106,6 +106,10 @@ void Mesh::connectTri()
             unpaired.erase(it);
         }
 
+    }
+
+    for(auto& he: m_he) {
+        he.curMidPntPtr = &he._midPnt;
     }
 
 }
@@ -160,33 +164,39 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     priority_queue<PrioNode, vector<PrioNode>, decltype(lessPrioNode)*> tq(lessPrioNode);
     HalfEdge* dummy = (HalfEdge*)0xff; // dummy cameFrom to mark the start edge
     vector<HalfEdge*> destEdges; // max 3 possible dest edges
+    destEdges.reserve(3);
     vector<float> destCost; // used when selecting the best dest reached out of possible 3
+    destCost.reserve(3);
 
-    // clear HalfEdge data
-    for(auto& he: m_he)
-        he.clearData();
+
+    vector<Vec2> midPntOverride;
+    midPntOverride.reserve(6); // don't reallocate, that will change addresses
     
     // set up start edges and dest edges. 
     // Start from end and go to start so its easy to connect the cameFrom pointers
     for(int i = 0; i < 3; ++i) 
     {
         auto sh = start->h[i];
-        if (sh->opposite) { // if it doesn't have an opposite, it can't be reached so its not a destination
+        if (sh->opposite) // if it doesn't have an opposite, it can't be reached so its not a destination
+        { 
             // fix mid point of start triangle to be closer to the real target
-            sh->midPnt = project(startPos, sh->from->p, sh->to->p); // project to the line of the edge
-            sh->opposite->midPnt = sh->midPnt;
+            midPntOverride.push_back(project(startPos, sh->from->p, sh->to->p)); // project to the line of the edge
+            sh->curMidPntPtr = &midPntOverride.back();
+            sh->opposite->curMidPntPtr = sh->curMidPntPtr;
             destEdges.push_back(sh);
             destCost.push_back(FLT_MAX);
             //cout << "END " << sh->index << endl;
         }
         auto h = end->h[i]->opposite;
-        if (h) {
-            h->midPnt = project(endPos, h->from->p, h->to->p); // fix mid point of end triangle to be closer to the real target
+        if (h) 
+        {
+            midPntOverride.push_back(project(endPos, h->from->p, h->to->p)); // fix mid point of end triangle to be closer to the real target
+            h->curMidPntPtr = &midPntOverride.back();
             if (h->opposite)
-                h->opposite->midPnt = h->midPnt;
-            h->costSoFar = distm(endPos, h->midPnt);
+                h->opposite->curMidPntPtr = h->curMidPntPtr;
+            h->costSoFar = distm(endPos, *h->curMidPntPtr);
             h->cameFrom = dummy;
-            float heur = distm(h->midPnt, startPos);
+            float heur = distm(*h->curMidPntPtr, startPos);
             tq.push(PrioNode(h, h->costSoFar + heur));
             //cout << "START " << h->index << endl;
         }
@@ -219,7 +229,7 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
             HalfEdge* n = next[i];
             if (!n)
                 continue;
-            float costToThis = cur->costSoFar + distm(cur->midPnt, n->midPnt);
+            float costToThis = cur->costSoFar + distm(*cur->curMidPntPtr, *n->curMidPntPtr);
             if (costToThis >= n->costSoFar) // need to update an edge that was already reached? 
                 continue;                   // Equals avoid endless loop in degenerate triangulation
            /* if (n->costSoFar == FLT_MAX)
@@ -229,24 +239,31 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
             */
             n->costSoFar = costToThis;
             n->cameFrom = cur;
-            float heur = n->costSoFar + distm(n->midPnt, startPos);
+            float heur = n->costSoFar + distm(*n->curMidPntPtr, startPos);
             tq.push(PrioNode(n, heur));
         }
     }
-    if (destReached == 0)
-        return false;
 
-    auto dit = min_element(destCost.begin(), destCost.end());
-    HalfEdge *h = destEdges[dit - destCost.begin()];
+    bool reached = (destReached != 0);
+    if (reached)
+    {
+        auto dit = min_element(destCost.begin(), destCost.end());
+        HalfEdge *h = destEdges[dit - destCost.begin()];
 
-    // make it in reverse order
-    while (h != dummy) {
-        corridor.push_back(h->tri);
-        h = h->cameFrom;
+        // make it in reverse order
+        while (h != dummy) {
+            corridor.push_back(h->tri);
+            h = h->cameFrom;
+        }
+        // the end triangle doesn't have any halfedges that are part of the the corridor so just add it
+        corridor.push_back(end);
     }
-    // the end triangle doesn't have any halfedges that are part of the the corridor so just add it
-    corridor.push_back(end);
-    return true;
+
+    // clear HalfEdge data
+    for(auto& he: m_he)
+        he.clearData();
+
+    return reached;
 }
 
 
@@ -383,8 +400,9 @@ void PathMaker::makePath(const vector<Triangle*>& tripath, const Vec2& start, co
 {
     if (tripath.size() == 0)
         return;
-    Vertex startDummy(-1, start), endDummy(-1, end);
-    VtxWrap startWrap(&startDummy, start), endWrap(&endDummy, end);
+    m_startDummy = Vertex(-1, start);
+    m_endDummy = Vertex(-1, end);
+    VtxWrap startWrap(&m_startDummy, start), endWrap(&m_endDummy, end);
 
     vector<VtxWrap> leftPath, rightPath;
     leftPath.reserve(tripath.size() + 1);

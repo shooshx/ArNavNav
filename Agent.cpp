@@ -110,12 +110,30 @@ void Agent::computeNewVelocity(VODump* dump)
 
         for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
         {
-            if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2 && 
-                det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex) < 0.0f && 
-                det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex) > 0.0f) 
-            {
-                return;
+
+            if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2) 
+            { 
+                float d1 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
+                float d2 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
+                if (d1 < 0.0f && d2 > 0.0f)
+                {
+                    return;
+                }
             }
+            // avoid points that are in the middle between two VOs
+            if (candidate.m_velocityObstacle1 == INT_MAX && j != candidate.m_velocityObstacle2) {
+                float d2 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
+                if (abs(d2) < 0.0001)
+                    return;
+            }
+
+            if (candidate.m_velocityObstacle2 == INT_MAX && j != candidate.m_velocityObstacle1) {
+                float d1 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
+                if (abs(d1) < 0.0001)
+                    return;
+            }
+
+
         }
         minCandidate = candidate;
         minScore = score;
@@ -124,8 +142,8 @@ void Agent::computeNewVelocity(VODump* dump)
     //std::multimap<float, Candidate> candidates;
 
 
-	candidate.m_velocityObstacle1 = std::numeric_limits<int>::max();
-	candidate.m_velocityObstacle2 = std::numeric_limits<int>::max();
+	candidate.m_velocityObstacle1 = INT_MAX;
+	candidate.m_velocityObstacle2 = INT_MAX;
 
 	if (absSq(m_prefVelocity) < m_maxSpeed * m_maxSpeed) {
 		candidate.m_position = m_prefVelocity;
@@ -141,7 +159,7 @@ void Agent::computeNewVelocity(VODump* dump)
     // project perf velocity on sides of all vos
 	for (int i = 0; i < (int)velocityObstacles.size(); ++i) 
     {
-		candidate.m_velocityObstacle1 = i;
+		candidate.m_velocityObstacle1 = INT_MAX; //i;
 		candidate.m_velocityObstacle2 = i;
 
 		const float dotProduct1 = (m_prefVelocity - velocityObstacles[i].m_apex) * velocityObstacles[i].m_side1;
@@ -157,6 +175,9 @@ void Agent::computeNewVelocity(VODump* dump)
 			}
 		}
 
+        candidate.m_velocityObstacle1 = i; //i;
+        candidate.m_velocityObstacle2 = INT_MAX;
+
 		if (dotProduct2 > 0.0f && det(velocityObstacles[i].m_side2, m_prefVelocity - velocityObstacles[i].m_apex) < 0.0f) 
         {
 			candidate.m_position = velocityObstacles[i].m_apex + dotProduct2 * velocityObstacles[i].m_side2;
@@ -171,7 +192,7 @@ void Agent::computeNewVelocity(VODump* dump)
 #if 1
 	for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
     {
-		candidate.m_velocityObstacle1 = std::numeric_limits<int>::max();
+		candidate.m_velocityObstacle1 = INT_MAX;
 		candidate.m_velocityObstacle2 = j;
 
 		float discriminant = m_maxSpeed * m_maxSpeed - sqr(det(velocityObstacles[j].m_apex, velocityObstacles[j].m_side1));
@@ -193,6 +214,9 @@ void Agent::computeNewVelocity(VODump* dump)
                 checkCandidate();
 			}
 		}
+
+        candidate.m_velocityObstacle1 = j;
+        candidate.m_velocityObstacle2 = INT_MAX;
 
 		discriminant = m_maxSpeed * m_maxSpeed - sqr(det(velocityObstacles[j].m_apex, velocityObstacles[j].m_side2));
 
@@ -217,7 +241,7 @@ void Agent::computeNewVelocity(VODump* dump)
 #endif
 #if 1
 
-
+    // intersections of two VOs
 	for (int i = 0; i < (int)velocityObstacles.size() - 1; ++i) 
     {
 		for (int j = i + 1; j < static_cast<int>(velocityObstacles.size()); ++j) 
@@ -414,19 +438,21 @@ bool Agent::update(float deltaTime)
             m_curGoalPos = m_plan.m_d[m_indexInPlan];
         }
         else {
-          /*  reachedEnd = true;
-            m_curGoalPos = nullptr;
+            reachedEnd = true;
+          /*  m_curGoalPos = nullptr;
             m_indexInPlan = -1;
             m_velocity = Vec2();*/
         }
     }
     else {
         // did we backtrack?
-        if (m_indexInPlan > 0 && !m_plan.m_d[m_indexInPlan - 1]->isPassed(m_position)  ) {
+        // this is a bad idea since it can cause loops see  back_and_forth_stuck.txt
+   /*     if (m_indexInPlan > 0 && !m_plan.m_d[m_indexInPlan - 1]->isPassed(m_position)  ) {
             --m_indexInPlan;
            // cout << "BACK! " << index << endl;
             m_curGoalPos = m_plan.m_d[m_indexInPlan];
         }
+        */
 
     }
 

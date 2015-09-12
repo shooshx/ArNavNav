@@ -237,7 +237,7 @@ void NavDialog::update()
         int frame = 0;
         for(; frame < 1500; ++frame) 
         {
-            //if (false)
+            if (false) // VelocityObjects 
             {
                 m_pathVos.push_back(VODump());
                 m_doc->m_debugVoDump = &m_pathVos.back();
@@ -267,7 +267,7 @@ void NavDialog::update()
         ui.frameNum->setText("0");
 
         //---------------------- VO
-
+        updateSliderVOs(ui.frameSlider->value());
         if (false) 
         {
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
@@ -312,13 +312,9 @@ void NavDialog::update()
     m_scene->update();
 }
 
-void NavDialog::on_frameSlider_valueChanged(int v)
+void NavDialog::updateSliderVOs(int v)
 {
-    ui.frameNum->setText(QString("%1").arg(v));
-    for(auto& item: m_pathitems)
-        item->m_atframe = v;
-
-    if (v != -1 && m_pathVos.size() > 0 && v < m_pathVos.size()) {
+    if (v >= 0 && m_pathVos.size() > 0 && v < m_pathVos.size()) {
         m_vos->m_data = &m_pathVos[v];
         m_vos->m_ghostPos = m_probPath->m_pos[v];
     }
@@ -327,6 +323,15 @@ void NavDialog::on_frameSlider_valueChanged(int v)
         m_vos->m_ghostPos = INVALID_VEC2;
     }
 
+}
+
+void NavDialog::on_frameSlider_valueChanged(int v)
+{
+    ui.frameNum->setText(QString("%1").arg(v));
+    for(auto& item: m_pathitems)
+        item->m_atframe = v;
+
+    updateSliderVOs(v);
 
     m_scene->update();
 }
