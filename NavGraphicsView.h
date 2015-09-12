@@ -247,7 +247,8 @@ public:
     virtual QRectF boundingRect() const;
 
     NavDialog* m_ctrl;
-    vector<Vec2> m_v;
+    vector<Vec2> m_pos;
+    vector<Vec2> m_vel;
     Agent* m_agent;
     int m_atframe = -1; // -1 means no frame;
 };

@@ -308,26 +308,32 @@ QRectF MapDefItem::boundingRect() const {
 
 void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) 
 {
-    if (m_v.size() == 0)
+    if (m_pos.size() == 0)
         return;
     QPen pen(QColor(0,0,0));
     pen.setWidth(2);
     painter->setPen(pen);
     QVector<QPointF> lp;
-    for(auto v: m_v) {
+    for(auto v: m_pos) {
         lp.append(toQ(v));
     }
     painter->drawPolyline(lp);
     
-    if (m_atframe != -1) 
+    if (m_atframe != -1) // ghost
     {
-        CHECK(m_atframe < m_v.size(), "unexpected atframe");
+        CHECK(m_atframe < m_pos.size(), "unexpected atframe");
         pen.setWidth(1);
         painter->setPen(pen);
-        painter->setBrush(QBrush(QColor(255, 200, 200, 120)));
+        painter->setBrush(QBrush(QColor(255, 200, 200, 180)));
         int radius = m_agent->size.x / 2;
-        const auto& pos = m_v[m_atframe];
+        const auto& pos = m_pos[m_atframe];
         painter->drawEllipse(pos.x - radius, pos.y - radius, 2 * radius, 2 * radius);
+
+        painter->setBrush(QBrush(QColor(255, 255, 0, 180)));
+        Vec2 velpnt = pos + m_vel[m_atframe] * VELOCITY_SCALE;
+        radius = 5;
+        // perfVelocity yellow point
+        painter->drawEllipse(velpnt.x - radius, velpnt.y - radius, 2 * radius, 2 * radius);
     }
 
     QVector<QPointF> sp;

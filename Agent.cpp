@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <vector>
+#include <iostream>
 
 #include "BihTree.h"
 
@@ -405,15 +406,28 @@ bool Agent::update(float deltaTime)
 	m_position += m_velocity * deltaTime;
 
     //bool reachedGoal = ( (absSq(m_curGoalPos.p - m_position) < m_goalRadius * m_goalRadius) );
-    bool reachedGoal = m_curGoalPos->isPassed(m_position);
     bool reachedEnd = false;
-    if (reachedGoal) {
-        if (m_indexInPlan < m_plan.m_d.size()) {
-            m_curGoalPos = m_plan.m_d[m_indexInPlan];
+    if (m_curGoalPos->isPassed(m_position)) 
+    {
+        if (m_indexInPlan + 1 < m_plan.m_d.size()) {
             ++m_indexInPlan;
+            m_curGoalPos = m_plan.m_d[m_indexInPlan];
         }
-        else
-            reachedEnd = true;
+        else {
+          /*  reachedEnd = true;
+            m_curGoalPos = nullptr;
+            m_indexInPlan = -1;
+            m_velocity = Vec2();*/
+        }
+    }
+    else {
+        // did we backtrack?
+        if (m_indexInPlan > 0 && !m_plan.m_d[m_indexInPlan - 1]->isPassed(m_position)  ) {
+            --m_indexInPlan;
+           // cout << "BACK! " << index << endl;
+            m_curGoalPos = m_plan.m_d[m_indexInPlan];
+        }
+
     }
 
 	/*if (!reachedEnd) {

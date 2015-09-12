@@ -114,7 +114,7 @@ public:
 
 #define SQRT_2 (1.4142135623730950488016887242097f)
 
-#define ANTI_OVERLAP_FACTOR 0.1
+#define ANTI_OVERLAP_FACTOR 0.1 //0.1
 
 
 // return the intersection point of lines L1=a+tv L2=b+ku
@@ -345,7 +345,7 @@ void Document::clearObst()
 
 void Document::addAgent(const Vec2& pos, Goal* g)
 {
-    Agent* a = new Agent(100, pos,
+    Agent* a = new Agent(m_agents.size(), pos,
         g->p, // goal 
         30.0, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei

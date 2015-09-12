@@ -150,3 +150,4 @@ inline Vec2 project(const Vec2& p, const Vec2& a, const Vec2& b) {
     d = imin(1.0f, imax(0.0f, d));
     return a + d * ab;
 }
+

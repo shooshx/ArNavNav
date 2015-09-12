@@ -19,6 +19,7 @@ NavDialog::NavDialog(QWidget *parent)
     ui.fileBut->setMenu(menu);
     menu->addAction(ui.actionLoad);
     menu->addAction(ui.actionSave);
+   // menu->addAction(ui.actionReload); not working
 
     m_scene = new QGraphicsScene(this);
     ui.gView->setScene(m_scene);
@@ -69,8 +70,8 @@ void NavDialog::readDoc()
 //    m_gobjs.clear();
 
     if (m_doc->m_prob != nullptr) {
-        m_vos = new VOSItem(dynamic_cast<Agent*>(m_doc->m_prob), this);
-        m_scene->addItem(m_vos);
+        m_vos.reset(new VOSItem(dynamic_cast<Agent*>(m_doc->m_prob), this));
+        m_scene->addItem(m_vos.get());
         m_vos->setZValue(-7);
         
     }
@@ -225,8 +226,10 @@ void NavDialog::update()
 
 
         for(int i = 0; i < m_doc->m_agents.size(); ++i) {
-            m_pathitems[i]->m_v.clear();
-            m_pathitems[i]->m_v.push_back( m_doc->m_agents[i]->m_position );
+            m_pathitems[i]->m_pos.clear();
+            m_pathitems[i]->m_pos.push_back( m_doc->m_agents[i]->m_position );
+            m_pathitems[i]->m_vel.clear();
+            m_pathitems[i]->m_vel.push_back( Vec2());
             m_pathitems[i]->m_atframe = -1;
         }
 
@@ -234,7 +237,7 @@ void NavDialog::update()
         int frame = 0;
         for(; frame < 1500; ++frame) 
         {
-            if (false)
+            //if (false)
             {
                 m_pathVos.push_back(VODump());
                 m_doc->m_debugVoDump = &m_pathVos.back();
@@ -243,8 +246,10 @@ void NavDialog::update()
             if (m_doc->doStep(0.25, true))
                 break;
 
-            for(int i = 0; i < m_doc->m_agents.size(); ++i)
-                m_pathitems[i]->m_v.push_back( m_doc->m_agents[i]->m_position );
+            for(int i = 0; i < m_doc->m_agents.size(); ++i) {
+                m_pathitems[i]->m_pos.push_back( m_doc->m_agents[i]->m_position );
+                m_pathitems[i]->m_vel.push_back( m_doc->m_agents[i]->m_prefVelocity);// m_velocity );
+            }
         }
 
         // restore backup
@@ -258,7 +263,7 @@ void NavDialog::update()
             agent->m_velocity = Vec2();
         }
 
-        ui.frameSlider->setRange(-1, frame);
+        ui.frameSlider->setRange(-1, frame-1);
         ui.frameNum->setText("0");
 
         //---------------------- VO
@@ -269,7 +274,7 @@ void NavDialog::update()
             float origNeiDist = agentProb->m_neighborDist;
             agentProb->m_neighborDist = 50;
             m_doc->doStep(0.25, false);
-            if (m_vos != nullptr)
+            if (m_vos)
                 agentProb->computeNewVelocity(m_vos->m_data);
             agentProb->m_neighborDist = origNeiDist;
         }
@@ -313,9 +318,9 @@ void NavDialog::on_frameSlider_valueChanged(int v)
     for(auto& item: m_pathitems)
         item->m_atframe = v;
 
-    if (v != -1 && m_pathVos.size() > 0) {
+    if (v != -1 && m_pathVos.size() > 0 && v < m_pathVos.size()) {
         m_vos->m_data = &m_pathVos[v];
-        m_vos->m_ghostPos = m_probPath->m_v[v];
+        m_vos->m_ghostPos = m_probPath->m_pos[v];
     }
     else {
         m_vos->m_data = &m_vos->m_ownData;
@@ -440,6 +445,15 @@ void NavDialog::on_actionLoad_triggered(bool)
 
     }
     cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_p.size() << " polylines" << endl;
+    readDoc();
+    update();
+}
+
+void NavDialog::on_actionReload_triggered(bool) 
+{
+    m_doc->m_mapdef.clear();
+    m_doc->m_goals.clear();
+
     readDoc();
     update();
 }

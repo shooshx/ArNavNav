@@ -27,6 +27,7 @@ public slots:
     void on_addPolyBut_toggled(bool checked);
     void on_actionSave_triggered(bool);
     void on_actionLoad_triggered(bool);
+    void on_actionReload_triggered(bool);
     void on_frameSlider_valueChanged(int);
 
 public:
@@ -39,7 +40,7 @@ public:
 
     BaseItem *m_mark1 = nullptr, *m_mark2 = nullptr;
 
-    VOSItem* m_vos = nullptr;
+    shared_ptr<VOSItem> m_vos;
     vector<Vec2> m_currentPoly;
 
     vector<shared_ptr<BaseItem>> m_objects;

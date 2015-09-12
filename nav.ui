@@ -124,6 +124,11 @@
     <string>Load...</string>
    </property>
   </action>
+  <action name="actionReload">
+   <property name="text">
+    <string>reload</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>

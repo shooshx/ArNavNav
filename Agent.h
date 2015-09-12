@@ -46,6 +46,8 @@ public:
 };
 
 #define GOAL_SEGMENT_LEN 30.0f
+#define GOAL_PERPENDICULAR_OFFSET 10.1f
+
 
 // just arrive anywhere on the segment, that would be great
 class SegmentSubGoal : public ISubGoal
@@ -53,9 +55,16 @@ class SegmentSubGoal : public ISubGoal
 public:
     SegmentSubGoal() {}
     SegmentSubGoal(const Vec2& _a, const Vec2& _b, int _passCheckSign) :a(_a), b(_b), ab(_b - _a), passCheckSign(_passCheckSign)
-    {}
+    {
+        pab = Vec2(ab.y, -ab.x);
+        pab.normalize();
+        pab *= passCheckSign * GOAL_PERPENDICULAR_OFFSET;
+        // want to go slightly further than the goal so we'll be able to pass it
+    }
     virtual Vec2 getDest(const Vec2& comingFrom) const {
-        return project(comingFrom, a, b);
+        //return project(comingFrom, a, b);
+
+        return a + pab;
     }
     virtual bool isPassed(const Vec2& amAt) const {
         return (passCheckSign * det(ab, amAt - a)) < 0; // did we pass the line
@@ -64,9 +73,9 @@ public:
         return false;
     }
     virtual Vec2 representPoint() const {
-        return a;
+        return a + pab;
     }
-    Vec2 a, b, ab;
+    Vec2 a, b, ab, pab;
     int passCheckSign = 1;
 };
 
