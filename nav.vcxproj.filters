@@ -63,9 +63,6 @@
     <ClCompile Include="poly2tri\advancing_front.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
-    <ClCompile Include="poly2tri\cdt.cc">
-      <Filter>poly2tri</Filter>
-    </ClCompile>
     <ClCompile Include="poly2tri\shapes.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>

@@ -42,7 +42,7 @@ public:
         std::function<void(Object*)> callback;
     };
     void recQuery(NodeRef node, QueryState& qs);
-    void query(const Vec2& coord, float radius, std::function<void(Object*)> callback);
+    void query(const Vec2& coord, float radius, const std::function<void(Object*)>& callback);
 
     float avgNodeSize();
 

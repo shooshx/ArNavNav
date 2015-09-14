@@ -5,6 +5,7 @@
 #include <set>
 #include <utility>
 #include <vector>
+#include <queue>
 
 
 #include "Vec2.h"
@@ -126,12 +127,14 @@ public:
         m_endp = PointSubGoal(p, radius);
         m_d.push_back(&m_endp);
     }
-    void clearAndReserve(int size) {
+    void clear() {
         m_segs.clear();
         m_d.clear();
+        m_endp = PointSubGoal();
+    }
+    void reserve(int size) {
         m_d.reserve(size);
         m_segs.reserve(size - 1);
-        m_endp = PointSubGoal();
     }
 
     std::vector<ISubGoal*> m_d; // pointers to m_planData and m_planEnd;
@@ -143,6 +146,42 @@ public:
     void operator=(const Plan&) = delete;
 };
 
+template<typename T>
+class MyPrioQueue // one that exposes the unserlying vector
+{
+public:
+    const T& top() const {
+        return c.front();
+    }
+    void qpush(const T& _Val) {
+        c.push_back(_Val);
+        if (m_isheap)
+            std::push_heap(c.begin(), c.end());
+    }
+    // if we never pop, it doesn't need to be a heap
+    void qpop() {
+        if (!m_isheap) {
+            std::make_heap(c.begin(), c.end());
+            m_isheap = true;
+        }
+        std::pop_heap(c.begin(), c.end());
+        c.pop_back();
+    }
+    void sort() { // make it not a heap
+        if (m_isheap)
+            std::sort_heap(c.begin(), c.end());
+        else
+            std::sort(c.begin(), c.end());
+        m_isheap = false;
+    }
+    void clear() {
+        c.clear();
+        m_isheap = false;
+    }
+
+    bool m_isheap = false;
+    std::vector<T> c;
+};
 
 class Agent : public Circle
 {
@@ -202,7 +241,9 @@ public:
     std::vector<VelocityObstacle> m_voStore; // used in computeNewVelocity, should not be reallocated every time
     //float m_orientation = 0.0;
 
-	std::set<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
+
+    MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
+	//std::set<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
 	
     Plan m_plan;
 };

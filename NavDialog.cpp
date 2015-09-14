@@ -45,8 +45,8 @@ static ostream& operator<<(ostream& os, const Vec2& p) {
 void NavDialog::readMesh()
 {
     m_meshitems.clear();
-    for(auto *tri : m_doc->m_mesh.m_tri) {
-        auto i = new TriItem(this, tri);
+    for(auto& tri : m_doc->m_mesh.m_tri) {
+        auto i = new TriItem(this, &tri);
         i->setZValue(-20);
         m_scene->addItem(i);
         m_meshitems.push_back(shared_ptr<TriItem>(i));
@@ -56,8 +56,8 @@ void NavDialog::readMesh()
 void NavDialog::readPolyPoints() 
 {
     m_polypointitems.clear();
-    for(auto *pl : m_doc->m_mapdef.m_p) {
-        for(auto pv : pl->m_d) {
+    for(const auto& pl : m_doc->m_mapdef.m_pl) {
+        for(auto* pv : pl.m_d) {
             auto i = new PolyPointItem(this, pv);
             m_scene->addItem(i);
             m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
@@ -346,7 +346,7 @@ void NavDialog::on_addPolyBut_toggled(bool checked)
 void NavDialog::pointClicked(const Vec2& p)
 {
     if (ui.addPolyBut->isChecked()) {
-        auto pv = m_doc->m_mapdef.top()->add(p);
+        auto pv = m_doc->m_mapdef.addToLast(p);
         auto i = new PolyPointItem(this, pv);
         m_scene->addItem(i);
         m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
@@ -371,9 +371,9 @@ void NavDialog::on_actionSave_triggered(bool)
     if (!ofs.good())
         return;
     int count = 0;
-    for(auto *pl : m_doc->m_mapdef.m_p) {
+    for(const auto& pl : m_doc->m_mapdef.m_pl) {
         ofs << "\npolyline\n";
-        for(auto pv : pl->m_d) {
+        for(auto pv : pl.m_d) {
             ofs << "v " << pv->p.x << " " << pv->p.y << "\n";
             ++count;
         }
@@ -392,7 +392,7 @@ void NavDialog::on_actionSave_triggered(bool)
     for(auto* agent: m_doc->m_agents)
         ofs << "agent " << agent->m_position.x << " " << agent->m_position.y << " " << agentToGoal[agent] << "\n";
 
-    cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_p.size() << " polylines" << endl;
+    cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
 
 
@@ -420,7 +420,7 @@ void NavDialog::on_actionLoad_triggered(bool)
         else if (h == "v") {
             Vec2 v;
             iss >> v.x >> v.y;
-            m_doc->m_mapdef.top()->add(v);
+            m_doc->m_mapdef.addToLast(v);
             ++count;
         }
         else if (h == "start") {
@@ -449,7 +449,7 @@ void NavDialog::on_actionLoad_triggered(bool)
         }
 
     }
-    cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_p.size() << " polylines" << endl;
+    cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
     readDoc();
     update();
 }

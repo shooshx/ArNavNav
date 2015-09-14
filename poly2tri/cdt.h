@@ -48,55 +48,26 @@ class CDT
 {
 public:
 
-  /**
-   * Constructor - add polyline with non repeating points
-   * 
-   * @param polyline
-   */
-  CDT(std::vector<Point*> polyline);
-  
-   /**
-   * Destructor - clean up memory
-   */
-  ~CDT();
-  
-  /**
-   * Add a hole
-   * 
-   * @param polyline
-   */
-  void AddHole(std::vector<Point*> polyline);
-  
-  /**
-   * Add a steiner point
-   * 
-   * @param point
-   */
-  void AddPoint(Point* point);
-  
-  /**
-   * Triangulate - do this AFTER you've added the polyline, holes, and Steiner points
-   */
-  void Triangulate();
-  
-  /**
-   * Get CDT triangles
-   */
-  std::vector<Triangle*> GetTriangles();
-  
-  /**
-   * Get triangle map
-   */
-  std::list<Triangle*> GetMap();
 
-  private:
+    void Triangulate()
+    {
+        sweep_.Triangulate(sweep_context_);
+    }
 
-  /**
-   * Internals
-   */
-   
-  SweepContext* sweep_context_;
-  Sweep* sweep_;
+    std::vector<p2t::Triangle*> GetTriangles()
+    {
+        return sweep_context_.GetTriangles();
+    }
+
+    std::list<p2t::Triangle*> GetMap()
+    {
+        return sweep_context_.GetMap();
+    }
+
+
+
+    SweepContext sweep_context_;
+    Sweep sweep_;
 
 };
 

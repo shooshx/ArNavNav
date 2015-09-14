@@ -35,14 +35,16 @@
 
 #include <vector>
 #include <cstddef>
-#include <assert.h>
 #include <cmath>
+
+#include <exception>
 
 namespace p2t {
 
 struct Edge;
 
-struct Point {
+struct Point 
+{
 
   double x, y;
 
@@ -117,6 +119,7 @@ struct Point {
     return len;
   }
 
+
 };
 
 // Represents a simple polygon's edge
@@ -125,18 +128,20 @@ struct Edge {
   Point* p, *q;
 
   /// Constructor
-  Edge(Point& p1, Point& p2) : p(&p1), q(&p2)
+  Edge(Point* p1, Point* p2) : p(p1), q(p2)
   {
-    if (p1.y > p2.y) {
-      q = &p1;
-      p = &p2;
-    } else if (p1.y == p2.y) {
-      if (p1.x > p2.x) {
-        q = &p1;
-        p = &p2;
-      } else if (p1.x == p2.x) {
+    if (p1->y > p2->y) {
+      q = p1;
+      p = p2;
+    } 
+    else if (p1->y == p2->y) {
+      if (p1->x > p2->x) {
+        q = p1;
+        p = p2;
+      } 
+      else if (p1->x == p2->x) {
         // Repeat points
-        assert(false);
+        throw std::runtime_error("Edge-ctor");;
       }
     }
 

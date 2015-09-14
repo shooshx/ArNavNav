@@ -10,44 +10,50 @@
 
 void runTri(MapDef* mapdef, Mesh& out)
 {
-    if (mapdef->m_p.size() == 0)
+    if (mapdef->m_pl.size() == 0)
         return;
 
     int vcount = 0;
-    for(auto* mp: mapdef->m_p) 
-        vcount += mp->m_d.size();
+    for(const auto& mp: mapdef->m_pl) 
+        vcount += mp.m_d.size();
 
     vector<p2t::Point> rep;
     rep.reserve(vcount);
     out.m_vtx.reserve(vcount + 2); // the algorithm can add two additional max,min points
 
-    vector<p2t::Point*> emptyPolyline;
-    p2t::CDT cdt(emptyPolyline);
+    p2t::CDT cdt;
+    cdt.sweep_context_.points_.reserve(vcount + 2);
 
+    vector<p2t::Point*> polyline;
+
+    // add the polylines one by one
     int holeCount = 0;
-    for(auto* mp: mapdef->m_p) 
+    for(const auto& mp: mapdef->m_pl) 
     {
-        vector<p2t::Point*> polyline;
-        for(int i = 0; i < mp->m_d.size(); ++i) 
+        polyline.clear();
+        for(int i = 0; i < mp.m_d.size(); ++i) 
         {
-            Vertex* pv = mp->m_d[i];
-            if (i > 0 && pv->p == mp->m_d[i - 1]->p) // repeat vertex - ignore it
+            Vertex* pv = mp.m_d[i];
+            if (i > 0 && pv->p == mp.m_d[i - 1]->p) // repeat vertex - ignore it
                 continue;
             rep.push_back( p2t::Point(pv->p.x, pv->p.y) ); // will not reallocate due to reserve
-            out.m_vtx.push_back(new Vertex(out.m_vtx.size(), pv->p) );
+            out.m_vtx.push_back(Vertex(out.m_vtx.size(), pv->p) );
             polyline.push_back(&rep.back());
         }
         if (polyline.size() < 3)
             continue;
-        cdt.AddHole(polyline);
+        cdt.sweep_context_.AddHole(polyline);
         ++holeCount;
     }
+
     if (holeCount == 0)
         return;
+
 
     cdt.Triangulate();
 
     vector<p2t::Triangle*> triangles = cdt.GetTriangles();
+    out.m_tri.reserve(triangles.size());
 
     map<p2t::Point*, int> added; // min and max points can be added in case of self intersection
     for(auto* t: triangles) {
@@ -65,10 +71,10 @@ void runTri(MapDef* mapdef, Mesh& out)
                     CHECK(added.size() < 2, "unexpected added vertices");
                     vindex = out.m_vtx.size();
                     added[p] = vindex;
-                    out.m_vtx.push_back(new Vertex(vindex, Vec2(p->x, p->y)) );
+                    out.m_vtx.push_back(Vertex(vindex, Vec2(p->x, p->y)) );
                 }
             }
-            nt[i] = out.m_vtx[vindex];
+            nt[i] = &out.m_vtx[vindex];
         }
         out.addTri(nt[0], nt[1], nt[2]);
     }

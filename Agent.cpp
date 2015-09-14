@@ -117,11 +117,13 @@ void Agent::computeNewVelocity(VODump* dump)
     }
     m_voStore.clear();
     vector<VelocityObstacle>& velocityObstacles = m_voStore;
-	velocityObstacles.reserve(m_neighbors.size());
+	velocityObstacles.reserve(m_neighbors.c.size());
 
 	VelocityObstacle velocityObstacle;
 
-	for (auto iter = m_neighbors.begin(); iter != m_neighbors.end(); ++iter)
+    m_neighbors.sort();
+
+	for (auto iter = m_neighbors.c.begin(); iter != m_neighbors.c.end(); ++iter)
     {
 		const Object* otherObj = iter->second;
         if (otherObj->m_type == TypeCircle || otherObj->m_type == TypeAgent)
@@ -502,16 +504,16 @@ void Agent::insertNeighbor(Object* otherObj, float &rangeSq)
     float checkSq = otherObj->distSqToSurface(m_position);
 
 
-    if (checkSq < rangeSq) {
-		if (m_neighbors.size() == m_maxNeighbors) {
-			m_neighbors.erase(--m_neighbors.end());
-		}
+    if (checkSq < rangeSq) 
+    {
+		//m_neighbors.insert(std::make_pair(checkSq, otherObj));
+        m_neighbors.qpush(std::make_pair(checkSq, otherObj));       
 
-		m_neighbors.insert(std::make_pair(checkSq, otherObj));
-
-		if (m_neighbors.size() == m_maxNeighbors) {
-			rangeSq = (--m_neighbors.end())->first;
-		}
+		if (m_neighbors.c.size() > m_maxNeighbors) {
+			//rangeSq = (--m_neighbors.end())->first;
+            m_neighbors.qpop();
+            rangeSq = m_neighbors.top().first;
+        }
 	}
 	
 }

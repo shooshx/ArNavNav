@@ -11,9 +11,10 @@ next fixes
 
 
 TBD
-- finalize base features
+
 - add agent radius consideration in A*
 - reduce allocation and small objects
+  - BihTree init
 - extract polylines from terrain mesh
 - more accurate A* - not between mid-segments
 - better GUI for defining the scene

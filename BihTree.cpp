@@ -102,7 +102,7 @@ void BihTree::recQuery(NodeRef noderef, QueryState& qs)
 
 }
 
-void BihTree::query(const Vec2& coord, float radius, std::function<void(Object*)> callback) {
+void BihTree::query(const Vec2& coord, float radius, const std::function<void(Object*)>& callback) {
     QueryState qs{coord, radius, callback};
     recQuery(0, qs);
 }

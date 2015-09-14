@@ -113,7 +113,6 @@
     <ClCompile Include="NavDialog.cpp" />
     <ClCompile Include="NavGraphicsView.cpp" />
     <ClCompile Include="poly2tri\advancing_front.cc" />
-    <ClCompile Include="poly2tri\cdt.cc" />
     <ClCompile Include="poly2tri\adapter.cc" />
     <ClCompile Include="poly2tri\shapes.cc" />
     <ClCompile Include="poly2tri\sweep.cc" />

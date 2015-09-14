@@ -65,16 +65,7 @@ public:
 
 struct Polyline
 {
-    void clear() {
-        for(auto v: m_d)
-            delete v;
-    }
-    Vertex* add(const Vec2& v) {
-        auto* av = new Vertex(m_d.size(), v);
-        m_d.push_back(av);
-        return av;
-    }
-    // not always owns these vertices (yes in MapDef, no in Mesh)
+    // never owns
     vector<Vertex*> m_d;
 };
 
@@ -84,22 +75,26 @@ public:
     ~MapDef() {
         clear();
     }
-    Polyline* add() {
-        m_p.push_back(new Polyline());
-        return m_p.back();
+    void add() {
+        m_pl.push_back(Polyline());
     }
-    Polyline* top() {
-        if (m_p.empty())
-            m_p.push_back(new Polyline());
-        return m_p.back();
+    Vertex* addToLast(const Vec2& p) {
+        if (m_pl.empty())
+            m_pl.push_back(Polyline());
+        auto v = new Vertex(m_vtx.size(), p);
+        m_vtx.push_back(v);
+        m_pl.back().m_d.push_back(v);
+        return v;
     }
     void clear() {
-        for(auto p: m_p)
-            p->clear();
-        m_p.clear();
+        for(auto v: m_vtx)
+            delete v;
+        m_vtx.clear();
+        m_pl.clear();
     }
 
-    vector<Polyline*> m_p;
+    vector<Vertex*> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
+    vector<Polyline> m_pl;
 };
 
 
@@ -109,24 +104,20 @@ public:
     ~Mesh() {
         clear();
     }
-    void addTri(const Vec2& a, const Vec2& b, const Vec2& c) {
-        auto va = new Vertex(m_vtx.size(), a);
+    /*void addTri(const Vec2& a, const Vec2& b, const Vec2& c) {
+        auto va = Vertex(m_vtx.size(), a);
         m_vtx.push_back(va);
-        auto vb = new Vertex(m_vtx.size(), b);
+        auto vb = Vertex(m_vtx.size(), b);
         m_vtx.push_back(vb);
-        auto vc = new Vertex(m_vtx.size(), c);
+        auto vc = Vertex(m_vtx.size(), c);
         m_vtx.push_back(vc);
         m_tri.push_back(new Triangle(va, vb, vc));    
-    }
+    }*/
     // takes control of them
     void addTri(Vertex* va, Vertex* vb, Vertex* vc) {
-        m_tri.push_back(new Triangle(va, vb, vc));    
+        m_tri.push_back(Triangle(va, vb, vc));    
     }
     void clear() {
-        for(auto v: m_vtx)
-            delete v;
-        for(auto t: m_tri)
-            delete t;
         m_vtx.clear();
         m_tri.clear();
         m_perimiters.clear();
@@ -146,8 +137,8 @@ public:
     }
 
     // owns these vertices
-    vector<Vertex*> m_vtx;
-    vector<Triangle*> m_tri;
+    vector<Vertex> m_vtx;
+    vector<Triangle> m_tri;
     vector<Polyline> m_perimiters;
     vector<HalfEdge> m_he;
 

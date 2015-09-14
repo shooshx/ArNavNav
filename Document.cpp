@@ -239,7 +239,10 @@ void Document::runTriangulate()
     }
 
     m_mesh.m_altVtxPosByRadius.clear();
-    auto possibleRadiuses = { m_agents[0]->m_radius };
+
+    vector<float> possibleRadiuses;
+    for(auto agent: m_agents)
+        possibleRadiuses.push_back(agent->m_radius);
     for(float radius: possibleRadiuses)
     {
         vector<Vec2>& altVtx = m_mesh.m_altVtxPosByRadius[radius];
@@ -280,6 +283,7 @@ void Document::runTriangulate()
         if (!endTri || !startTri) {
             continue;
         }
+        agent->m_plan.clear();
         if (startTri == endTri) 
         {
             agent->m_plan.setEnd(endp, agent->m_goalRadius);
@@ -296,7 +300,7 @@ void Document::runTriangulate()
             //    if (t->highlight == 0)
             //        t->highlight = 3;
 
-            agent->m_plan.clearAndReserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
+            agent->m_plan.reserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
 
            
             int prevVtxIndex = -2;
@@ -312,7 +316,9 @@ void Document::runTriangulate()
                     return v->p;
                 }
                 auto* subGoalMaker = m_seggoals[v->index];
-                CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+                if (subGoalMaker == nullptr)
+                    return v->p; // vertex that is not part of a parimiter
+                //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
                 return subGoalMaker->makePathRef(agent->m_radius);
             });
             PathMaker pm(outf, posf);
@@ -328,14 +334,18 @@ void Document::runTriangulate()
                 }
                 else {
                     auto* subGoalMaker = m_seggoals[v->index];
-                    CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-
                     Vec2 nextPosInPath;
+                    if (subGoalMaker == nullptr)
+                        continue; // vertex that is not part of a parimiter
+
+                    //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+
                     int nextIndex = planSketch[i+1]->index;
-                    if (nextIndex < 0)
+                    if (nextIndex < 0 || m_seggoals[nextIndex] == nullptr) // vertex that is not part of a parimiter
                         nextPosInPath = planSketch[i+1]->p;
-                    else
+                    else 
                         nextPosInPath = m_seggoals[nextIndex]->makePathRef(agent->m_radius);
+
                     subGoalMaker->makeSubGoal(agent->m_radius, nextPosInPath, agent->m_plan);
                     
                 }   

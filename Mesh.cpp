@@ -37,44 +37,44 @@ void Mesh::connectTri()
     m_he.clear();
     m_he.reserve(m_tri.size() * 3);
 
-    for(auto t: m_tri) 
+    for(auto& t: m_tri) 
     {
         HalfEdge* h0 = addHe();
-        h0->tri = t;
-        h0->from = t->v[0];
-        h0->to = t->v[1];
-        h0->_midPnt = (t->v[1]->p + t->v[0]->p) * 0.5f;
-        t->h[0] = h0;
+        h0->tri = &t;
+        h0->from = t.v[0];
+        h0->to = t.v[1];
+        h0->_midPnt = (t.v[1]->p + t.v[0]->p) * 0.5f;
+        t.h[0] = h0;
 
         HalfEdge* h1 = addHe();
-        h1->tri = t;
-        h1->from = t->v[1];
-        h1->to = t->v[2];
-        h1->_midPnt = (t->v[2]->p + t->v[1]->p) * 0.5f;
-        t->h[1] = h1;
+        h1->tri = &t;
+        h1->from = t.v[1];
+        h1->to = t.v[2];
+        h1->_midPnt = (t.v[2]->p + t.v[1]->p) * 0.5f;
+        t.h[1] = h1;
 
         HalfEdge* h2 = addHe();
-        h2->tri = t;
-        h2->from = t->v[2];
-        h2->to = t->v[0];
-        h2->_midPnt = (t->v[0]->p + t->v[2]->p) * 0.5f;
-        t->h[2] = h2;
+        h2->tri = &t;
+        h2->from = t.v[2];
+        h2->to = t.v[0];
+        h2->_midPnt = (t.v[0]->p + t.v[2]->p) * 0.5f;
+        t.h[2] = h2;
 
         h0->next = h1;
         h1->next = h2;
         h2->next = h0;
 
-        seekPair(t->v[0], t->v[1], h0);
-        seekPair(t->v[1], t->v[2], h1);
-        seekPair(t->v[2], t->v[0], h2);
+        seekPair(t.v[0], t.v[1], h0);
+        seekPair(t.v[1], t.v[2], h1);
+        seekPair(t.v[2], t.v[0], h2);
     }
 
     // go over half edges, create triangles links
-    for (auto t : m_tri)
+    for (auto& t : m_tri)
     {
         for(int i = 0; i < 3; ++i) {
-            if (t->h[i]->opposite != nullptr)
-                t->nei[i] = t->h[i]->opposite->tri;
+            if (t.h[i]->opposite != nullptr)
+                t.nei[i] = t.h[i]->opposite->tri;
         }
     }
 
@@ -120,11 +120,11 @@ static float sign(const Vec2& p1, const Vec2& p2, const Vec2& p3)
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
-static bool isPointInTri(const Vec2& pt, Triangle* t, vector<Vec2>& posRef)//const Vec2& v1, const Vec2& v2, const Vec2& v3)
+static bool isPointInTri(const Vec2& pt, const Triangle& t, vector<Vec2>& posRef)//const Vec2& v1, const Vec2& v2, const Vec2& v3)
 {
-    Vec2 a = posRef[t->v[0]->index];
-    Vec2 b = posRef[t->v[1]->index];
-    Vec2 c = posRef[t->v[2]->index];
+    Vec2 a = posRef[t.v[0]->index];
+    Vec2 b = posRef[t.v[1]->index];
+    Vec2 c = posRef[t.v[2]->index];
 
     bool b1, b2, b3;
 
@@ -138,9 +138,9 @@ static bool isPointInTri(const Vec2& pt, Triangle* t, vector<Vec2>& posRef)//con
 // take vertex positions from posRef
 Triangle* Mesh::findContaining(const Vec2& p, vector<Vec2>& posRef)
 {
-    for(auto t: m_tri) {
+    for(auto& t: m_tri) {
         if (isPointInTri(p, t, posRef))
-            return t;
+            return &t;
     }
     return nullptr;
 }

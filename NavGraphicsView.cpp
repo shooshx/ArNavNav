@@ -288,11 +288,11 @@ void MapDefItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     pen.setWidth(1);
     painter->setPen(pen);
     painter->setBrush(QBrush());
-    for(auto* pl: m_p->m_p) {
-        if (pl->m_d.size() == 0)
+    for(const auto& pl: m_p->m_pl) {
+        if (pl.m_d.size() == 0)
             continue;
         vector<QPointF> qp;
-        for(auto* pv: pl->m_d) {
+        for(auto* pv: pl.m_d) {
             qp.push_back(toQ(pv->p));
         }
         painter->drawPolygon(&qp[0], qp.size());
