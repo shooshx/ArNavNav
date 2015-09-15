@@ -6,18 +6,13 @@ Current features
 - Fast collision detection of multiple agents that move in the scene
 - A* planning on the navigation mesh using segment mid-points
 
-next fixes
-
-
 
 TBD
-
-- add agent radius consideration in A*
-- reduce allocation and small objects
-  - BihTree init
 - extract polylines from terrain mesh
 - more accurate A* - not between mid-segments
 - better GUI for defining the scene
 - connect different meshes to make floors?
 - WebUI asm.js
 - handling self intersections
+  - inside poly intersects outside
+- add agent radius consideration in A*

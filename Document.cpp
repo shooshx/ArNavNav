@@ -2,10 +2,10 @@
 #include "BihTree.h"
 #include "Agent.h"
 #include <iostream>
+#include <sstream>
 
 
-Document::Document(QObject *parent)
-    : QObject(parent)
+Document::Document()
 {
     //init_preset();
     init_test();
@@ -40,7 +40,7 @@ void Document::init_tri()
     
     //m_start = new Vertex(0, Vec2(200, 0));
     //auto _end = ;
-    m_goals.push_back(new Goal(Vec2(-200, 0)));
+    addGoal(Vec2(-200, 0));
 
 /*
     m_markers.push_back(new Vertex(0, Vec2(-100, -100)));
@@ -271,96 +271,104 @@ void Document::runTriangulate()
 
     for(auto agent: m_agents)
     {
-        const Vec2& startp = agent->m_position;
-        const Vec2& endp = agent->m_endGoalPos;
-        
-        auto it = m_mesh.m_altVtxPosByRadius.find(agent->m_radius);
-        CHECK(it != m_mesh.m_altVtxPosByRadius.end(), "unexpected radius");
-        auto posReference = it->second;
-        Triangle* startTri = m_mesh.findContaining(startp, posReference);
-        Triangle* endTri = m_mesh.findContaining(endp, posReference);
+        updatePlan(agent);
+    }
+}
 
-        if (!endTri || !startTri) {
-            continue;
-        }
-        agent->m_plan.clear();
-        if (startTri == endTri) 
-        {
-            agent->m_plan.setEnd(endp, agent->m_goalRadius);
-            agent->m_indexInPlan = 0;
-            agent->m_curGoalPos = agent->m_plan.m_d[0];
-            continue;
-        }
+//extern void cpp_out(const char* s);
+//#define OUT(strm) { ostringstream ss; ss << strm; cpp_out(ss.str().c_str()); }
 
-        vector<Triangle*> corridor;
-        if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor))
-        {
+void Document::updatePlan(Agent* agent)
+{
+    const Vec2& startp = agent->m_position;
+    const Vec2& endp = agent->m_endGoalPos;
 
-            //for(auto* t: corridor)
-            //    if (t->highlight == 0)
-            //        t->highlight = 3;
+    // find start and end triangles
+    auto it = m_mesh.m_altVtxPosByRadius.find(agent->m_radius);
+    CHECK(it != m_mesh.m_altVtxPosByRadius.end(), "unexpected radius");
+    auto posReference = it->second;
+    Triangle* startTri = m_mesh.findContaining(startp, posReference);
+    Triangle* endTri = m_mesh.findContaining(endp, posReference);
 
-            agent->m_plan.reserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
+    if (!endTri || !startTri) {
+        return;
+    }
+    agent->m_plan.clear();
+    if (startTri == endTri) 
+    {
+        agent->m_plan.setEnd(endp, agent->m_goalRadius);
+        agent->m_indexInPlan = 0;
+        agent->m_curGoalPos = agent->m_plan.m_d[0];
+        return;
+    }
 
-           
-            int prevVtxIndex = -2;
-            vector<Vertex*> planSketch;
-            PathMaker::TOutputCallback outf([&](Vertex* v) {
-                if (v->index == prevVtxIndex)
-                    return; // string pull may produce the same vertex multiple times, ignore it
-                prevVtxIndex = v->index;
-                planSketch.push_back(v);
-            });
-            PathMaker::TGetPosCallback posf([&](Vertex* v)->Vec2 {
-                if (v->index < 0) { // means its the end dummy vertex
-                    return v->p;
-                }
-                auto* subGoalMaker = m_seggoals[v->index];
-                if (subGoalMaker == nullptr)
-                    return v->p; // vertex that is not part of a parimiter
-                //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-                return subGoalMaker->makePathRef(agent->m_radius);
-            });
-            PathMaker pm(outf, posf);
-            pm.makePath(corridor, startp, endp);
+    // find corridor
+    vector<Triangle*> corridor;
+    if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor))
+    {
+        //for(auto* t: corridor)
+        //    if (t->highlight == 0)
+        //        t->highlight = 3;
 
-            // make the actual plan when all vertices are known since we need to reference the next vertex
-            //Vec2 prevInPath = startp;
-            for(int i = 0; i < planSketch.size(); ++i) 
-            {
-                Vertex* v = planSketch[i];
-                if (v->index < 0) { // means its the end dummy vertex
-                    agent->m_plan.setEnd(v->p, agent->m_goalRadius);
-                }
-                else {
-                    auto* subGoalMaker = m_seggoals[v->index];
-                    Vec2 nextPosInPath;
-                    if (subGoalMaker == nullptr)
-                        continue; // vertex that is not part of a parimiter
+        agent->m_plan.reserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
 
-                    //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-
-                    int nextIndex = planSketch[i+1]->index;
-                    if (nextIndex < 0 || m_seggoals[nextIndex] == nullptr) // vertex that is not part of a parimiter
-                        nextPosInPath = planSketch[i+1]->p;
-                    else 
-                        nextPosInPath = m_seggoals[nextIndex]->makePathRef(agent->m_radius);
-
-                    subGoalMaker->makeSubGoal(agent->m_radius, nextPosInPath, agent->m_plan);
-                    
-                }   
-
+        // male path from corridor
+        int prevVtxIndex = -2;
+        vector<Vertex*> planSketch;
+        PathMaker::TOutputCallback outf([&](Vertex* v) {
+            if (v->index == prevVtxIndex)
+                return; // string pull may produce the same vertex multiple times, ignore it
+            prevVtxIndex = v->index;
+            planSketch.push_back(v);
+        });
+        PathMaker::TGetPosCallback posf([&](Vertex* v)->Vec2 {
+            if (v->index < 0) { // means its the end dummy vertex
+                return v->p;
             }
-            
-            //for(auto& sg: agent->m_plan)
-            //    cout << sg.p << "  ";
+            auto* subGoalMaker = m_seggoals[v->index];
+            if (subGoalMaker == nullptr)
+                return v->p; // vertex that is not part of a parimiter
+                             //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+            return subGoalMaker->makePathRef(agent->m_radius);
+        });
+        PathMaker pm(outf, posf);
+        pm.makePath(corridor, startp, endp);
 
-            //agent->m_indexInPlan = agent->m_plan.m_d.size()-1;
-            agent->m_indexInPlan = 0;
-            agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
+        // make the actual plan when all vertices are known since we need to reference the next vertex
+        //Vec2 prevInPath = startp;
+        for(int i = 0; i < planSketch.size(); ++i) 
+        {
+            Vertex* v = planSketch[i];
+            if (v->index < 0) { // means its the end dummy vertex
+                agent->m_plan.setEnd(v->p, agent->m_goalRadius);
+            }
+            else {
+                auto* subGoalMaker = m_seggoals[v->index];
+                Vec2 nextPosInPath;
+                if (subGoalMaker == nullptr)
+                    continue; // vertex that is not part of a parimiter
+
+                //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
+
+                int nextIndex = planSketch[i+1]->index;
+                if (nextIndex < 0 || m_seggoals[nextIndex] == nullptr) // vertex that is not part of a parimiter
+                    nextPosInPath = planSketch[i+1]->p;
+                else 
+                    nextPosInPath = m_seggoals[nextIndex]->makePathRef(agent->m_radius);
+
+                subGoalMaker->makeSubGoal(agent->m_radius, nextPosInPath, agent->m_plan);
+
+            }   
+
         }
 
+        //for(auto& sg: agent->m_plan)
+        //    cout << sg.p << "  ";
 
+        // set agent to the start of the plan
+        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1;
+        agent->m_indexInPlan = 0;
+        agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
     }
 
 
@@ -390,10 +398,18 @@ void Document::clearObst()
     }
 }
 
-void Document::addAgent(const Vec2& pos, Goal* g)
+Goal* Document::addGoal(const Vec2& p) {
+    int index = m_goals.size();
+    // TBD - reclaim unused spaces
+    auto ptr = new Goal(p, index);
+    m_goals.push_back(ptr);
+    return ptr;
+}
+
+Agent* Document::addAgent(const Vec2& pos, Goal* g)
 {
     Agent* a = new Agent(m_agents.size(), pos,
-        g->p, // goal 
+        (g != nullptr)?g->p : Vec2(0,0), // goal 
         30.0, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
         15.0, // 15 radius
@@ -406,12 +422,12 @@ void Document::addAgent(const Vec2& pos, Goal* g)
     if (m_agents.size() == 1)
         m_prob = a;
     g->agents.push_back(a);
+    return a;
 }
 
 void Document::init_test()
 {
-    auto gend = new Goal(Vec2(-200, 0));
-    m_goals.push_back(gend);
+    auto gend = addGoal(Vec2(-200, 0));
     //m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
@@ -459,8 +475,7 @@ void Document::init_circle()
     for (int i = 0; i < COUNT; ++i) 
     {
         Vec2 pos = 200.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
-        Goal *g = new Goal(-pos);
-        m_goals.push_back(g);
+        Goal *g = addGoal(-pos);
         addAgent(pos, g); 
     }
 
@@ -474,15 +489,13 @@ void Document::init_grid()
     for (int i = 0; i < COUNT; ++i) 
     {
         Vec2 pos(-200, -200+i*(400/COUNT));
-        Goal *g = new Goal(pos+Vec2(400,0));
-        m_goals.push_back(g);
+        Goal *g = addGoal(pos+Vec2(400,0));
         addAgent(pos, g); 
     }
     for (int i = 1; i < COUNT+1; ++i) 
     {
         Vec2 pos(-200+i*(400/COUNT), -200);
-        Goal *g = new Goal(pos+Vec2(0,400));
-        m_goals.push_back(g);
+        Goal *g = addGoal(pos+Vec2(0,400));
         addAgent(pos, g); 
     }
 
@@ -554,8 +567,8 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     if (deltaTime <= 0.0f)
         return false;
 
-    BihTree bihTree;
-    bihTree.build(m_objs);
+   // BihTree m_bihTree(m_objs);
+    m_bihTree.build(m_objs);
 
 
     for(auto* agent: m_agents)
@@ -565,7 +578,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
         agent->computePreferredVelocity(deltaTime);
 
         clearSegMinDist();
-        agent->computeNeighbors(bihTree);
+        agent->computeNeighbors(m_bihTree);
 
         VODump* vod = nullptr;
         if (m_debugVoDump != nullptr && agent == m_prob)

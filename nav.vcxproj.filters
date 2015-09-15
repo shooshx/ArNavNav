@@ -45,12 +45,6 @@
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="NavDialog.cpp" />
-    <ClCompile Include="GeneratedFiles\Debug\moc_Document.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_Document.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="Document.cpp" />
     <ClCompile Include="main.cpp">
       <Filter>main</Filter>
@@ -79,7 +73,6 @@
   <ItemGroup>
     <CustomBuild Include="NavGraphicsView.h" />
     <CustomBuild Include="NavDialog.h" />
-    <CustomBuild Include="Document.h" />
     <CustomBuild Include="nav.qrc">
       <Filter>main</Filter>
     </CustomBuild>
@@ -122,5 +115,6 @@
     <ClInclude Include="Objects.h">
       <Filter>hrvo</Filter>
     </ClInclude>
+    <ClInclude Include="Document.h" />
   </ItemGroup>
 </Project>

@@ -1,16 +1,13 @@
 #ifndef DOCUMENT_H 
 #define DOCUMENT_H
 
-#include <QObject>
-#include <QPointF>
-#include <QColor>
 
 #include <vector>
 
 #include "Agent.h"
 #include "Objects.h"
 #include "Mesh.h"
-
+#include "BihTree.h"
 
 using namespace std;
 class Agent;
@@ -19,8 +16,9 @@ struct VODump;
 class Goal
 {
 public:
-    explicit Goal(const Vec2& _p) :p(_p) {}
+    explicit Goal(const Vec2& _p, int _index) :p(_p), index(_index) {}
     Vec2 p;
+    int index;
     vector<Agent*> agents; // agents that have this goal
 };
 
@@ -40,12 +38,10 @@ public:
 
 
 
-class Document : public QObject
+class Document 
 {
-    Q_OBJECT
-
 public:
-    Document(QObject *parent);
+    Document();
     ~Document() {}
 
     void runTriangulate();
@@ -61,18 +57,23 @@ public:
     void clearObst();
     void clearAllObj();
 
-    void addAgent(const Vec2& pos, Goal* g);
+    Agent* addAgent(const Vec2& pos, Goal* g);
+    Goal* addGoal(const Vec2& p);
 
     void clearSegMinDist();
     bool doStep(float deltaTime, bool doUpdate);
 
+    void updatePlan(Agent* agent);
+
 public:
     // input
-    vector<Agent*> m_agents;
+    vector<Agent*> m_agents; // not owning
     MapDef m_mapdef;
 
     // state
     vector<Object*> m_objs; // owning
+    BihTree m_bihTree;
+
     vector<MultiSegment> m_multisegs; // owning
     vector<ISubGoalMaker*> m_seggoals; // save size as m_mesh.m_vtx. for every vertex, get goals that are away from it
 

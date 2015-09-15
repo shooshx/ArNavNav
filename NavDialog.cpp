@@ -31,7 +31,7 @@ NavDialog::NavDialog(QWidget *parent)
     //m_scene->setSceneRect(-700, -700, 1400, 1400);
     m_scene->setBackgroundBrush(QBrush(QColor(Qt::white)));
 
-    m_doc = new Document(this);
+    m_doc = new Document;
     readDoc();
 
 }
@@ -235,7 +235,7 @@ void NavDialog::update()
 
         m_pathVos.clear();
         int frame = 0;
-        for(; frame < 1500; ++frame) 
+        for(; frame < 7500; ++frame) 
         {
             if (false) // VelocityObjects 
             {
@@ -438,7 +438,7 @@ void NavDialog::on_actionLoad_triggered(bool)
         else if (h == "goal") {
             Vec2 v;
             iss >> v.x >> v.y;
-            m_doc->m_goals.push_back(new Goal(v));
+            m_doc->addGoal(v);
         }
         else if (h == "agent") {
             Vec2 v;

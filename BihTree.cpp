@@ -1,5 +1,6 @@
 #include "BihTree.h"
 #include "Except.h"
+#include "Objects.h"
 
 #include <algorithm>
 #include <string.h>

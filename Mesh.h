@@ -104,15 +104,7 @@ public:
     ~Mesh() {
         clear();
     }
-    /*void addTri(const Vec2& a, const Vec2& b, const Vec2& c) {
-        auto va = Vertex(m_vtx.size(), a);
-        m_vtx.push_back(va);
-        auto vb = Vertex(m_vtx.size(), b);
-        m_vtx.push_back(vb);
-        auto vc = Vertex(m_vtx.size(), c);
-        m_vtx.push_back(vc);
-        m_tri.push_back(new Triangle(va, vb, vc));    
-    }*/
+
     // takes control of them
     void addTri(Vertex* va, Vertex* vb, Vertex* vc) {
         m_tri.push_back(Triangle(va, vb, vc));    

@@ -252,8 +252,16 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     if (reached)
     {
         auto dit = min_element(destCost.begin(), destCost.end());
-        HalfEdge *h = destEdges[dit - destCost.begin()];
-
+        HalfEdge *firsth = destEdges[dit - destCost.begin()];
+        HalfEdge *h = firsth;
+        // find the length of the corridor
+        int len = 0;
+        while (h != dummy) {
+            ++len;
+            h = h->cameFrom;
+        }
+        h = firsth;
+        corridor.reserve(len + 1);
         // make it in reverse order
         while (h != dummy) {
             corridor.push_back(h->tri);
