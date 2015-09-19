@@ -275,8 +275,6 @@ void Document::runTriangulate()
     }
 }
 
-//extern void cpp_out(const char* s);
-//#define OUT(strm) { ostringstream ss; ss << strm; cpp_out(ss.str().c_str()); }
 
 void Document::updatePlan(Agent* agent)
 {
@@ -421,7 +419,9 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g)
     m_agents.push_back(a);
     if (m_agents.size() == 1)
         m_prob = a;
-    g->agents.push_back(a);
+    if (g != nullptr) {
+        g->agents.push_back(a);
+    }
     return a;
 }
 

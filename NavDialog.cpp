@@ -10,6 +10,9 @@
 #include <fstream>
 #include <sstream>
 
+void cpp_out(const char* s) {
+    cout << s << endl;
+}
 
 NavDialog::NavDialog(QWidget *parent)
     : QDialog(parent)
