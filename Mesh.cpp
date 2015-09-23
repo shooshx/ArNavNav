@@ -278,6 +278,9 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
     return reached;
 }
 
+
+
+
 inline float triarea2(const VtxWrap& a, const VtxWrap& b, const VtxWrap& c)
 {
     const double ax = b.p.x - a.p.x;
@@ -434,3 +437,5 @@ void PathMaker::makePath(const vector<Triangle*>& tripath, const Vec2& start, co
     stringPull(rightPath, leftPath);
 
 }
+
+

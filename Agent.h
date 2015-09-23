@@ -147,7 +147,7 @@ public:
 };
 
 template<typename T>
-class MyPrioQueue // one that exposes the unserlying vector
+class MyPrioQueue // one that exposes the underlying vector
 {
 public:
     const T& top() const {
@@ -226,13 +226,13 @@ public:
     int m_maxNeighbors = 0;
     float m_neighborDist = 0.0f;
 
-	Vec2 m_prefVelocity;
 	float m_maxAccel = std::numeric_limits<float>::infinity();
 	float m_maxSpeed = 0.0f;
     float m_prefSpeed = 0.0f;
     
 
     // running vars
+    Vec2 m_prefVelocity;  // computed each step
     int m_indexInPlan = -1;
     ISubGoal* m_curGoalPos = nullptr; // in the plan
 
@@ -243,7 +243,6 @@ public:
 
 
     MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
-	//std::set<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
 	
     Plan m_plan;
 };

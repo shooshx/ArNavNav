@@ -86,6 +86,9 @@ public:
         m_pl.back().m_d.push_back(v);
         return v;
     }
+    bool isLastEmpty() {
+        return m_pl.empty() || m_pl.back().m_d.empty();
+    }
     void clear() {
         for(auto v: m_vtx)
             delete v;
@@ -119,8 +122,6 @@ public:
     void connectTri();
     Triangle* findContaining(const Vec2& p, vector<Vec2>& posRef);
     bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor);
-
-
 
     HalfEdge* addHe() {
         m_he.push_back(HalfEdge());

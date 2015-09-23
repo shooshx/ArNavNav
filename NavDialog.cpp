@@ -132,8 +132,8 @@ void NavDialog::readDoc()
     }*/
 
     m_goalitems.clear();
-    for(auto g: m_doc->m_goals) {
-        auto gi = new GoalItem(this, g);
+    for(auto& g: m_doc->m_goals) {
+        auto gi = new GoalItem(this, g.get());
         m_goalitems.push_back(shared_ptr<GoalItem>(gi));
         gi->m_color = QColor(255, 50, 50);
         gi->m_radius = 7;
@@ -373,29 +373,7 @@ void NavDialog::on_actionSave_triggered(bool)
     ofstream ofs(sFromWs(wstring((wchar_t*)name.data())));
     if (!ofs.good())
         return;
-    int count = 0;
-    for(const auto& pl : m_doc->m_mapdef.m_pl) {
-        ofs << "\npolyline\n";
-        for(auto pv : pl.m_d) {
-            ofs << "v " << pv->p.x << " " << pv->p.y << "\n";
-            ++count;
-        }
-    }
-    //if (m_doc->m_start)
-    //    ofs << "start " << m_doc->m_start->p.x << " " << m_doc->m_start->p.y << "\n";
-    //ofs << "end " << m_doc->m_end->p.x << " " << m_doc->m_end->p.y << "\n";
-
-    map<Agent*, int> agentToGoal;
-    for(int i = 0; i < m_doc->m_goals.size(); ++i) {
-        auto* g = m_doc->m_goals[i];
-        for(auto* ag: g->agents)
-            agentToGoal[ag] = i;
-        ofs << "goal " << g->p.x << " " << g->p.y << "\n";
-    }
-    for(auto* agent: m_doc->m_agents)
-        ofs << "agent " << agent->m_position.x << " " << agent->m_position.y << " " << agentToGoal[agent] << "\n";
-
-    cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
+    m_doc->serialize(ofs);
 }
 
 
@@ -406,53 +384,8 @@ void NavDialog::on_actionLoad_triggered(bool)
     if (!ifs.good())
         return;
 
-    m_doc->m_mapdef.clear();
-    m_doc->clearAllObj();
-    m_doc->m_goals.clear();
-
-    int count = 0;
-    while (!ifs.eof()) {
-        string line;
-        getline(ifs, line);
-        istringstream iss(line);
-        string h;
-        iss >> h;
-        if (h == "polyline") {
-            m_doc->m_mapdef.add();
-        }
-        else if (h == "v") {
-            Vec2 v;
-            iss >> v.x >> v.y;
-            m_doc->m_mapdef.addToLast(v);
-            ++count;
-        }
-        else if (h == "start") {
-            //iss >> m_doc->m_start->p.x >> m_doc->m_start->p.y;
-        }
-        else if (h == "end") {
-            //iss >> m_doc->m_end->p.x >> m_doc->m_end->p.y;
-        }
-        else if (h == "prob") {
-            Vec2 v;
-            iss >> v.x >> v.y;
-            if (m_doc->m_prob != nullptr)
-                m_doc->m_prob->m_position = v;
-        }
-        else if (h == "goal") {
-            Vec2 v;
-            iss >> v.x >> v.y;
-            m_doc->addGoal(v);
-        }
-        else if (h == "agent") {
-            Vec2 v;
-            int i = 0;
-            iss >> v.x >> v.y >> i;
-            CHECK(i < m_doc->m_goals.size(), "unknown goal");
-            m_doc->addAgent(v, m_doc->m_goals[i]);
-        }
-
-    }
-    cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
+    m_doc->deserialize(ifs);
+    //cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
     readDoc();
     update();
 }

@@ -8,7 +8,7 @@
 Document::Document()
 {
     //init_preset();
-    init_test();
+    //init_test();
 
     //init_tri();
 
@@ -213,6 +213,20 @@ public:
 
 void runTri(MapDef* mapdef, Mesh& out);
 
+// add another set of vertices to the mesh with this radius, if its the first time we see it
+void Document::addAgentRadius(float radius)
+{
+    if (m_mesh.m_vtx.empty())
+        return;
+    if (m_mesh.m_altVtxPosByRadius.find(radius) != m_mesh.m_altVtxPosByRadius.end())
+        return;
+    vector<Vec2>& altVtx = m_mesh.m_altVtxPosByRadius[radius];
+    altVtx.resize(m_mesh.m_vtx.size());
+    for(int i = 0; i < m_mesh.m_vtx.size(); ++i) {
+        if (m_seggoals[i] != nullptr)
+            altVtx[i] = m_seggoals[i]->makePathRef(radius);
+    }
+}
 
 void Document::runTriangulate()
 {
@@ -221,7 +235,6 @@ void Document::runTriangulate()
     runTri(&m_mapdef, m_mesh);
 
     m_mesh.connectTri();
-
 
     clearObst();
 
@@ -243,14 +256,8 @@ void Document::runTriangulate()
     vector<float> possibleRadiuses;
     for(auto agent: m_agents)
         possibleRadiuses.push_back(agent->m_radius);
-    for(float radius: possibleRadiuses)
-    {
-        vector<Vec2>& altVtx = m_mesh.m_altVtxPosByRadius[radius];
-        altVtx.resize(m_mesh.m_vtx.size());
-        for(int i = 0; i < m_mesh.m_vtx.size(); ++i) {
-            if (m_seggoals[i] != nullptr)
-                altVtx[i] = m_seggoals[i]->makePathRef(radius);
-        }
+    for(float radius: possibleRadiuses) {
+        addAgentRadius(radius);
     }
 
     // set segment markers
@@ -278,6 +285,8 @@ void Document::runTriangulate()
 
 void Document::updatePlan(Agent* agent)
 {
+    if (m_mesh.m_vtx.empty())
+        return;
     const Vec2& startp = agent->m_position;
     const Vec2& endp = agent->m_endGoalPos;
 
@@ -399,21 +408,25 @@ void Document::clearObst()
 Goal* Document::addGoal(const Vec2& p) {
     int index = m_goals.size();
     // TBD - reclaim unused spaces
-    auto ptr = new Goal(p, index);
-    m_goals.push_back(ptr);
+    auto ptr = new Goal(p);
+    m_goals.push_back(unique_ptr<Goal>(ptr));
     return ptr;
 }
+void Document::removeGoal(Goal* g) {
+    auto it = m_goals.begin();    while(it != m_goals.end()) {        if (it->get() == g)             it = m_goals.erase(it);        else            ++it;    }
+}
 
-Agent* Document::addAgent(const Vec2& pos, Goal* g)
+Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpeed, float maxSpeed)
 {
+    OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
     Agent* a = new Agent(m_agents.size(), pos,
         (g != nullptr)?g->p : Vec2(0,0), // goal 
-        30.0, //30 for r=15, 15 for r=6, // 400 nei dist
+        radius * 2.0f, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
-        15.0, // 15 radius
+        radius, // 15 radius
         20, // goal radius
-        5.0f, // pref speed
-        7.0f); // max speed
+        prefSpeed, // pref speed
+        maxSpeed); // max speed
                //a->m_velocity = Vec2(0, 1);
     m_objs.push_back(a);
     m_agents.push_back(a);
@@ -422,6 +435,9 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g)
     if (g != nullptr) {
         g->agents.push_back(a);
     }
+
+    addAgentRadius(radius);
+    OUT("addAgentDone");
     return a;
 }
 
@@ -566,6 +582,8 @@ bool Document::doStep(float deltaTime, bool doUpdate)
 {
     if (deltaTime <= 0.0f)
         return false;
+    if (m_objs.size() == 0)
+        return false;
 
    // BihTree m_bihTree(m_objs);
     m_bihTree.build(m_objs);
@@ -602,3 +620,82 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     return reachedGoals;
 }
 
+
+void Document::serialize(ostream& os)
+{
+    int count = 0;
+    for(const auto& pl : m_mapdef.m_pl) {
+        if (pl.m_d.size() == 0)
+            continue;
+        os << "p,\n";
+        for(auto pv : pl.m_d) {
+            os << "v," << pv->p.x << "," << pv->p.y << ",\n";
+            ++count;
+        }
+    }
+
+    map<Agent*, int> agentToGoal;
+    for(int i = 0; i < m_goals.size(); ++i) {
+        auto& g = m_goals[i];
+        for(auto* ag: g->agents)
+            agentToGoal[ag] = i;
+        os << "g," << g->p.x << "," << g->p.y << ",\n";
+    }
+    for(auto* agent: m_agents)
+        os << "a," << agent->m_position.x << "," << agent->m_position.y << "," << ((agentToGoal.find(agent) != agentToGoal.end())?agentToGoal[agent]:-1)
+           << "," << agent->m_velocity.x << "," << agent->m_velocity.y << "," << agent->m_radius << "," << agent->m_prefSpeed << "," << agent->m_maxSpeed << ",\n";
+
+    //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
+}
+
+void Document::deserialize(istream& is)
+{
+    // see http://stackoverflow.com/questions/7302996/changing-the-delimiter-for-cin-c
+    vector<ctype<char>::mask> bar(ctype<char>::classic_table(), ctype<char>::classic_table() + ctype<char>::table_size);
+    bar[','] ^= ctype_base::space;
+    is.imbue(locale(cin.getloc(), new ctype<char>(bar.data()))); // treat comma as a space, locale will delete it
+
+    m_mapdef.clear();
+    clearAllObj();
+    m_goals.clear();
+
+    int count = 0;
+    while (!is.eof()) 
+    {
+        string h;
+        is >> h;
+        OUT("CMD `" << h << "`");
+        if (h == "p") {
+            m_mapdef.add();
+        }
+        else if (h == "v") {
+            Vec2 v;
+            is >> v.x >> v.y;
+            if (!is.good())
+                break;
+            m_mapdef.addToLast(v);
+            ++count;
+        }
+        else if (h == "g") {
+            Vec2 v;
+            is >> v.x >> v.y;
+            if (!is.good())
+                break;
+            addGoal(v);
+        }
+        else if (h == "a") {
+            Vec2 pos, vel;
+            int goali = 0;
+            float radius = 0.0f, ps = 0.0f, ms = 0.0f;
+            is >> pos.x >> pos.y >> goali >> vel.x >> vel.y >> radius >> ps >> ms;
+            if (!is.good())
+                break;
+            if (goali >= (int)m_goals.size() || radius <= 0.0f)
+                break;
+            auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
+            a->m_velocity = vel;
+        }
+
+    }
+    OUT("DoneDeser");
+}
