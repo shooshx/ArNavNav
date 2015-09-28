@@ -13,6 +13,7 @@
 
 class BihTree;
 
+#define NEI_DIST_RADIUS_FACTOR (2.0f)
 
 struct Candidate
 {
@@ -208,6 +209,7 @@ public:
     void setRadius(float r) {
         m_radius = r;
         size = Vec2(r * 2, r * 2);
+        m_neighborDist = r * NEI_DIST_RADIUS_FACTOR;
     }
 
 

@@ -424,10 +424,12 @@ void Document::removeGoal(Goal* g) {
 
 Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpeed, float maxSpeed)
 {
-    OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
+    if (prefSpeed < 0)
+        prefSpeed = 5.0f;
+    //OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
     Agent* a = new Agent(m_agents.size(), pos,
         (g != nullptr)?g->p : Vec2(0,0), // goal 
-        radius * 2.0f, //30 for r=15, 15 for r=6, // 400 nei dist
+        radius * NEI_DIST_RADIUS_FACTOR, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
         radius, // 15 radius
         20, // goal radius
@@ -443,7 +445,7 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpee
     }
 
     addAgentRadius(radius);
-    OUT("addAgentDone");
+    //OUT("addAgentDone");
     return a;
 }
 
@@ -670,7 +672,7 @@ void Document::deserialize(istream& is)
     {
         string h;
         is >> h;
-        OUT("CMD `" << h << "`");
+        //OUT("CMD `" << h << "`");
         if (h == "p") {
             m_mapdef.add();
         }
@@ -701,7 +703,9 @@ void Document::deserialize(istream& is)
             auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
             a->m_velocity = vel;
         }
+        else if (!h.empty()){
+            OUT("Unknown CMD " << h);
+        }
 
     }
-    OUT("DoneDeser");
 }

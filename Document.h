@@ -53,7 +53,7 @@ public:
     void clearObst();
     void clearAllObj();
 
-    Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = 5.0f, float maxSpeed = 7.0f);
+    Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = -1.0f, float maxSpeed = 7.0f);
     void addAgentRadius(float radius);
     
     Goal* addGoal(const Vec2& p);

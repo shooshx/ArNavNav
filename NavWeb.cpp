@@ -18,7 +18,7 @@ public:
     virtual QNetworkReply *	createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
         auto url = req.url();
         auto urls = url.toString();
-        cout << "REQ " << fromq(urls) << endl;
+        //cout << "REQ " << fromq(urls) << endl;
         QNetworkRequest nreq(req);
         if (urls.contains("js_main.js")) {
             url.setPath("non_existing_");

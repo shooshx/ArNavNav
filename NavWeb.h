@@ -26,13 +26,13 @@ public slots:
     Q_INVOKABLE void started_new_poly() {
         ::started_new_poly();
     }
-    Q_INVOKABLE void added_agent(int x, int y) {
-        ::added_agent(x, y);
+    Q_INVOKABLE void added_agent(int x, int y, float radius, float speed) {
+        ::added_agent(x, y, radius, speed);
     }
     Q_INVOKABLE PTR_T add_goal(int x, int y) {
         return ::add_goal(x, y);
     }
-    Q_INVOKABLE void remove_goal(long long ptr) {
+    Q_INVOKABLE void remove_goal(PTR_T ptr) {
         ::remove_goal(ptr);
     }
     Q_INVOKABLE void set_goal(PTR_T agentPtr, PTR_T goalPtr) {
@@ -50,6 +50,9 @@ public slots:
     }
     Q_INVOKABLE void go_to_frame(int f) {
         ::go_to_frame(f);
+    }
+    Q_INVOKABLE void change_size(PTR_T ptr, float size) {
+        ::change_size(ptr, size);
     }
 
 };

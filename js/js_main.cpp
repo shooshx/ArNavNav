@@ -83,6 +83,9 @@ public:
     void updatePos() {
         EM_ASM_( move_object($0, $1, $2), this, m_a->m_position.x, m_a->m_position.y);
     }
+    void updateSize() {
+        EM_ASM_( changed_size($0, $1), this, m_a->m_radius);
+    }
     Agent* m_a;
 };
 
@@ -121,12 +124,14 @@ public:
         auto i = new PolyPointItem(this, pv);
         m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
         updateMesh();
+        m_quite = false;
     }
-    void addAgent(const Vec2& p)
+    void addAgent(const Vec2& p, float radius, float speed)
     {
-        auto pa = m_doc.addAgent(p, nullptr);
+        auto pa = m_doc.addAgent(p, nullptr, radius, speed);
         auto i = new AgentItem(this, pa);
         m_agentitems.push_back(shared_ptr<AgentItem>(i));
+        m_quite = false;
     }
     GoalItem* addGoal(const Vec2& p) 
     {
@@ -150,20 +155,21 @@ public:
     void setAgentGoalPos(Agent* a, Goal* g) {
         a->m_endGoalPos = g->p;
         m_doc.updatePlan(a);
+        m_quite = false;
     }
     void setGoal(AgentItem* a, GoalItem* g) {
         setAgentGoalPos(a->m_a, g->m_g);
         g->m_g->agents.push_back(a->m_a);
     }
 
-    
-    
-    void progress(float deltaSec) 
-    {
-        if (m_doc.m_goals.empty())
-            return;
-        m_doc.doStep(deltaSec, true);  //0.25
+    void setAgentSize(AgentItem* a, float sz) {
+        a->m_a->setRadius(sz);
+        a->updateSize();
+        m_doc.addAgentRadius(sz);
+        m_quite = false;
+    }
 
+    void recordFrame() {
         if (m_atFrame < m_frames.size())
             m_frames.resize(m_atFrame); // truncate any future frames
         m_frames.push_back(Frame());
@@ -175,6 +181,17 @@ public:
             frame.m_agents.push_back(AgentData{a->m_a->m_position, a->m_a->m_velocity});
         }
         EM_ASM_( set_max_frame($0), m_frames.size()-1);
+    }
+    
+    bool progress(float deltaSec) 
+    {
+        if (m_quite)
+            return true;
+        if (m_doc.doStep(deltaSec, true))  //0.25
+            m_quite = true;
+        recordFrame();
+
+        return m_quite;
     }
 
     void goToFrame(int f) 
@@ -193,6 +210,7 @@ public:
             ai->updatePos();
         }
         m_atFrame = f;
+        m_quite = false;
     }
     
     void updateMesh();
@@ -205,6 +223,7 @@ public:
     Document m_doc;
     vector<Frame> m_frames;
     int m_atFrame = 0;
+    bool m_quite = true;
 };
 
 // depends on NavCtrl
@@ -224,6 +243,7 @@ void NavCtrl::updateMesh()
         auto i = new TriItem(this, &tri);
         m_meshitems.push_back(shared_ptr<TriItem>(i));
     }
+    m_quite = false;
 }
 
 void NavCtrl::readDoc()
@@ -267,8 +287,8 @@ void started_new_poly() {
 void added_poly_point(int x, int y) {
     g_ctrl->addPolyPoint(Vec2(x, y));
 }
-void added_agent(int x, int y) {
-    g_ctrl->addAgent(Vec2(x, y));
+void added_agent(int x, int y, float radius, float speed) {
+    g_ctrl->addAgent(Vec2(x, y), radius, speed);
 }
 
 void moved_object(ptr_t ptr, int x, int y)
@@ -294,8 +314,8 @@ void remove_goal(ptr_t ptr) {
     g_ctrl->removeGoal(g);
 }
 
-void cpp_progress(float deltaSec) {
-    g_ctrl->progress(deltaSec);
+bool cpp_progress(float deltaSec) {
+    return g_ctrl->progress(deltaSec);
     
 }
 
@@ -319,5 +339,11 @@ void go_to_frame(int f) {
     g_ctrl->goToFrame(f);
 }
 
+void change_size(ptr_t ptr, float sz) {
+    AgentItem* a = dynamic_cast<AgentItem*>((Item*)ptr);
+    if (a == nullptr)
+        return;
+    g_ctrl->setAgentSize(a, sz);
+}
 
 }
