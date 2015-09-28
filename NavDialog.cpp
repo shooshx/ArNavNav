@@ -10,9 +10,9 @@
 #include <fstream>
 #include <sstream>
 
-void cpp_out(const char* s) {
-    cout << s << endl;
-}
+
+
+namespace qui {
 
 NavDialog::NavDialog(QWidget *parent)
     : QDialog(parent)
@@ -398,3 +398,5 @@ void NavDialog::on_actionReload_triggered(bool)
     readDoc();
     update();
 }
+
+} // qui

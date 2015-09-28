@@ -1,0 +1,75 @@
+#ifndef NAVWEB_H
+#define NAVWEB_H
+
+#include <QDialog>
+#include "ui_NavWeb.h"
+#include "js/js_main.h"
+#include <string>
+
+class QMyWebPage;
+
+std::string fromq(const QString& qs);
+
+class Actions : public QObject
+{
+    Q_OBJECT
+public slots:
+    Q_INVOKABLE void cpp_start() {
+        ::cpp_start();
+    }
+    Q_INVOKABLE void added_poly_point(int x, int y) {
+        ::added_poly_point(x, y);
+    }
+    Q_INVOKABLE void moved_object(PTR_T ptr, int x, int y) {
+        ::moved_object(ptr, x, y);
+    }
+    Q_INVOKABLE void started_new_poly() {
+        ::started_new_poly();
+    }
+    Q_INVOKABLE void added_agent(int x, int y) {
+        ::added_agent(x, y);
+    }
+    Q_INVOKABLE PTR_T add_goal(int x, int y) {
+        return ::add_goal(x, y);
+    }
+    Q_INVOKABLE void remove_goal(long long ptr) {
+        ::remove_goal(ptr);
+    }
+    Q_INVOKABLE void set_goal(PTR_T agentPtr, PTR_T goalPtr) {
+        ::set_goal(agentPtr, goalPtr);
+    }
+    Q_INVOKABLE void cpp_progress(float deltaSec) {
+        ::cpp_progress(deltaSec);
+    }
+    Q_INVOKABLE QString serialize() {
+        return QString(::serialize());
+    }
+    Q_INVOKABLE void deserialize(QString qs) {
+        auto s = fromq(qs);
+        ::deserialize(s.c_str());
+    }
+    Q_INVOKABLE void go_to_frame(int f) {
+        ::go_to_frame(f);
+    }
+
+};
+
+class NavWeb : public QDialog
+{
+    Q_OBJECT
+
+public:
+    NavWeb(QWidget *parent = 0);
+    ~NavWeb();
+
+public slots:
+    void populateJavaScriptWindowObject();
+    void pageLoadFinished(bool ok);
+
+private:
+    Ui::NavWeb ui;
+    Actions m_actions;
+    QMyWebPage *m_page;
+};
+
+#endif // NAVWEB_H

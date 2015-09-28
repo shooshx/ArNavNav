@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="NavGraphicsView" name="gView">
+    <widget class="qui::NavGraphicsView" name="gView">
      <property name="viewportUpdateMode">
       <enum>QGraphicsView::FullViewportUpdate</enum>
      </property>

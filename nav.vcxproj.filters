@@ -26,6 +26,12 @@
     <Filter Include="poly2tri">
       <UniqueIdentifier>{ef25bacc-be65-4b07-a6d6-9894b51a724a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="WebUI">
+      <UniqueIdentifier>{c3da7c07-8ee0-4f24-a7be-08e2b2b1a1e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="qUI">
+      <UniqueIdentifier>{4d4a30e1-eebd-4ad2-8d08-7d02a6e796c6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GeneratedFiles\qrc_nav.cpp">
@@ -37,14 +43,12 @@
     <ClCompile Include="GeneratedFiles\Release\moc_NavGraphicsView.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="NavGraphicsView.cpp" />
     <ClCompile Include="GeneratedFiles\Debug\moc_NavDialog.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_NavDialog.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="NavDialog.cpp" />
     <ClCompile Include="Document.cpp" />
     <ClCompile Include="main.cpp">
       <Filter>main</Filter>
@@ -69,15 +73,43 @@
     <ClCompile Include="poly2tri\adapter.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_NavWeb.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_NavWeb.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="NavWeb.cpp">
+      <Filter>WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="js\js_main.cpp">
+      <Filter>WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="NavDialog.cpp">
+      <Filter>qUI</Filter>
+    </ClCompile>
+    <ClCompile Include="NavGraphicsView.cpp">
+      <Filter>qUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="NavGraphicsView.h" />
-    <CustomBuild Include="NavDialog.h" />
     <CustomBuild Include="nav.qrc">
       <Filter>main</Filter>
     </CustomBuild>
     <CustomBuild Include="nav.ui">
       <Filter>main</Filter>
+    </CustomBuild>
+    <CustomBuild Include="NavWeb.ui">
+      <Filter>main</Filter>
+    </CustomBuild>
+    <CustomBuild Include="NavWeb.h">
+      <Filter>WebUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="NavDialog.h">
+      <Filter>qUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="NavGraphicsView.h">
+      <Filter>qUI</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -116,5 +148,19 @@
       <Filter>hrvo</Filter>
     </ClInclude>
     <ClInclude Include="Document.h" />
+    <ClInclude Include="GeneratedFiles\ui_NavWeb.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="js\js_main.h">
+      <Filter>WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="js\qt_emasm.h">
+      <Filter>WebUI</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="js\page.html">
+      <Filter>WebUI</Filter>
+    </None>
   </ItemGroup>
 </Project>

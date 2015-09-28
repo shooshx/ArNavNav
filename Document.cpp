@@ -413,7 +413,13 @@ Goal* Document::addGoal(const Vec2& p) {
     return ptr;
 }
 void Document::removeGoal(Goal* g) {
-    auto it = m_goals.begin();    while(it != m_goals.end()) {        if (it->get() == g)             it = m_goals.erase(it);        else            ++it;    }
+    auto it = m_goals.begin();
+    while(it != m_goals.end()) {
+        if (it->get() == g) 
+            it = m_goals.erase(it);
+        else
+            ++it;
+    }
 }
 
 Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpeed, float maxSpeed)

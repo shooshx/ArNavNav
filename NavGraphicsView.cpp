@@ -3,6 +3,7 @@
 #include <QMouseEvent>
 #include <iostream>
 
+namespace qui {
 
 BaseItem::BaseItem(NavDialog* ctrl, Object* obj) 
     : m_ctrl(ctrl), m_obj(obj) 
@@ -382,3 +383,5 @@ void NavGraphicsView::mouseMoveEvent(QMouseEvent * event)
 {
     QGraphicsView::mouseMoveEvent(event);
 }
+
+} //qui

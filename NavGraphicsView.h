@@ -5,6 +5,8 @@
 #include "Document.h"
 #include "Agent.h"
 
+namespace qui {
+
 class NavDialog;
 
 
@@ -255,3 +257,4 @@ public:
 };
 
 
+} // qui

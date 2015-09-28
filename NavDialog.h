@@ -7,6 +7,8 @@
 #include <memory>
 using namespace std;
 
+namespace qui {
+
 class NavDialog : public QDialog
 {
     Q_OBJECT
@@ -58,5 +60,7 @@ public:
 
     vector<VODump> m_pathVos;
 };
+
+} // qui
 
 #endif // NAV_H
