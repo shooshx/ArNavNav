@@ -157,7 +157,7 @@ void VOSItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
 }
 
 QRectF VOSItem::boundingRect() const {
-    return QRectF();
+    return QRectF(-2000,-2000,4000,4000);
 }
 
 
@@ -352,7 +352,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
 
 }
 QRectF PathItem::boundingRect() const {
-    return QRectF(-350, -350, 700, 700);
+    return QRectF(-2000, -2000, 4000, 4000); //QRectF(-350, -350, 700, 700);
 }
 
 // -----------------------------------------------------------------

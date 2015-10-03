@@ -83,7 +83,7 @@ public:
     vector<unique_ptr<Goal>> m_goals;
 
     // display
-    vector<Vertex*> m_markers;
+    //vector<Vertex*> m_markers;
     Object *m_prob = nullptr;
 
     VODump* m_debugVoDump = nullptr; 

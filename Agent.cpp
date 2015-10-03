@@ -10,10 +10,7 @@
 
 using namespace std;
 
-template<typename T>
-T iabs(T a) {
-    return (a < 0)?-a:a;
-}
+
 
 namespace mtrig 
 {

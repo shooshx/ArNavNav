@@ -12,6 +12,11 @@ inline T imax(T a, T b) {
     return (a > b)?a:b;
 }
 
+template<typename T>
+T iabs(T a) {
+    return (a < 0)?-a:a;
+}
+
 #define INVALID_VEC2 Vec2(FLT_MAX, FLT_MAX)
 
 class Vec2

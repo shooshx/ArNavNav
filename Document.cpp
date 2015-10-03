@@ -15,8 +15,8 @@ Document::Document()
     //init_circle();
     //init_grid();
 
-    for(int i = 0;i < 100; ++i)
-        m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
+    //for(int i = 0;i < 100; ++i)
+    //    m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
 
 }
 
@@ -268,8 +268,8 @@ void Document::runTriangulate()
             continue;
         Vec2 p1, p2;
         seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
-        m_markers[cnt++]->p = p1;
-        m_markers[cnt++]->p = p2;
+        //m_markers[cnt++]->p = p1;
+        //m_markers[cnt++]->p = p2;
     }
 
 
@@ -591,7 +591,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     if (deltaTime <= 0.0f)
         return false;
     if (m_objs.size() == 0)
-        return false;
+        return true;
 
    // BihTree m_bihTree(m_objs);
     m_bihTree.build(m_objs);

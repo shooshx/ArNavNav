@@ -46,6 +46,7 @@ public:
         EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(50,50,50)', false), this, Z_POLYPOINT, m_v->p.x, m_v->p.y, 5);
     }
     virtual void setPos(const Vec2& p) {
+        OUT("setPos " << m_v->index << " " << m_v->p.x << " " << m_v->p.y);
         m_v->p = p;
         EM_ASM_( move_object($0, $1, $2), this, m_v->p.x, m_v->p.y);
     }
@@ -237,7 +238,13 @@ void GoalItem::setPos(const Vec2& p) {
 
 void NavCtrl::updateMesh()
 {
-    m_doc.runTriangulate();
+    try {
+        m_doc.runTriangulate(); 
+    }
+    catch(const exception& e) {
+        OUT("failed triangulation");
+        return;
+    }
     m_meshitems.clear();
     for(auto& tri : m_doc.m_mesh.m_tri) {
         auto i = new TriItem(this, &tri);

@@ -141,10 +141,10 @@ void NavDialog::readDoc()
     }
 
     m_markeritems.clear();
-    for(auto* m: m_doc->m_markers) {
+/*    for(auto* m: m_doc->m_markers) {
         m_markeritems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, m)));
         m_scene->addItem(m_markeritems.back().get());
-    }
+    }*/
 
     m_pathitems.clear();
     m_pathitems.reserve(m_doc->m_agents.size());
@@ -238,9 +238,9 @@ void NavDialog::update()
 
         m_pathVos.clear();
         int frame = 0;
-        for(; frame < 7500; ++frame) 
+        for(; frame < 2000; ++frame) 
         {
-            if (false) // VelocityObjects 
+            //if (false) // VelocityObjects 
             {
                 m_pathVos.push_back(VODump());
                 m_doc->m_debugVoDump = &m_pathVos.back();
@@ -271,7 +271,7 @@ void NavDialog::update()
 
         //---------------------- VO
         updateSliderVOs(ui.frameSlider->value());
-        if (false) 
+        //if (false)  // VelocityObjects 
         {
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
             float origNeiDist = agentProb->m_neighborDist;
@@ -284,8 +284,8 @@ void NavDialog::update()
     }
     //std::cout << m_vos->m_data.selected << endl;
    
-    for(int i = 0; i < m_markeritems.size(); ++i)
-        m_markeritems[i]->setPos(toQ(m_doc->m_markers[i]->p));
+//    for(int i = 0; i < m_markeritems.size(); ++i)
+//        m_markeritems[i]->setPos(toQ(m_doc->m_markers[i]->p));
 
     // markers intersection
 /*    if (m_doc->m_markers.size() == 5) {

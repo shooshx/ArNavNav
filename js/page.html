@@ -4,7 +4,9 @@ var added_poly_point, moved_object, started_new_poly, added_agent, add_goal, rem
 var serialize, deserialize, go_to_frame, change_size
 var grass_pattern, rock_pattern
 var world_width, world_height
-var showTriOutline = false
+var showTriOutline = true; //false
+var needDraw = true
+var inq = false
 
 var WORLD_FACTOR = 4
 
@@ -19,6 +21,7 @@ function init() {
         for (k in qactions) {
             window[k.substring(0, k.indexOf('('))] = qactions[k]
         }
+        inq = true
     }
     else { // emscripten
         Module.ccall('cpp_start', null);
@@ -59,19 +62,27 @@ function init() {
     sceneEditChange()
     readScene()
 
-    grass_img.onload = function () {
-        if (!grass_pattern)
-            grass_pattern = ctx.createPattern(grass_img, "repeat")
+    if (inq || true) {
+        rock_pattern = "#983600"
+        grass_pattern = "#71fe7b"
     }
-    grass_img.src = "data:image/svg+xml;base64," + btoa(grass_cont.innerHTML)
-    grass_img.onload() // on chrome it loads immediately so make it faster
+    else {
+        grass_img.onload = function () {
+            if (!grass_pattern)
+                grass_pattern = ctx.createPattern(grass_img, "repeat")
+            needDraw = true
+        }
+        grass_img.src = "data:image/svg+xml;base64," + btoa(grass_cont.innerHTML)
+        grass_img.onload() // on chrome it loads immediately so make it faster
 
-    rock_img.onload = function () {
-        if (!rock_pattern)
-            rock_pattern = ctx.createPattern(rock_img, "repeat")
+        rock_img.onload = function () {
+            if (!rock_pattern)
+                rock_pattern = ctx.createPattern(rock_img, "repeat")
+            needDraw = true
+        }
+        rock_img.src = "data:image/svg+xml;base64," + btoa(rock_cont.innerHTML)
+        rock_img.onload()
     }
-    rock_img.src = "data:image/svg+xml;base64," + btoa(rock_cont.innerHTML)
-    rock_img.onload()
 
     showTri.checked = showTriOutline
 
@@ -142,6 +153,7 @@ function zoomValue() {
 function handleMouseDown(event) {
     var c = getXY(event);
     var x = c.x, y = c.y;
+    needDraw = true
 
     var reversedZ = Object.keys(drawObjects).reverse()
     for (zi in reversedZ) {
@@ -182,6 +194,7 @@ function handleWheel(event) {
     //out("w=" + event.wheelDelta)
     var c = getXY(event);
     pointZoom(c.x, c.y, event.wheelDelta, event)
+    needDraw = true
     return false
 }
 
@@ -212,6 +225,7 @@ function pressedMoveLittle(x, y) {
 function handleMouseUp(event) {
     var c = getXY(event);
     var x = c.x, y = c.y;
+    needDraw = true
 
     if (selectSquare && !selectSquare.isActive &&  multiSelected.length > 0) {
         setGoal(x, y, multiSelected);
@@ -231,8 +245,8 @@ function handleMouseMove(event) {
     var c = getXY(event);
     var x = c.x, y = c.y;
 
-
     if (selectSquare) {
+        needDraw = true
         selectSquare.x2 = x;
         selectSquare.y2 = y;
         selectSquare.xmin = Math.min(selectSquare.x1, selectSquare.x2);
@@ -255,6 +269,7 @@ function handleMouseMove(event) {
     }
 
     if (pressedObject) {
+        needDraw = true
         pressedObject.x = x + mouseDownOffset.x;
         pressedObject.y = y + mouseDownOffset.y;
         
@@ -273,12 +288,14 @@ function out(s) {
 
 function clear_objects() {
     objects = {};
+    needDraw = true
 }
 
 function remove_object(ptr) {
     //out("remove " + ptr.toString(16));
     delete drawObjects[objects[ptr].zOrder][ptr]
     delete objects[ptr];
+    needDraw = true
 }
 function add_object(ptr, zOrder, obj) {
     obj.ptr = ptr;
@@ -359,7 +376,8 @@ Circle.prototype.isInRect = function(rect) {
 
 function add_circle(ptr, zOrder, x, y, radius, color, multiSelectable) {
     add_object(ptr, zOrder, new Circle(x, y, radius, color, multiSelectable));
-    out("Circle " + x + " " + y + " " + ptr.toString(16))
+    //out("Circle " + x + " " + y + " " + ptr.toString(16))
+    needDraw = true
 }
 
 function Triangle(ax, ay, bx, by, cx, cy, color) {
@@ -396,16 +414,23 @@ Triangle.prototype.isInRect = function(rect) {
 
 function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
     add_object(ptr, zOrder, new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf"))
+    needDraw = true
 }
 
 function move_object(ptr, x, y) {
     o = objects[ptr];
+    if (o.x == x && o.y == y)
+        return
     o.x = x;
     o.y = y;
+    needDraw = true
 }
 function changed_size(ptr, r) {
     o = objects[ptr]
+    if (o.radius == r)
+        return
     o.radius = r
+    needDraw = true
 }
 
 function getTransform() {
@@ -451,23 +476,41 @@ function draw() {
         ctx.setLineDash([])
     }
 
-    
+    for (i in polyData) {
+        var d = polyData[i]
+        if (d[0] == 'v') {
+            ctx.lineTo(d[1], d[2])
+        }
+    }
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
 }
 
 function progress() {
     if (isPlaying) {
         cpp_progress(0.4)
+        needDraw = true
     }
-    draw();
+    if (needDraw)
+        draw();
+    needDraw = false
 
     window.requestAnimationFrame(progress)
 }
+
+var polyData = []
 
 function readScene() {
     var str = serialize()
     if (str[str.length-1] == '\n')
         str = str.substring(0,str.length-1)
-    str = str.replace(/\n/g,'<br>')
+
+    //var jsonStr = "[[" + str.replace(/v,/g, "],['v',").replace(/p,/g, "],['p',") + "]]"
+    //polyData = eval(jsonStr);
+
+    str = str.replace(/\n/g, '<br>')
+    if (str == "")
+        str = "-";
     scene_def.innerHTML = str
 }
 
@@ -580,6 +623,7 @@ function sceneEditBlur() {
 
 function sceneEditChange() {
     deserialize(scene_edit.value)
+    readScene();
 }
 
 function set_max_frame(v) {
@@ -604,6 +648,10 @@ function agentSizeChange() {
 
 function triggerShowTri() {
     showTriOutline = showTri.checked;
+}
+
+function canvasScroll() {
+    needDraw = true
 }
 
 </script>
@@ -736,7 +784,7 @@ body { /* disable selection so the double click will not select */
   filter: url(#svg_inglow);
 }
 
-/* ---------------- side buttons */
+/* ---------------- side buttons http://www.mattboldt.com/demos/social-buttons/ */
 .sc-btn {
   -webkit-appearance: button;
   display: inline-block;
@@ -839,7 +887,7 @@ body { /* disable selection so the double click will not select */
 
 <body onload="init()" onresize="resize()">
   <canvas id="canvas" width="200" height="200"></canvas>
-  <div id="canvas_cont">
+  <div id="canvas_cont" onscroll="canvasScroll()">
     <div id="canvas_place"></div>
   </div>
 
