@@ -121,10 +121,8 @@ Node& SweepContext::LocateNode(Point& point)
   return *front_->LocateNode(point.x);
 }
 
-void SweepContext::CreateAdvancingFront(std::vector<Node*> nodes)
+void SweepContext::CreateAdvancingFront()
 {
-
-  (void) nodes;
   // Initial triangle
   Triangle* triangle = new Triangle(*points_[0], *tail_, *head_);
 
@@ -186,9 +184,6 @@ void SweepContext::MeshClean(Triangle& triangle)
 
 SweepContext::~SweepContext()
 {
-
-    // Clean up memory
-
     delete head_;
     delete tail_;
     delete front_;
@@ -196,17 +191,21 @@ SweepContext::~SweepContext()
     delete af_middle_;
     delete af_tail_;
 
-    typedef std::list<Triangle*> type_list;
-
-    for(type_list::iterator iter = map_.begin(); iter != map_.end(); ++iter) {
-        Triangle* ptr = *iter;
-        delete ptr;
-    }
+    clearMap();
 
      for(unsigned int i = 0; i < edge_list.size(); i++) {
         delete edge_list[i];
     }
 
+}
+
+void SweepContext::clearMap() 
+{
+    for(auto* mt: map_) {
+        delete mt;
+    }
+    map_.clear();
+    triangles_.clear();
 }
 
 }

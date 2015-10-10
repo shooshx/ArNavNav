@@ -52,17 +52,8 @@ class Triangle;
 class Sweep 
 {
 public:
-
-  /**
-   * Triangulate
-   * 
-   * @param tcx
-   */
   void Triangulate(SweepContext& tcx);
-  
-  /**
-   * Destructor - clean up memory
-   */
+
   ~Sweep();
 
 private:

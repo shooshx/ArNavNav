@@ -8,7 +8,7 @@
 Document::Document()
 {
     //init_preset();
-    //init_test();
+    init_test();
 
     //init_tri();
 
@@ -228,8 +228,19 @@ void Document::addAgentRadius(float radius)
     }
 }
 
+bool checkSelfIntersect(vector<Vec3>& vtx, vector<int>& pl);
+
 void Document::runTriangulate()
 {
+   /* {
+        vector<Vec3> vtx;
+        for(auto& v: m_mapdef.m_vtx) 
+            vtx.push_back(Vec3(v->p.x, 0, v->p.y));
+        checkSelfIntersect(vtx, m_mapdef.m_pl[0].m_di);
+        return;
+    }*/
+    
+
     vector<Vec2> gt;
     m_mesh.clear();
     runTri(&m_mapdef, m_mesh);
@@ -286,6 +297,8 @@ void Document::runTriangulate()
 void Document::updatePlan(Agent* agent)
 {
     if (m_mesh.m_vtx.empty())
+        return;
+    if (!agent->m_endGoalPos.isValid())
         return;
     const Vec2& startp = agent->m_position;
     const Vec2& endp = agent->m_endGoalPos;
@@ -373,7 +386,7 @@ void Document::updatePlan(Agent* agent)
         //    cout << sg.p << "  ";
 
         // set agent to the start of the plan
-        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1;
+        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
     }
@@ -425,10 +438,12 @@ void Document::removeGoal(Goal* g) {
 Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpeed, float maxSpeed)
 {
     if (prefSpeed < 0)
-        prefSpeed = 5.0f;
+        prefSpeed = 1.0f;
+    if (maxSpeed < 0)
+        maxSpeed = prefSpeed * 1.5;
     //OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
     Agent* a = new Agent(m_agents.size(), pos,
-        (g != nullptr)?g->p : Vec2(0,0), // goal 
+        (g != nullptr)?g->p : INVALID_VEC2, // goal 
         radius * NEI_DIST_RADIUS_FACTOR, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
         radius, // 15 radius
@@ -455,7 +470,7 @@ void Document::init_test()
     //m_start = new Vertex(0, Vec2(200, 0));
 
    // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-    for(int i = 0; i < 1 ; ++i)
+    for(int i = 0; i < 3 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
@@ -621,7 +636,9 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     {
         if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
             continue;
-        reachedGoals &= agent->update(deltaTime);
+
+        agent->m_reached = agent->update(deltaTime);
+        reachedGoals &= agent->m_reached;
     }
 
     //m_globalTime += deltaTime;
@@ -679,7 +696,7 @@ void Document::deserialize(istream& is)
         else if (h == "v") {
             Vec2 v;
             is >> v.x >> v.y;
-            if (!is.good())
+            if (is.fail())
                 break;
             m_mapdef.addToLast(v);
             ++count;
@@ -687,7 +704,7 @@ void Document::deserialize(istream& is)
         else if (h == "g") {
             Vec2 v;
             is >> v.x >> v.y;
-            if (!is.good())
+            if (is.fail())
                 break;
             addGoal(v);
         }
@@ -696,16 +713,20 @@ void Document::deserialize(istream& is)
             int goali = 0;
             float radius = 0.0f, ps = 0.0f, ms = 0.0f;
             is >> pos.x >> pos.y >> goali >> vel.x >> vel.y >> radius >> ps >> ms;
-            if (!is.good())
+            if (is.fail())
                 break;
             if (goali >= (int)m_goals.size() || radius <= 0.0f)
                 break;
             auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
             a->m_velocity = vel;
         }
+        else if (h == "e") {
+            return;
+        }
         else if (!h.empty()){
             OUT("Unknown CMD " << h);
         }
 
     }
+    //cout << "Read " << m_mapdef.m_pl[0].m_d.size() << endl;
 }

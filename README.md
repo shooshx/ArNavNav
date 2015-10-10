@@ -9,6 +9,9 @@ Current features
 - Fast collision detection of multiple agents that move in the scene
 - Web GUI using Qt QWebView or Emscripten
 
+BUGs:
+- strange corner added to plan
+
 TBD
 - extract polylines from terrain mesh
 - handling self intersections

@@ -157,7 +157,7 @@ void VOSItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
 }
 
 QRectF VOSItem::boundingRect() const {
-    return QRectF(-2000,-2000,4000,4000);
+    return QRectF(-2000,-2000,6000,6000);
 }
 
 
@@ -202,14 +202,14 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     pen.setWidth(1);
     painter->setPen(pen);
     //painter->drawPolyline(pv, 3);
-    QColor col(200, 200, 255);
-/*    if (m_t->highlight == 1) 
+    QColor col(200, 200, 255, 128);
+   /* if (m_t->highlight == 1) 
         col = QColor(200, 255, 200);
     else if (m_t->highlight == 2)
         col = QColor(255, 200, 200);
     else if (m_t->highlight == 3)
         col = QColor(255, 255, 200);
-        */
+     */   
     painter->setBrush(QBrush(col));
     painter->drawPolygon(pv, 3);
 
@@ -221,15 +221,14 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     }
     trimid /= 3.0f;
 
-    for(int i = 0; i < 3; ++i) {
+  /*  for(int i = 0; i < 3; ++i) { // HalfEdge number
         const HalfEdge* he = m_t->h[i];
         Vec2 mid = (0.4 * he->to->p + 0.6 * he->from->p);
         float d = length(mid - trimid);
         Vec2 towardsMid = ((mid - trimid)*((d-10)/d)) + trimid;
 
         painter->drawText(towardsMid.x - 20, towardsMid.y - 20, 40, 40, Qt::AlignCenter, QString("%1").arg(he->index));
-
-    }
+    }*/
 }
 QRectF TriItem::boundingRect() const {
     Vec2 mx = m_t->v[0]->p, mn = m_t->v[0]->p;
@@ -290,17 +289,17 @@ void MapDefItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     painter->setPen(pen);
     painter->setBrush(QBrush());
     for(const auto& pl: m_p->m_pl) {
-        if (pl.m_d.size() == 0)
+        if (pl.m_di.size() == 0)
             continue;
         vector<QPointF> qp;
-        for(auto* pv: pl.m_d) {
-            qp.push_back(toQ(pv->p));
+        for(int pvi: pl.m_di) {
+            qp.push_back(toQ(m_p->m_vtx[pvi]->p));
         }
         painter->drawPolygon(&qp[0], qp.size());
     }
 }
 QRectF MapDefItem::boundingRect() const {
-    return QRectF(-350, -350, 700, 700);
+    return QRectF(-2000, -2000, 6000, 6000);;
 }
 
 // ------------------------------------------------------------------
@@ -352,7 +351,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
 
 }
 QRectF PathItem::boundingRect() const {
-    return QRectF(-2000, -2000, 4000, 4000); //QRectF(-350, -350, 700, 700);
+    return QRectF(-2000, -2000, 6000, 6000); //QRectF(-350, -350, 700, 700);
 }
 
 // -----------------------------------------------------------------

@@ -10,6 +10,12 @@ var inq = false
 
 var WORLD_FACTOR = 4
 
+// first multiply, then move by offset
+var S2H_XOFFSET = 0
+var S2H_YOFFSET = 0
+var S2H_SCALE = 5
+
+
 function init() {
     canvas = document.getElementById("canvas")
     ctx = canvas.getContext("2d")
@@ -52,11 +58,11 @@ function init() {
     canvas_cont.scrollTop = canvas_cont.clientHeight*scrollPos; 
     zoom_scroll.min = -(100 - 100 / WORLD_FACTOR)
 
-    var centerY = Math.round(canvas_cont.clientHeight * WORLD_FACTOR / 200 * 0.5) * 200
-    var centerX = Math.round(canvas_cont.clientWidth * WORLD_FACTOR / 200 * 0.5) * 200
-    var landExt = Math.round(canvas_cont.clientHeight * WORLD_FACTOR / 200 * 0.4) * 200
-    var ay = centerY - landExt, ax = centerX - landExt, by = centerY + landExt, bx = centerX + landExt
-    scene_edit.value = "p,\nv,ax,ay,\nv,bx,ay,\nv,bx,by,\nv,ax,by,".replace(/ax/g, ax).replace(/ay/g, ay).replace(/bx/g, bx).replace(/by/g, by)
+    //var centerY = Math.round(canvas_cont.clientHeight * WORLD_FACTOR / 200 * 0.5) * 200
+    //var centerX = Math.round(canvas_cont.clientWidth * WORLD_FACTOR / 200 * 0.5) * 200
+    //var landExt = Math.round(canvas_cont.clientHeight * WORLD_FACTOR / 200 * 0.4) * 200
+    //var ay = centerY - landExt, ax = centerX - landExt, by = centerY + landExt, bx = centerX + landExt
+    scene_edit.value = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
     out(scene_edit.value)
 
     sceneEditChange()
@@ -121,8 +127,10 @@ Transform.prototype.transformPoint = function(px, py) {
   return {x:px, y:py};
 };
 
-var drawObjects = {} // zOrder -> {ptr -> objects}
-var objects = {} // ptr -> object
+var drawCircles = {} // zOrder -> {ptr -> objects}
+var drawTriangles = {}
+var circles = {} // ptr -> object
+var triangles = {}
 
 var pressedObject = null; // object that is currently pressed down
 var pressedStart = null; // offset
@@ -143,6 +151,10 @@ function getXY(event) {
     //        y: event.clientY - canvas.offsetTop + canvas_cont.scrollTop }
     var p = inv.transformPoint(event.clientX - canvas.offsetLeft,
                               event.clientY - canvas.offsetTop)
+    p.x -= S2H_XOFFSET
+    p.x /= S2H_SCALE
+    p.y -= S2H_YOFFSET
+    p.y /= S2H_SCALE
     return p                          
 }
 
@@ -155,11 +167,11 @@ function handleMouseDown(event) {
     var x = c.x, y = c.y;
     needDraw = true
 
-    var reversedZ = Object.keys(drawObjects).reverse()
+    var reversedZ = Object.keys(drawCircles).reverse()
     for (zi in reversedZ) {
         var z = reversedZ[zi]
-        for(p in drawObjects[z]) {
-            var o = drawObjects[z][p];
+        for (p in drawCircles[z]) {
+            var o = drawCircles[z][p];
             if (o.isInside(x, y)) {
                 pressedObject = o;
                 mouseDownOffset.x = pressedObject.x - x
@@ -192,8 +204,7 @@ function handleWheel(event) {
     if (!event.ctrlKey)
         return true
     //out("w=" + event.wheelDelta)
-    var c = getXY(event);
-    pointZoom(c.x, c.y, event.wheelDelta, event)
+    pointZoom(event.wheelDelta, event)
     needDraw = true
     return false
 }
@@ -203,8 +214,8 @@ function handleClick(event) {
 
 function clearMultiSel() {
     multiSelected = []
-    for(i in objects) {
-        objects[i].isSelected = false;
+    for(i in circles) {
+        circles[i].isSelected = false;
     }
 }
 
@@ -256,14 +267,15 @@ function handleMouseMove(event) {
 
         if (selSquareBig()) {
             clearMultiSel()
-            for(i in objects) {
-                if (objects[i].isInRect(selectSquare)) {
+            //out("sq= " + selectSquare.x1 + " " + selectSquare.y1 + " " + selectSquare.x2 + " " + selectSquare.y2)
+            for(i in circles) {
+                if (circles[i].isInRect(selectSquare)) {
                     selectSquare.isActive = true;
-                    multiSelected.push(objects[i])
-                    objects[i].isSelected = true;
+                    multiSelected.push(circles[i])
+                    circles[i].isSelected = true;
                 }
                 else 
-                    objects[i].isSelected = false;
+                    circles[i].isSelected = false;
             }
         }
     }
@@ -285,26 +297,27 @@ function out(s) {
     console.log(s);
 }
 
-
-function clear_objects() {
-    objects = {};
+/*
+function clear_circles() {
+    circles = {};
     needDraw = true
 }
+*/
 
-function remove_object(ptr) {
+function remove_circle(ptr) {
     //out("remove " + ptr.toString(16));
-    delete drawObjects[objects[ptr].zOrder][ptr]
-    delete objects[ptr];
+    delete drawCircles[circles[ptr].zOrder][ptr]
+    delete circles[ptr];
     needDraw = true
 }
-function add_object(ptr, zOrder, obj) {
-    obj.ptr = ptr;
-    obj.zOrder = zOrder;
-    objects[ptr] = obj;
-    if (!(zOrder in drawObjects))
-        drawObjects[zOrder] = []    
-    drawObjects[zOrder][ptr] = obj;
+
+function remove_triangle(ptr) {
+    //out("remove " + ptr.toString(16));
+    delete drawTriangles[triangles[ptr].zOrder][ptr]
+    delete triangles[ptr];
+    needDraw = true
 }
+
 
 function setGoal(x, y, selAgents) {
     var goalPtr = add_goal(x, y) // will do add_circle
@@ -314,9 +327,9 @@ function setGoal(x, y, selAgents) {
         set_goal(selAgents[i].ptr, goalPtr);
     }
     var usedGoals = {}
-    for(i in objects) {
-        if (objects[i].goalPtr)
-            usedGoals[objects[i].goalPtr] = true
+    for(i in circles) {
+        if (circles[i].goalPtr)
+            usedGoals[circles[i].goalPtr] = true
     }
     for(i in activeGoals) {
         if (!(i in usedGoals)) {
@@ -326,19 +339,27 @@ function setGoal(x, y, selAgents) {
     }
 }
 
-function Circle(x, y, radius, color, multiSel) {
+function Circle(x, y, radius, color, multiSel, secondRadius) {
     this.x = x;
     this.y = y;
     this.radius = radius;
     this.color = color;
     this.multiSel = multiSel;
+    this.secondRadius = secondRadius
     this.isSelected = false;
     this.goalPtr = null;
+    this.makeDCoord()
+}
+Circle.prototype.makeDCoord = function () {
+    this.dx = this.x * S2H_SCALE + S2H_XOFFSET;
+    this.dy = this.y * S2H_SCALE + S2H_YOFFSET;
+    this.dradius = this.radius * S2H_SCALE
+    this.dsecondRadius = (this.secondRadius != null) ? (this.secondRadius * S2H_SCALE) : null
 }
 Circle.prototype.draw1 = function() {
     if (this.isSelected) {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 3, 0, 2 * Math.PI, false);
+        ctx.arc(this.dx, this.dy, this.dradius + 3, 0, 2 * Math.PI, false);
         ctx.lineWidth = 2;
         ctx.strokeStyle = "rgb(80,80,255)";
         ctx.stroke();
@@ -347,19 +368,29 @@ Circle.prototype.draw1 = function() {
 Circle.prototype.draw2 = function() {
     if (this.isSelected) {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 2, 0, 2 * Math.PI, false);
+        ctx.arc(this.dx, this.dy, this.dradius + 2, 0, 2 * Math.PI, false);
         ctx.fillStyle = "#ffffff";
         ctx.fill()
     }
 }
 Circle.prototype.draw3 = function() {
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
+    ctx.arc(this.dx, this.dy, this.dradius, 0, 2 * Math.PI, false);
     ctx.fillStyle = this.color;
     ctx.fill();
     ctx.lineWidth = 0.5;
     ctx.strokeStyle = '#000000';
     ctx.stroke();
+
+    if (this.dsecondRadius != null) {
+        ctx.beginPath();
+        ctx.arc(this.dx, this.dy, this.dsecondRadius, 0, 2 * Math.PI, false)
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5])
+        ctx.strokeStyle = "#679dff"
+        ctx.stroke()
+        ctx.setLineDash([])
+    }
 }
 
 
@@ -374,24 +405,37 @@ Circle.prototype.isInRect = function(rect) {
             this.y >= rect.ymin && this.y <= rect.ymin + rect.height) 
 }
 
-function add_circle(ptr, zOrder, x, y, radius, color, multiSelectable) {
-    add_object(ptr, zOrder, new Circle(x, y, radius, color, multiSelectable));
-    //out("Circle " + x + " " + y + " " + ptr.toString(16))
+function add_circle(ptr, zOrder, x, y, radius, color, multiSelectable, secondRadius) {
+    var obj = new Circle(x, y, radius, color, multiSelectable, secondRadius)
+    obj.ptr = ptr;
+    obj.zOrder = zOrder;
+    circles[ptr] = obj;
+    if (!(zOrder in drawCircles))
+        drawCircles[zOrder] = []
+    drawCircles[zOrder][ptr] = obj;
     needDraw = true
 }
 
 function Triangle(ax, ay, bx, by, cx, cy, color) {
+    // the real coordinates
     this.ax = ax; this.ay = ay;
     this.bx = bx; this.by = by;
     this.cx = cx; this.cy = cy;
     this.color = color
+    this.makeDCoord()
+}
+Triangle.prototype.makeDCoord = function () {
+    // the drawing coordinates
+    this.dax = this.ax * S2H_SCALE + S2H_XOFFSET; this.day = this.ay * S2H_SCALE + S2H_YOFFSET;
+    this.dbx = this.bx * S2H_SCALE + S2H_XOFFSET; this.dby = this.by * S2H_SCALE + S2H_YOFFSET;
+    this.dcx = this.cx * S2H_SCALE + S2H_XOFFSET; this.dcy = this.cy * S2H_SCALE + S2H_YOFFSET;
 }
 Triangle.prototype.draw1 = function() {
     ctx.beginPath();
-    ctx.moveTo(this.ax, this.ay);
-    ctx.lineTo(this.bx, this.by);
-    ctx.lineTo(this.cx, this.cy);
-    ctx.lineTo(this.ax, this.ay);
+    ctx.moveTo(this.dax, this.day);
+    ctx.lineTo(this.dbx, this.dby);
+    ctx.lineTo(this.dcx, this.dcy);
+    ctx.lineTo(this.dax, this.day);
     ctx.fillStyle =  grass_pattern;  // this.color;
 
     ctx.lineWidth = 0;
@@ -404,7 +448,7 @@ Triangle.prototype.draw1 = function() {
     ctx.stroke()
 
 }
-Triangle.prototype.draw2 = Triangle.prototype.draw3 = function() {}
+
 Triangle.prototype.isInside = function(x, y) {
     return false;
 }
@@ -413,20 +457,27 @@ Triangle.prototype.isInRect = function(rect) {
 }
 
 function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
-    add_object(ptr, zOrder, new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf"))
+    var obj = new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf")
+    obj.ptr = ptr;
+    obj.zOrder = zOrder;
+    triangles[ptr] = obj;
+    if (!(zOrder in drawTriangles))
+        drawTriangles[zOrder] = []
+    drawTriangles[zOrder][ptr] = obj;
     needDraw = true
 }
 
-function move_object(ptr, x, y) {
-    o = objects[ptr];
+function move_circle(ptr, x, y) {
+    o = circles[ptr];
     if (o.x == x && o.y == y)
         return
     o.x = x;
     o.y = y;
+    o.makeDCoord()
     needDraw = true
 }
 function changed_size(ptr, r) {
-    o = objects[ptr]
+    o = circles[ptr]
     if (o.radius == r)
         return
     o.radius = r
@@ -455,35 +506,44 @@ function draw() {
     ctx.fillStyle = rock_pattern
     ctx.fillRect(0, 0, world_width, world_height);
 
- 
-    for(z in drawObjects) {
-        for(p in drawObjects[z]) {
-            drawObjects[z][p].draw1();
+    //ctx.translate(S2H_XOFFSET, S2H_YOFFSET)
+    //ctx.scale(S2H_SCALE, S2H_SCALE);
+
+    for (z in drawTriangles) {
+        for (p in drawTriangles[z]) {
+            drawTriangles[z][p].draw1();
         }
-        for(p in drawObjects[z]) {
-            drawObjects[z][p].draw2();
+    }
+    for (z in drawCircles) {
+        for (p in drawCircles[z]) {
+            drawCircles[z][p].draw1();
         }
-        for(p in drawObjects[z]) {
-            drawObjects[z][p].draw3();
+        for (p in drawCircles[z]) {
+            drawCircles[z][p].draw2();
+        }
+        for (p in drawCircles[z]) {
+            drawCircles[z][p].draw3();
         }        
     }
     
     if (selectSquare) {
         ctx.fillStyle = "rgba(0,0,70,0.2)"
-        ctx.fillRect(selectSquare.xmin, selectSquare.ymin, selectSquare.width, selectSquare.height);
+        var x1 = selectSquare.xmin * S2H_SCALE + S2H_XOFFSET, y1 = selectSquare.ymin * S2H_SCALE + S2H_YOFFSET
+        var w = selectSquare.width * S2H_SCALE, h = selectSquare.height * S2H_SCALE
+        ctx.fillRect(x1, y1, w, h);
         ctx.setLineDash([5])
-        ctx.strokeRect(selectSquare.xmin, selectSquare.ymin, selectSquare.width, selectSquare.height);
+        ctx.strokeRect(x1, y1, w, h);
         ctx.setLineDash([])
     }
 
-    for (i in polyData) {
+  /*  for (i in polyData) {
         var d = polyData[i]
         if (d[0] == 'v') {
             ctx.lineTo(d[1], d[2])
         }
     }
     ctx.strokeStyle = "#fff";
-    ctx.stroke();
+    ctx.stroke();*/
 }
 
 function progress() {
@@ -558,7 +618,14 @@ function resize() {
     
     var s = zoomValue()
     adjustPlaceSize(s)
-    
+
+    S2H_XOFFSET = world_width * 0.5 // 0,0 should be in the center
+    S2H_YOFFSET = world_height * 0.5
+    for(var ci in circles)
+        circles[ci].makeDCoord()
+    for(var ti in triangles)
+        triangles[ci].makeDCoord()    
+        
     out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
 }
 
@@ -591,7 +658,7 @@ function zoomChanged() {
     
 }
 
-function pointZoom(x, y, delta, event) {
+function pointZoom(delta, event) {
     var starts = zoomValue()
     var startx = canvas_cont.scrollLeft 
     var starty = canvas_cont.scrollTop 
@@ -886,6 +953,15 @@ body { /* disable selection so the double click will not select */
 </head>
 
 <body onload="init()" onresize="resize()">
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-2231125-4', 'auto');
+  ga('send', 'pageview');
+</script>
+
   <canvas id="canvas" width="200" height="200"></canvas>
   <div id="canvas_cont" onscroll="canvasScroll()">
     <div id="canvas_place"></div>
@@ -895,7 +971,7 @@ body { /* disable selection so the double click will not select */
       <input id="checkboxPoly" class="sc-btn" type="checkbox" onclick="triggerPolyline()"/>
       <div id="agentsFrame"></div>
       <input id="checkboxAgent" class="sc-btn" type="checkbox" onclick="triggerAgent()"/>
-      <input id="agentSize" type="number" value="15" min="5" max="100" oninput="agentSizeChange()">
+      <input id="agentSize" type="number" value="3" min="1" max="100" oninput="agentSizeChange()">
       <span id="agentSizeLabel" for="agentSize">Radius:</span>
       <input id="zoom_scroll" type="range" name="zoom" min="-75" max="200" value="0" oninput="zoomChanged()" onmousedown="zoomStart()"/> 
       <input id="showTri" type="checkbox" onclick="triggerShowTri()" /><label id="showTriLabel" for="showTri">Triangulation</label>

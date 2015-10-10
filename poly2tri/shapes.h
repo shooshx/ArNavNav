@@ -45,6 +45,8 @@ struct Edge;
 
 struct Point 
 {
+  int vindex; // index of my corresponding vertex
+  bool visited = false;
 
   double x, y;
 
@@ -53,13 +55,14 @@ struct Point
   {
     x = 0.0;
     y = 0.0;
+    vindex = -1;
   }
 
   /// The edges this point constitutes an upper ending point
   std::vector<Edge*> edge_list;
 
   /// Construct using coordinates.
-  Point(double x, double y) : x(x), y(y) {}
+  Point(double _x, double _y, int _vindex = -1) : x(_x), y(_y), vindex(_vindex) {}
 
   /// Set this point to all zeros.
   void set_zero()

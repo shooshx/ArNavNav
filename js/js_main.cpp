@@ -30,12 +30,16 @@ public:
     Item(NavCtrl* ctrl) : m_ctrl(ctrl)
     {}
     virtual ~Item() {
-        EM_ASM_( remove_object($0), this );
+        if (m_isCircle)
+            EM_ASM_( remove_circle($0), this );
+        else 
+            EM_ASM_( remove_triangle($0), this );
     }
     virtual void setPos(const Vec2& p) 
     {}
 
     NavCtrl* m_ctrl;
+    bool m_isCircle = true;
 };
 
 class PolyPointItem : public Item
@@ -43,13 +47,9 @@ class PolyPointItem : public Item
 public:
     PolyPointItem(NavCtrl* ctrl, Vertex* v) :Item(ctrl), m_v(v)
     {
-        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(50,50,50)', false), this, Z_POLYPOINT, m_v->p.x, m_v->p.y, 5);
+        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(50,50,50)', false, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y, 1);
     }
-    virtual void setPos(const Vec2& p) {
-        OUT("setPos " << m_v->index << " " << m_v->p.x << " " << m_v->p.y);
-        m_v->p = p;
-        EM_ASM_( move_object($0, $1, $2), this, m_v->p.x, m_v->p.y);
-    }
+    virtual void setPos(const Vec2& p);
     
     Vertex* m_v;
 };
@@ -59,6 +59,7 @@ class TriItem  : public Item
 public:
     TriItem(NavCtrl* ctrl, Triangle* t) :Item(ctrl), m_t(t)
     {
+        m_isCircle = false;
         const Vec2& a = m_t->v[0]->p;
         const Vec2& b = m_t->v[1]->p;
         const Vec2& c = m_t->v[2]->p;
@@ -74,7 +75,7 @@ class AgentItem : public Item
 public:
     AgentItem(NavCtrl* ctrl, Agent* a) :Item(ctrl), m_a(a)
     {
-        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(255,50,50)', true), this, Z_AGENT, m_a->m_position.x, m_a->m_position.y, m_a->m_radius);
+        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(255,50,50)', true, null), this, Z_AGENT, m_a->m_position.x, m_a->m_position.y, m_a->m_radius);
     }
     virtual ~AgentItem() {}
     virtual void setPos(const Vec2& p) {
@@ -82,7 +83,7 @@ public:
         updatePos();
     }
     void updatePos() {
-        EM_ASM_( move_object($0, $1, $2), this, m_a->m_position.x, m_a->m_position.y);
+        EM_ASM_( move_circle($0, $1, $2), this, m_a->m_position.x, m_a->m_position.y);
     }
     void updateSize() {
         EM_ASM_( changed_size($0, $1), this, m_a->m_radius);
@@ -95,7 +96,7 @@ class GoalItem : public Item
 public:
     GoalItem(NavCtrl* ctrl, Goal* g) :Item(ctrl), m_g(g)
     {
-        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(165,85,255)', false), this, Z_GOAL, m_g->p.x, m_g->p.y, 7);
+        EM_ASM_( add_circle($0, $1, $2, $3, $4, 'rgb(165,85,255)', false, 20), this, Z_GOAL, m_g->p.x, m_g->p.y, 2);
     }
     virtual void setPos(const Vec2& p);
     Goal* m_g;
@@ -125,14 +126,14 @@ public:
         auto i = new PolyPointItem(this, pv);
         m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
         updateMesh();
-        m_quite = false;
+        m_quiteCount = 0;
     }
     void addAgent(const Vec2& p, float radius, float speed)
     {
         auto pa = m_doc.addAgent(p, nullptr, radius, speed);
         auto i = new AgentItem(this, pa);
         m_agentitems.push_back(shared_ptr<AgentItem>(i));
-        m_quite = false;
+        m_quiteCount = 0;
     }
     GoalItem* addGoal(const Vec2& p) 
     {
@@ -154,9 +155,9 @@ public:
         }
     }
     void setAgentGoalPos(Agent* a, Goal* g) {
-        a->m_endGoalPos = g->p;
+        a->setEndGoal(g->p, 20.0f);
         m_doc.updatePlan(a);
-        m_quite = false;
+        m_quiteCount = 0;
     }
     void setGoal(AgentItem* a, GoalItem* g) {
         setAgentGoalPos(a->m_a, g->m_g);
@@ -167,15 +168,15 @@ public:
         a->m_a->setRadius(sz);
         a->updateSize();
         m_doc.addAgentRadius(sz);
-        m_quite = false;
+        m_quiteCount = 0;
     }
 
     void recordFrame() {
+        ++m_atFrame;
         if (m_atFrame < m_frames.size())
             m_frames.resize(m_atFrame); // truncate any future frames
         m_frames.push_back(Frame());
         auto& frame = m_frames.back();
-        ++m_atFrame;
 
         for(auto& a: m_agentitems) {
             a->updatePos();
@@ -186,13 +187,13 @@ public:
     
     bool progress(float deltaSec) 
     {
-        if (m_quite)
+        if (m_quiteCount >= 100)
             return true;
         if (m_doc.doStep(deltaSec, true))  //0.25
-            m_quite = true;
+            ++m_quiteCount;
         recordFrame();
 
-        return m_quite;
+        return false;
     }
 
     void goToFrame(int f) 
@@ -211,7 +212,7 @@ public:
             ai->updatePos();
         }
         m_atFrame = f;
-        m_quite = false;
+        m_quiteCount = 0;
     }
     
     void updateMesh();
@@ -224,7 +225,7 @@ public:
     Document m_doc;
     vector<Frame> m_frames;
     int m_atFrame = 0;
-    bool m_quite = true;
+    int m_quiteCount = 0; // frames that are quiet
 };
 
 // depends on NavCtrl
@@ -232,9 +233,15 @@ void GoalItem::setPos(const Vec2& p) {
     m_g->p = p;
     for(auto* a: m_g->agents)
         m_ctrl->setAgentGoalPos(a, m_g);
-    EM_ASM_( move_object($0, $1, $2), this, m_g->p.x, m_g->p.y);
+    EM_ASM_( move_circle($0, $1, $2), this, m_g->p.x, m_g->p.y);
 }
 
+void PolyPointItem::setPos(const Vec2& p) {
+    OUT("setPos " << m_v->index << " " << m_v->p.x << " " << m_v->p.y);
+    m_v->p = p;
+    EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
+    m_ctrl->updateMesh();
+}
 
 void NavCtrl::updateMesh()
 {
@@ -250,7 +257,7 @@ void NavCtrl::updateMesh()
         auto i = new TriItem(this, &tri);
         m_meshitems.push_back(shared_ptr<TriItem>(i));
     }
-    m_quite = false;
+    m_quiteCount = 0;
 }
 
 void NavCtrl::readDoc()
@@ -302,7 +309,6 @@ void moved_object(ptr_t ptr, int x, int y)
 {
     Item* p = (Item*)ptr;
     p->setPos(Vec2(x, y));
-    g_ctrl->updateMesh();
 }
 
 ptr_t add_goal(int x, int y) {
