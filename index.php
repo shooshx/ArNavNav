@@ -1,4 +1,5 @@
 <?php
-header("Location: http://shooshx.github.io/ArNavNav/js/page.html");
+print("hello")
+//header("Location: http://shooshx.github.io/ArNavNav/js/page.html");
 die();
 ?>
