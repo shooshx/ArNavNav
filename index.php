@@ -1,4 +1,4 @@
 <?php
-header("Location: js/page.html");
+header("Location: http://shooshx.github.io/ArNavNav/js/page.html");
 die();
 ?>
