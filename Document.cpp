@@ -15,8 +15,18 @@ Document::Document()
     //init_circle();
     //init_grid();
 
-    //for(int i = 0;i < 100; ++i)
-    //    m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
+    for(int i = 0;i < 100; ++i)
+        m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
+
+}
+
+void Document::init_test()
+{
+    auto gend = addGoal(Vec2(-200, 0));
+    for(int i = 0; i < 2 ; ++i)
+    {
+        addAgent(Vec2(0, -140 + 50*i), gend);
+    }    
 
 }
 
@@ -27,30 +37,6 @@ static ostream& operator<<(ostream& os, const Vec2& p) {
 
 int runTriC(const string& cmd, vector<Vec2>& out);
 
-void Document::init_tri()
-{
-    //vector<Vec2> gt;
-
-  /*  float d = 1;
-    runTri("C:\\projects\\nav\\poly2tri\\data\\funny.dat", gt);
-    for(int i = 0; i < gt.size(); i += 3) {
-        m_mesh.addTri(gt[i]*d, gt[i + 1]*d, gt[i + 2]*d);
-        //std::cout << gt[i] << "  " << gt[i + 1] << "  " << gt[i + 2] << endl;
-    }*/
-    
-    //m_start = new Vertex(0, Vec2(200, 0));
-    //auto _end = ;
-    addGoal(Vec2(-200, 0));
-
-/*
-    m_markers.push_back(new Vertex(0, Vec2(-100, -100)));
-    m_markers.push_back(new Vertex(1, Vec2(-50,-50)));
-    m_markers.push_back(new Vertex(2, Vec2(100,100)));
-    m_markers.push_back(new Vertex(4, Vec2(50, 50)));
-    m_markers.push_back(new Vertex(5, Vec2(0,0)));
-    */
-
-}
 
 //Vec2 g1,g2;
 
@@ -279,8 +265,11 @@ void Document::runTriangulate()
             continue;
         Vec2 p1, p2;
         seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
-        //m_markers[cnt++]->p = p1;
-        //m_markers[cnt++]->p = p2;
+
+        /*if (cnt < 97) {
+            m_markers[cnt++]->p = p1;
+            m_markers[cnt++]->p = p2;
+        }*/
     }
 
 
@@ -310,11 +299,8 @@ void Document::updatePlan(Agent* agent)
     Triangle* startTri = m_mesh.findContaining(startp, posReference);
     Triangle* endTri = m_mesh.findContaining(endp, posReference);
 
-    if (!endTri || !startTri) {
-        return;
-    }
     agent->m_plan.clear();
-    if (startTri == endTri) 
+    if (!endTri || !startTri || startTri == endTri) 
     {
         agent->m_plan.setEnd(endp, agent->m_goalRadius);
         agent->m_indexInPlan = 0;
@@ -386,7 +372,13 @@ void Document::updatePlan(Agent* agent)
         //    cout << sg.p << "  ";
 
         // set agent to the start of the plan
-        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
+        agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
+        //agent->m_indexInPlan = 0;
+        agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
+    }
+    else 
+    { // go in the direction but never reach it
+        agent->m_plan.setEnd(endp, agent->m_goalRadius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
     }
@@ -464,43 +456,7 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpee
     return a;
 }
 
-void Document::init_test()
-{
-    auto gend = addGoal(Vec2(-200, 0));
-    //m_start = new Vertex(0, Vec2(200, 0));
 
-   // m_prob = new AABB(Vec2(0, 0), Vec2(100, 80), 0);
-    for(int i = 0; i < 3 ; ++i)
-    {
-        addAgent(Vec2(0, -140 + 50*i), gend);
-    }    
-
-  /*  Agent* a2 = new Agent(100, Vec2(50, -140),
-        Vec2(0,140), // goal 
-        400.0, //15.0, // nei dist
-        10, // max nei
-        15.0, // radius
-        1.5f, // goal radius
-        1.0f, // pref speed
-        2.0f); // max speed
-    a2->m_velocity = Vec2(0, 1);
-    m_objs.push_back(a2);*/
-
-   // m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
-   // m_objs.push_back(new Circle(Vec2(100, 0), 50.0, 0));
-
-    //m_objs.push_back(new AABB(Vec2(0, 0), Vec2(50+30, 50+30), 0));
-
-    //m_objs.push_back(new AABB(Vec2(0, 0), Vec2(150, 150), 1));
-
-   // m_objs.push_back(new Segment(Vec2(0, -50), Vec2(50, 50), 1));
-    //m_objs.push_back(new Segment(Vec2(50, 50), Vec2(50, 100), 1));
-
-    //m_objs.push_back(new Circle(Vec2(-39, 0), 40.0, 0));
-    //m_objs.push_back(new Circle(Vec2(39, 0), 40.0, 0));
-
-
-}
 
 #define TWO_PI (6.283185307179586f)
 

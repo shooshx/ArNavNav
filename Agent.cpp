@@ -199,12 +199,16 @@ void Agent::computeNewVelocity(VODump* dump)
         {
             for(auto& evo: velocityObstacles) {
                 if (evo.p1 == vo.p2) {
+                    evo.isBig = true;
+                    evo.m_sideMid = evo.m_side1;
                     evo.p1 = vo.p1;
                     evo.m_side1 = vo.m_side1;
                     foundUni = true;
                     break;
                 }
                 if (evo.p2 == vo.p1) {
+                    evo.isBig = true;
+                    evo.m_sideMid = evo.m_side2; // TBD - set real mid in case of multiple like this
                     evo.p2 = vo.p2;
                     evo.m_side2 = vo.m_side2;
                     foundUni = true;
@@ -228,14 +232,22 @@ void Agent::computeNewVelocity(VODump* dump)
 
         for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
         {
-
             if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2) 
             { 
-                float d1 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
-                float d2 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (d1 < 0.0f && d2 > 0.0f)
-                {
-                    return;
+                auto& evo = velocityObstacles[j];
+                Vec2 topos = candidate.m_position - evo.m_apex;
+                if (!evo.isBig) {
+                    float d1 = det(evo.m_side2, topos); 
+                    float d2 = det(evo.m_side1, topos); 
+                    if (d1 < 0.0f && d2 > 0.0f)
+                        return;
+                }
+                else {
+                    float d1 = det(evo.m_side2, topos); 
+                    float dmid = det(evo.m_sideMid, topos); 
+                    float d2 = det(evo.m_side1, topos); 
+                    if ((d1 < 0.0f && dmid > 0.0f) || (dmid < 0.0f && d2 > 0.0f))
+                        return;
                 }
             }
             // avoid points that are in the middle between two VOs
