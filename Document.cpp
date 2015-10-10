@@ -372,8 +372,8 @@ void Document::updatePlan(Agent* agent)
         //    cout << sg.p << "  ";
 
         // set agent to the start of the plan
-        agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
-        //agent->m_indexInPlan = 0;
+        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
+        agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
     }
     else 
