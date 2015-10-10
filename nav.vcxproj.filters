@@ -91,6 +91,9 @@
     <ClCompile Include="NavGraphicsView.cpp">
       <Filter>qUI</Filter>
     </ClCompile>
+    <ClCompile Include="terrainExtract.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="nav.qrc">

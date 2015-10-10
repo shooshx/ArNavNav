@@ -10,10 +10,7 @@
 
 using namespace std;
 
-template<typename T>
-T iabs(T a) {
-    return (a < 0)?-a:a;
-}
+
 
 namespace mtrig 
 {
@@ -119,12 +116,11 @@ void Agent::computeNewVelocity(VODump* dump)
     vector<VelocityObstacle>& velocityObstacles = m_voStore;
 	velocityObstacles.reserve(m_neighbors.c.size());
 
-	VelocityObstacle velocityObstacle;
-
     m_neighbors.sort();
 
 	for (auto iter = m_neighbors.c.begin(); iter != m_neighbors.c.end(); ++iter)
     {
+        VelocityObstacle vo;
 		const Object* otherObj = iter->second;
         if (otherObj->m_type == TypeCircle || otherObj->m_type == TypeAgent)
         {
@@ -137,8 +133,8 @@ void Agent::computeNewVelocity(VODump* dump)
 			    const float angle = mtrig::atan2(posDiff.y, posDiff.x);
 			    const float openingAngle = mtrig::asin((otherCirc->m_radius + m_radius) / length(otherCirc->m_position - m_position));
 
-			    velocityObstacle.m_side1 = Vec2(mtrig::cos(angle - openingAngle), mtrig::sin(angle - openingAngle));
-			    velocityObstacle.m_side2 = Vec2(mtrig::cos(angle + openingAngle), mtrig::sin(angle + openingAngle));
+			    vo.m_side1 = Vec2(mtrig::cos(angle - openingAngle), mtrig::sin(angle - openingAngle));
+			    vo.m_side2 = Vec2(mtrig::cos(angle + openingAngle), mtrig::sin(angle + openingAngle));
 
 			    const float d = 2.0f * mtrig::sin(openingAngle) * mtrig::cos(openingAngle);
 
@@ -146,43 +142,43 @@ void Agent::computeNewVelocity(VODump* dump)
                 {
                     if (det(otherAgent->m_position - m_position, m_prefVelocity - otherAgent->m_prefVelocity) > 0.0f)
                     {
-                        const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, velocityObstacle.m_side2) / d;
-                        velocityObstacle.m_apex = otherAgent->m_velocity + s * velocityObstacle.m_side1; 
+                        const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, vo.m_side2) / d;
+                        vo.m_apex = otherAgent->m_velocity + s * vo.m_side1; 
                     }
                     else 
                     {
-                        const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, velocityObstacle.m_side1) / d;
-                        velocityObstacle.m_apex = otherAgent->m_velocity + s * velocityObstacle.m_side2;
+                        const float s = 0.5f * det(m_velocity - otherAgent->m_velocity, vo.m_side1) / d;
+                        vo.m_apex = otherAgent->m_velocity + s * vo.m_side2;
                     }
                 }
                 else {
-                    velocityObstacle.m_apex = Vec2(0.0f, 0.0f); // non moving neighbor the apes is 0
+                    vo.m_apex = Vec2(0.0f, 0.0f); // non moving neighbor the apes is 0
                 }
 
 		    }
 		    else 
             {
                 if (otherObj->m_type == TypeAgent && otherAgent->m_isMobile) {
-				    velocityObstacle.m_apex = 0.5f * (otherAgent->m_velocity + m_velocity); 
+				    vo.m_apex = 0.5f * (otherAgent->m_velocity + m_velocity); 
                 }
                 else {
-                    velocityObstacle.m_apex = Vec2(0.0f, 0.0f);
+                    vo.m_apex = Vec2(0.0f, 0.0f);
                 }
-			    velocityObstacle.m_side1 = normal(m_position, otherCirc->m_position);
-			    velocityObstacle.m_side2 = -velocityObstacle.m_side1;
+			    vo.m_side1 = normal(m_position, otherCirc->m_position);
+			    vo.m_side2 = -vo.m_side1;
 			    
 		    }
         }
         else  // not a circle
         { 
-            velocityObstacle.m_apex = Vec2(0.0f, 0.0f);
+            vo.m_apex = Vec2(0.0f, 0.0f);
 
             Vec2 p1, p2;
             if (otherObj->spanningPoints(m_position, m_radius, &p1, &p2)) //m_radius
             {// outside
-                velocityObstacle.m_side1 = normalize(p1 - m_position);
-                velocityObstacle.m_side2 = normalize(p2 - m_position);
-                if (det(velocityObstacle.m_side1, velocityObstacle.m_side2) < 0)
+                vo.m_side1 = normalize(p1 - m_position);
+                vo.m_side2 = normalize(p2 - m_position);
+                if (det(vo.m_side1, vo.m_side2) < 0)
                     continue; // ignore
             }
             else {
@@ -190,14 +186,38 @@ void Agent::computeNewVelocity(VODump* dump)
             //    velocityObstacle.m_side2 = -velocityObstacle.m_side1;
 
                 // alternate segment inside handling
-                velocityObstacle.m_side1 = normalize(p1 - m_position);
-                velocityObstacle.m_side2 = normalize(p2 - m_position);
+                vo.m_side1 = normalize(p1 - m_position);
+                vo.m_side2 = normalize(p2 - m_position);
 
             }
-
+            vo.p1 = p1;
+            vo.p2 = p2;
         }
-
-        velocityObstacles.push_back(velocityObstacle);
+        // search existing vos for unification
+        bool foundUni = false;
+        if (vo.p1.isValid())
+        {
+            for(auto& evo: velocityObstacles) {
+                if (evo.p1 == vo.p2) {
+                    evo.isBig = true;
+                    evo.m_sideMid = evo.m_side1;
+                    evo.p1 = vo.p1;
+                    evo.m_side1 = vo.m_side1;
+                    foundUni = true;
+                    break;
+                }
+                if (evo.p2 == vo.p1) {
+                    evo.isBig = true;
+                    evo.m_sideMid = evo.m_side2; // TBD - set real mid in case of multiple like this
+                    evo.p2 = vo.p2;
+                    evo.m_side2 = vo.m_side2;
+                    foundUni = true;
+                    break;
+                }
+            }
+        }
+        if (!foundUni)
+            velocityObstacles.push_back(vo);
 	}
 
     Candidate candidate;
@@ -212,18 +232,26 @@ void Agent::computeNewVelocity(VODump* dump)
 
         for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
         {
-
             if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2) 
             { 
-                float d1 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
-                float d2 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (d1 < 0.0f && d2 > 0.0f)
-                {
-                    return;
+                auto& evo = velocityObstacles[j];
+                Vec2 topos = candidate.m_position - evo.m_apex;
+                if (!evo.isBig) {
+                    float d1 = det(evo.m_side2, topos); 
+                    float d2 = det(evo.m_side1, topos); 
+                    if (d1 < 0.0f && d2 > 0.0f)
+                        return;
+                }
+                else {
+                    float d1 = det(evo.m_side2, topos); 
+                    float dmid = det(evo.m_sideMid, topos); 
+                    float d2 = det(evo.m_side1, topos); 
+                    if ((d1 < 0.0f && dmid > 0.0f) || (dmid < 0.0f && d2 > 0.0f))
+                        return;
                 }
             }
             // avoid points that are in the middle between two VOs
-            if (candidate.m_velocityObstacle1 == INT_MAX && j != candidate.m_velocityObstacle2) {
+          /*  if (candidate.m_velocityObstacle1 == INT_MAX && j != candidate.m_velocityObstacle2) {
                 float d2 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
                 if (iabs(d2) < 0.0001)
                     return;
@@ -233,7 +261,7 @@ void Agent::computeNewVelocity(VODump* dump)
                 float d1 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
                 if (iabs(d1) < 0.0001)
                     return;
-            }
+            }*/
 
 
         }
@@ -301,8 +329,9 @@ void Agent::computeNewVelocity(VODump* dump)
 
 		if (discriminant > 0.0f)
         {
-			const float t1 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side1) + std::sqrt(discriminant);
-			const float t2 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side1) - std::sqrt(discriminant);
+            float dsqrt = std::sqrt(discriminant);
+			const float t1 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side1) + dsqrt;
+			const float t2 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side1) - dsqrt;
 
 			if (t1 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t1 * velocityObstacles[j].m_side1;
@@ -324,8 +353,9 @@ void Agent::computeNewVelocity(VODump* dump)
 
 		if (discriminant > 0.0f)
         {
-			const float t1 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side2) + std::sqrt(discriminant);
-			const float t2 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side2) - std::sqrt(discriminant);
+            float dsqrt = std::sqrt(discriminant);
+			const float t1 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side2) + dsqrt;
+			const float t2 = -(velocityObstacles[j].m_apex * velocityObstacles[j].m_side2) - dsqrt;
 
 			if (t1 >= 0.0f) {
 				candidate.m_position = velocityObstacles[j].m_apex + t1 * velocityObstacles[j].m_side2;
@@ -354,8 +384,9 @@ void Agent::computeNewVelocity(VODump* dump)
 			float d = det(velocityObstacles[i].m_side1, velocityObstacles[j].m_side1);
 
 			if (d != 0.0f) {
-				const float s = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[j].m_side1) / d;
-				const float t = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[i].m_side1) / d;
+                Vec2 dapex = velocityObstacles[j].m_apex - velocityObstacles[i].m_apex;
+				const float s = det(dapex, velocityObstacles[j].m_side1) / d;
+				const float t = det(dapex, velocityObstacles[i].m_side1) / d;
 
 				if (s >= 0.0f && t >= 0.0f) 
                 {
@@ -371,8 +402,9 @@ void Agent::computeNewVelocity(VODump* dump)
 			d = det(velocityObstacles[i].m_side2, velocityObstacles[j].m_side1);
 
 			if (d != 0.0f) {
-				const float s = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[j].m_side1) / d;
-				const float t = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[i].m_side2) / d;
+                Vec2 dapex = velocityObstacles[j].m_apex - velocityObstacles[i].m_apex;
+				const float s = det(dapex, velocityObstacles[j].m_side1) / d;
+				const float t = det(dapex, velocityObstacles[i].m_side2) / d;
 
 				if (s >= 0.0f && t >= 0.0f) {
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side2;
@@ -387,8 +419,9 @@ void Agent::computeNewVelocity(VODump* dump)
 			d = det(velocityObstacles[i].m_side1, velocityObstacles[j].m_side2);
 
 			if (d != 0.0f) {
-				const float s = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[j].m_side2) / d;
-				const float t = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[i].m_side1) / d;
+                Vec2 dapex = velocityObstacles[j].m_apex - velocityObstacles[i].m_apex;
+				const float s = det(dapex, velocityObstacles[j].m_side2) / d;
+				const float t = det(dapex, velocityObstacles[i].m_side1) / d;
 
 				if (s >= 0.0f && t >= 0.0f) {
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side1;
@@ -403,8 +436,9 @@ void Agent::computeNewVelocity(VODump* dump)
 			d = det(velocityObstacles[i].m_side2, velocityObstacles[j].m_side2);
 
 			if (d != 0.0f) {
-				const float s = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[j].m_side2) / d;
-				const float t = det(velocityObstacles[j].m_apex - velocityObstacles[i].m_apex, velocityObstacles[i].m_side2) / d;
+                Vec2 dapex = velocityObstacles[j].m_apex - velocityObstacles[i].m_apex;
+				const float s = det(dapex, velocityObstacles[j].m_side2) / d;
+				const float t = det(dapex, velocityObstacles[i].m_side2) / d;
 
 				if (s >= 0.0f && t >= 0.0f) {
 					candidate.m_position = velocityObstacles[i].m_apex + s * velocityObstacles[i].m_side2;
@@ -466,6 +500,11 @@ void Agent::computeNewVelocity(VODump* dump)
 
 void Agent::computePreferredVelocity(float deltaTime)
 {
+    if (m_reached) {
+        m_prefVelocity = Vec2(0,0);
+        return;
+    }
+
     //Vec2 toGoal = m_curGoalPos.p - m_position;
     Vec2 goalPnt = m_curGoalPos->getDest(m_position);
     Vec2 toGoal = goalPnt - m_position;

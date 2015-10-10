@@ -27,6 +27,10 @@ struct VelocityObstacle
     Vec2 m_apex;
     Vec2 m_side1;
     Vec2 m_side2;
+    Vec2 p1 = INVALID_VEC2;
+    Vec2 p2 = INVALID_VEC2; // the points that originated the sides, for unification of VOs
+    bool isBig = false; // is the angle more than 180, us
+    Vec2 m_sideMid = INVALID_VEC2;
 };
 
 struct VODump
@@ -102,7 +106,7 @@ public:
         return p;
     }
 
-    Vec2 p;
+    Vec2 p = INVALID_VEC2;
     float radiusSq;
 };
 
@@ -211,6 +215,11 @@ public:
         size = Vec2(r * 2, r * 2);
         m_neighborDist = r * NEI_DIST_RADIUS_FACTOR;
     }
+    void setEndGoal(const Vec2& p, float goalRadius) {
+        m_endGoalPos = p;
+        m_reached = false;
+        m_goalRadius = goalRadius;
+    }
 
 
 private:
@@ -222,7 +231,7 @@ public:
     float m_radius = 0.0f;
     bool m_isMobile = true;
 
-    Vec2 m_endGoalPos; // end of the plan
+    Vec2 m_endGoalPos = INVALID_VEC2; // end of the plan, if invalid, there's no current goal
     float m_goalRadius = 0.0f;
 
     int m_maxNeighbors = 0;
@@ -237,6 +246,7 @@ public:
     Vec2 m_prefVelocity;  // computed each step
     int m_indexInPlan = -1;
     ISubGoal* m_curGoalPos = nullptr; // in the plan
+    bool m_reached = false;
 
     Vec2 m_velocity;
     Vec2 m_newVelocity;

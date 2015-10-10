@@ -34,13 +34,15 @@
 #include "advancing_front.h"
 #include "utils.h"
 
+#include "../Except.h"
+
 namespace p2t {
 
 // Triangulate simple polygon with holes
 void Sweep::Triangulate(SweepContext& tcx)
 {
   tcx.InitTriangulation();
-  tcx.CreateAdvancingFront(nodes_);
+  tcx.CreateAdvancingFront();
   // Sweep points; build mesh
   SweepPoints(tcx);
   // Clean up
@@ -106,6 +108,7 @@ void Sweep::EdgeEvent(SweepContext& tcx, Edge* edge, Node* node)
 
 void Sweep::EdgeEvent(SweepContext& tcx, Point& ep, Point& eq, Triangle* triangle, Point& point)
 {
+  CHECK(triangle != nullptr, "null triangle");
   if (IsEdgeSideOfTriangle(*triangle, ep, eq)) {
     return;
   }
@@ -698,6 +701,7 @@ void Sweep::FillLeftConcaveEdgeEvent(SweepContext& tcx, Edge* edge, Node& node)
 void Sweep::FlipEdgeEvent(SweepContext& tcx, Point& ep, Point& eq, Triangle* t, Point& p)
 {
   Triangle* ot = t->NeighborAcross(p);
+  CHECK(ot != nullptr, "don't cross the streams!");
   Point& op = *ot->OppositePoint(*t, p);
 
   if (ot == NULL) {

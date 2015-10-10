@@ -12,6 +12,11 @@ inline T imax(T a, T b) {
     return (a > b)?a:b;
 }
 
+template<typename T>
+T iabs(T a) {
+    return (a < 0)?-a:a;
+}
+
 #define INVALID_VEC2 Vec2(FLT_MAX, FLT_MAX)
 
 class Vec2
@@ -151,3 +156,41 @@ inline Vec2 project(const Vec2& p, const Vec2& a, const Vec2& b) {
     return a + d * ab;
 }
 
+
+
+class Vec3 {
+public:
+    Vec3() : x(0), y(0), z(0) {}
+    Vec3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+    float x, y, z;
+
+    float length() const {
+        return sqrt(x*x + y*y + z*z);
+    }
+    void normalize() {
+        float n = 1.0f/length();
+        x *= n; y *= n; z *= n;
+    }
+    Vec2 toVec2() const {
+        return Vec2(x, z);
+    }
+};
+
+static Vec3 crossProd(const Vec3 &a, const Vec3& b) {
+    return Vec3(a.y * b.z - a.z * b.y, 
+        a.z * b.x - a.x * b.z, 
+        a.x * b.y - a.y * b.x);
+}
+inline Vec3 operator-(const Vec3& a, const Vec3& b) {
+    return Vec3(a.x-b.x, a.y-b.y, a.z-b.z);
+}
+inline Vec3 operator+(const Vec3& a, const Vec3& b) {
+    return Vec3(a.x+b.x, a.y+b.y, a.z+b.z);
+}
+inline Vec3 operator*(const Vec3& a, float v) {
+    return Vec3(a.x*v, a.y*v, a.z*v);
+}
+inline float dist(const Vec3& a, const Vec3& b) {
+    float dx = a.x-b.x, dy = a.y-b.y, dz = a.z-b.z;
+    return sqrt(dx*dx + dy*dy + dz*dz);
+}

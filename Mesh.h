@@ -67,6 +67,7 @@ struct Polyline
 {
     // never owns
     vector<Vertex*> m_d;
+    vector<int> m_di;
 };
 
 class MapDef
@@ -84,6 +85,7 @@ public:
         auto v = new Vertex(m_vtx.size(), p);
         m_vtx.push_back(v);
         m_pl.back().m_d.push_back(v);
+        m_pl.back().m_di.push_back(m_vtx.size() - 1);
         return v;
     }
     bool isLastEmpty() {
@@ -97,7 +99,9 @@ public:
     }
 
     vector<Vertex*> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
+                           // needs to be pointers since display items reference them
     vector<Polyline> m_pl;
+    
 };
 
 

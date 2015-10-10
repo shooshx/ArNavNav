@@ -238,7 +238,7 @@ void NavDialog::update()
 
         m_pathVos.clear();
         int frame = 0;
-        for(; frame < 7500; ++frame) 
+        for(; frame < 2000; ++frame) 
         {
             if (false) // VelocityObjects 
             {
@@ -271,7 +271,7 @@ void NavDialog::update()
 
         //---------------------- VO
         updateSliderVOs(ui.frameSlider->value());
-        if (false) 
+        if (false)  // VelocityObjects 
         {
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
             float origNeiDist = agentProb->m_neighborDist;
