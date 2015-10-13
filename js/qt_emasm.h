@@ -4,7 +4,12 @@
 
 void makeArgs(int lvl, std::ostringstream& defs, std::ostringstream& call) {
 }
-
+template<typename... Args>
+void makeArgs(int lvl, std::ostringstream& defs, std::ostringstream& call, const char* first, Args... rest) {
+    defs << "$" << lvl << ",";
+    call << "'" << first << "',";
+    makeArgs(lvl + 1, defs, call, rest...);
+}
 template<typename T, typename... Args>
 void makeArgs(int lvl, std::ostringstream& defs, std::ostringstream& call, T* first, Args... rest) {
     defs << "$" << lvl << ",";

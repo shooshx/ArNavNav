@@ -14,13 +14,6 @@ using namespace std;
 class Agent;
 struct VODump;
 
-class Goal
-{
-public:
-    explicit Goal(const Vec2& _p) :p(_p) {}
-    Vec2 p;
-    vector<Agent*> agents; // agents that have this goal
-};
 
 class ISubGoalMaker
 {
@@ -34,6 +27,7 @@ public:
 };
 
 
+
 class Document 
 {
 public:
@@ -42,13 +36,7 @@ public:
 
     void runTriangulate();
 
-    void init_preset();
-    void init_preset_grid();
     void init_test();
-    void init_tri();
-
-    void init_circle();
-    void init_grid();
 
     void clearObst();
     void clearAllObj();
@@ -56,7 +44,7 @@ public:
     Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = -1.0f, float maxSpeed = 7.0f);
     void addAgentRadius(float radius);
     
-    Goal* addGoal(const Vec2& p);
+    Goal* addGoal(const Vec2& p, float radius, EGoalType type);
     void removeGoal(Goal* g);
 
     void clearSegMinDist();
@@ -76,7 +64,7 @@ public:
     vector<Object*> m_objs; // owning
     BihTree m_bihTree;
 
-    vector<MultiSegment> m_multisegs; // owning
+    vector<MultiSegment> m_multisegs; 
     vector<ISubGoalMaker*> m_seggoals; // save size as m_mesh.m_vtx. for every vertex, get goals that are away from it
 
     Mesh m_mesh;

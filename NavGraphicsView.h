@@ -209,7 +209,7 @@ public:
         setFlag(ItemIsMovable);
         setFlag(ItemIsSelectable);
         setCacheMode(NoCache);
-        setPos(m_g->p.x, m_g->p.y);
+        setPos(m_g->def.p.x, m_g->def.p.y);
     }
 
     virtual void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget);

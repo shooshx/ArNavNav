@@ -121,17 +121,18 @@ public:
 class Segment;
 
 // all segments of a polyline have a pointer to one such object 
+// not used for anything
 class MultiSegment
 {
 public:
-    void clear() {
+    /*void clear() {
         m_minInPass_sqDist = FLT_MAX;
         m_minInPass = nullptr;
-    }
+    }*/
     // in every pass, for every agent that's relevant, keep track of which segment was closest to it 
     // used for finding if the agent is inside the polyline
-    float m_minInPass_sqDist;
-    const Segment* m_minInPass;
+    //float m_minInPass_sqDist;
+    //const Segment* m_minInPass;
 };
 
 
@@ -158,10 +159,10 @@ public:
     {
         Vec2 prj = project(fromp, a, b);
         float d = distSq(fromp, prj);
-        if (d < ms->m_minInPass_sqDist) {
+        /*if (d < ms->m_minInPass_sqDist) { disabled
             ms->m_minInPass = this;
             ms->m_minInPass_sqDist = d;
-        }
+        }*/
         return d;
     }
 

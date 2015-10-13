@@ -188,13 +188,44 @@ public:
     std::vector<T> c;
 };
 
+
+enum EGoalType {
+    GOAL_POINT = 0,
+    GOAL_ATTACK = 1
+};
+
+class Agent;
+
+class GoalDef 
+{
+public:
+    GoalDef() {}
+    GoalDef(const Vec2& _p, float r, EGoalType t) :p(_p), radius(r), type(t)
+    {}
+    Vec2 p = INVALID_VEC2;
+    float radius = 0.0f;
+    EGoalType type = GOAL_POINT;
+};
+
+class Goal
+{
+public:
+    Goal() {}
+    Goal(const Vec2& _p, float r, EGoalType t) : def(_p, r, t)
+    {}
+    GoalDef def;
+    std::vector<Agent*> agents; // agents that have this goal
+};
+
+
+
 class Agent : public Circle
 {
 public:
-    Agent(int index, const Vec2& position, const Vec2& goalPos, float neighborDist, int maxNeighbors, float radius, float goalRadius, float prefSpeed, float maxSpeed)
+    Agent(int index, const Vec2& position, const GoalDef& goalPos, float neighborDist, int maxNeighbors, float radius, float prefSpeed, float maxSpeed)
         : Circle(position, radius, index, TypeAgent)
         , m_endGoalPos(goalPos)
-        , m_maxNeighbors(maxNeighbors), m_goalRadius(goalRadius)
+        , m_maxNeighbors(maxNeighbors)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
         , m_prefSpeed(prefSpeed), m_radius(radius)
     {
@@ -215,10 +246,9 @@ public:
         size = Vec2(r * 2, r * 2);
         m_neighborDist = r * NEI_DIST_RADIUS_FACTOR;
     }
-    void setEndGoal(const Vec2& p, float goalRadius) {
-        m_endGoalPos = p;
+    void setEndGoal(const GoalDef& g) {
+        m_endGoalPos = g;
         m_reached = false;
-        m_goalRadius = goalRadius;
     }
 
 
@@ -231,8 +261,7 @@ public:
     float m_radius = 0.0f;
     bool m_isMobile = true;
 
-    Vec2 m_endGoalPos = INVALID_VEC2; // end of the plan, if invalid, there's no current goal
-    float m_goalRadius = 0.0f;
+    GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal
 
     int m_maxNeighbors = 0;
     float m_neighborDist = 0.0f;

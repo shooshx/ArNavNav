@@ -500,7 +500,7 @@ void Agent::computeNewVelocity(VODump* dump)
 
 void Agent::computePreferredVelocity(float deltaTime)
 {
-    if (m_reached) {
+    if (m_reached && m_endGoalPos.type == GOAL_ATTACK) {
         m_prefVelocity = Vec2(0,0);
         return;
     }
@@ -557,6 +557,10 @@ void Agent::insertNeighbor(Object* otherObj, float &rangeSq)
 	
 }
 
+namespace qui {
+extern int g_curFrame;
+}
+
 bool Agent::update(float deltaTime)
 {
 	const float dv = length(m_newVelocity - m_velocity);
@@ -575,6 +579,7 @@ bool Agent::update(float deltaTime)
     if (m_curGoalPos->isPassed(m_position)) 
     {
         if (m_indexInPlan + 1 < m_plan.m_d.size()) {
+            //cout << qui::g_curFrame << ": Agent " << index << " passed " << m_indexInPlan << endl;
             ++m_indexInPlan;
             m_curGoalPos = m_plan.m_d[m_indexInPlan];
         }

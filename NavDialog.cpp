@@ -183,7 +183,7 @@ static QPointF toQ(const Vec2& v) {
     return QPointF(v.x, v.y);
 }
 
-
+int g_curFrame = 0;
 
 void NavDialog::update()
 {
@@ -240,6 +240,7 @@ void NavDialog::update()
         int frame = 0;
         for(; frame < 2000; ++frame) 
         {
+            g_curFrame = frame;
             if (false) // VelocityObjects 
             {
                 m_pathVos.push_back(VODump());

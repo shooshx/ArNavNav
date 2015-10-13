@@ -335,6 +335,7 @@ void TMesh::polySubSample(vector<int>& polyline, vector<int>& subs)
     int pi = polyline[0];
     auto last = m_vtx[pi];
     subs.push_back(pi);
+    added.insert(pi);
     for(int pi: polyline) {
         auto p = m_vtx[pi];
         if (dist(p, last) > 6.0 && (added.count(pi) == 0)) {
@@ -402,12 +403,12 @@ void TMesh::polyMinMax(vector<int>& polyline, Vec2& mn, Vec2& mx)
         auto v = m_vtx[vi];
         if (v.x < mn.x)
             mn.x = v.x;
-        if (v.y < mn.y)
-            mn.y = v.y;
+        if (v.z < mn.y)
+            mn.y = v.z;
         if (v.x > mn.x)
             mx.x = v.x;
-        if (v.y > mn.y)
-            mx.y = v.y;
+        if (v.z > mn.y)
+            mx.y = v.z;
     }
 }
 
@@ -478,18 +479,20 @@ void TMesh::getPoly(const string& outname)
                 tp.v.push_back(polyline);
             }
         });
+        if (!didFill)
+            break;
+        if (tp.v.empty())
+            continue;
         float d = distSq(tp.mn, tp.mx);
         if (d > mxd) {
             mxdi = polys.size();
             mxd = d;
         }
         polys.push_back(tp);
-        if (!didFill)
-            break;
     }
 
     CHECK(mxdi >= 0, "unexpected mxdi");
-    cout << "Skipping TwoPoly " << mxdi << " since its the frame\n";
+    cout << "Skipping TwoPoly " << mxdi << " since its the frame " << mxd << "\n";
     polys.erase(polys.begin() + mxdi);
 
     ofstream ofsp(outname);
@@ -498,9 +501,11 @@ void TMesh::getPoly(const string& outname)
         return;
     }
 
+    int tpi = 0;
     int pi = 0;
     for(auto& tp: polys)
     {
+        int vpi = 0;
         for(auto& polyline: tp.v) 
         {
             cout << "poly " << pi++ << ": sz=" << polyline.size() << endl;
@@ -512,28 +517,32 @@ void TMesh::getPoly(const string& outname)
 
     //        polySave(outname + "_" + to_string(polyi) + ".obj", dwp);
 
-            ofsp << "p\n";  
+            ofsp << "p:" << tpi << ":" << vpi << "\n";  
             for(int pi: dwp) {
                 auto p = m_vtx[pi];
                 auto tv = toHtmlCoord(Vec2(p.x, p.z));
                 ofsp << "v " << tv.x  << " " << tv.y << "\n";
             }
+            ++vpi;
         }
+        ++tpi;
     }
 }
 
 
 void terrainExtract()
 {
-    string filename = "C:\\projects\\nav\\terrain\\MyCity_all_terrain.obj";
-    string outname = "C:\\projects\\nav\\terrain\\MyCity_navmesh.obj";
+    //string filename = "C:\\projects\\nav\\terrain\\MyCity_all_terrain.obj";
+    string filename = "C:\\projects\\nav\\terrain\\Mission_10_all_terrain.obj";
+    //string outname = "C:\\projects\\nav\\terrain\\MyCity_navmesh.obj";
+    string outname = "C:\\projects\\nav\\terrain\\Mission_10_navmesh.obj";
 
     TMesh m;
     m.readAndUnify(filename);
     m.deTeeVtx();
 
     m.makeFlatPlaneSedgeIndex();
-    //m.save(outname, &m.m_facePlane);
+    //m.save(outname + "_flat.obj", &m.m_facePlane);
 
     m.getPoly(outname);
 

@@ -29,8 +29,8 @@ public slots:
     Q_INVOKABLE void added_agent(int x, int y, float radius, float speed) {
         ::added_agent(x, y, radius, speed);
     }
-    Q_INVOKABLE PTR_T add_goal(int x, int y) {
-        return ::add_goal(x, y);
+    Q_INVOKABLE PTR_T add_goal(int x, int y, float radius, int type) {
+        return ::add_goal(x, y, radius, type);
     }
     Q_INVOKABLE void remove_goal(PTR_T ptr) {
         ::remove_goal(ptr);
@@ -51,8 +51,11 @@ public slots:
     Q_INVOKABLE void go_to_frame(int f) {
         ::go_to_frame(f);
     }
-    Q_INVOKABLE void change_size(PTR_T ptr, float size) {
+    Q_INVOKABLE void change_size(PTR_T ptr, float size) { // of agent
         ::change_size(ptr, size);
+    }
+    Q_INVOKABLE void update_goal(PTR_T ptr, float radius, int type) {
+        ::update_goal(ptr, radius, type);
     }
 
 };

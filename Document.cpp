@@ -22,8 +22,8 @@ Document::Document()
 
 void Document::init_test()
 {
-    auto gend = addGoal(Vec2(-200, 0));
-    for(int i = 0; i < 2 ; ++i)
+    auto gend = addGoal(Vec2(-200, 0), 20, GOAL_POINT);
+    for(int i = 0; i < 6 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
@@ -287,10 +287,10 @@ void Document::updatePlan(Agent* agent)
 {
     if (m_mesh.m_vtx.empty())
         return;
-    if (!agent->m_endGoalPos.isValid())
+    if (!agent->m_endGoalPos.p.isValid())
         return;
     const Vec2& startp = agent->m_position;
-    const Vec2& endp = agent->m_endGoalPos;
+    const Vec2& endp = agent->m_endGoalPos.p;
 
     // find start and end triangles
     auto it = m_mesh.m_altVtxPosByRadius.find(agent->m_radius);
@@ -302,7 +302,7 @@ void Document::updatePlan(Agent* agent)
     agent->m_plan.clear();
     if (!endTri || !startTri || startTri == endTri) 
     {
-        agent->m_plan.setEnd(endp, agent->m_goalRadius);
+        agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[0];
         return;
@@ -335,7 +335,7 @@ void Document::updatePlan(Agent* agent)
             if (subGoalMaker == nullptr)
                 return v->p; // vertex that is not part of a parimiter
                              //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-            return subGoalMaker->makePathRef(agent->m_radius);
+            return subGoalMaker->makePathRef(agent->m_endGoalPos.radius);
         });
         PathMaker pm(outf, posf);
         pm.makePath(corridor, startp, endp);
@@ -346,7 +346,7 @@ void Document::updatePlan(Agent* agent)
         {
             Vertex* v = planSketch[i];
             if (v->index < 0) { // means its the end dummy vertex
-                agent->m_plan.setEnd(v->p, agent->m_goalRadius);
+                agent->m_plan.setEnd(v->p, agent->m_endGoalPos.radius);
             }
             else {
                 auto* subGoalMaker = m_seggoals[v->index];
@@ -378,7 +378,7 @@ void Document::updatePlan(Agent* agent)
     }
     else 
     { // go in the direction but never reach it
-        agent->m_plan.setEnd(endp, agent->m_goalRadius);
+        agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
     }
@@ -410,10 +410,10 @@ void Document::clearObst()
     }
 }
 
-Goal* Document::addGoal(const Vec2& p) {
+Goal* Document::addGoal(const Vec2& p, float radius, EGoalType type) {
     int index = m_goals.size();
     // TBD - reclaim unused spaces
-    auto ptr = new Goal(p);
+    auto ptr = new Goal(p, radius, type);
     m_goals.push_back(unique_ptr<Goal>(ptr));
     return ptr;
 }
@@ -435,11 +435,10 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpee
         maxSpeed = prefSpeed * 1.5;
     //OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
     Agent* a = new Agent(m_agents.size(), pos,
-        (g != nullptr)?g->p : INVALID_VEC2, // goal 
+        (g != nullptr)?g->def : GoalDef(), // goal 
         radius * NEI_DIST_RADIUS_FACTOR, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
         radius, // 15 radius
-        20, // goal radius
         prefSpeed, // pref speed
         maxSpeed); // max speed
                //a->m_velocity = Vec2(0, 1);
@@ -458,103 +457,15 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpee
 
 
 
-#define TWO_PI (6.283185307179586f)
-
-#define COUNT 10
-#define ANG_OFFST 0
-
-void Document::init_circle()
-{
-    float d = 1.0/COUNT;
-
-    for (int i = 0; i < COUNT; ++i) 
-    {
-        Vec2 pos = 200.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
-        Goal *g = addGoal(-pos);
-        addAgent(pos, g); 
-    }
-
-    m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
-}
-
-void Document::init_grid()
-{
-    float d = 1.0/COUNT;
-
-    for (int i = 0; i < COUNT; ++i) 
-    {
-        Vec2 pos(-200, -200+i*(400/COUNT));
-        Goal *g = addGoal(pos+Vec2(400,0));
-        addAgent(pos, g); 
-    }
-    for (int i = 1; i < COUNT+1; ++i) 
-    {
-        Vec2 pos(-200+i*(400/COUNT), -200);
-        Goal *g = addGoal(pos+Vec2(0,400));
-        addAgent(pos, g); 
-    }
-
-
-    //m_objs.push_back(new Circle(Vec2(0, 0), 50.0, 0));
-}
-
-/*
-void Document::init_preset()
-{
-    m_prob = new Circle(Vec2(0, -40), 15, -1);
-    m_objs.push_back(m_prob);
-
-    float d[] = { 47.1101,-0.157709, 56.7234,7.76938, 41.4458,15.3028, 50.7229,25.4309, 38.6947,30.5933, 42.9773,41.8812, 30.2348,42.7637, 18.0205,42.1195, 21.6358,56.065, 8.88476,56.8912, -0.806088,47.2093, -6.18693,57.9651, -17.7255,53.7195, -18.9269,41.51, -30.5465,48.9946, -33.0645,37.3273, -45.3724,34.2746, -37.4965,22.3053, -46.3221,14.1752, -58.0199,11.368, -55.9429,-1.65047, -43.163,-6.57822, -56.571,-15.48, -50.854,-26.0287, -39.6585,-31.0833, -40.8543,-43.4756, -25.6486,-37.0539, -26.1224,-51.2389, -11.8896,-44.4822, -11.6569,-57.5834, 0.0261129,-47.9413, 7.87078,-58.0605, 12.4242,-44.817, 24.3505,-54.2656, 23.9572,-40.0356, 36.3315,-41.5397, 36.5995,-29.2206, 48.9593,-26.3898, 41.5958,-13.4563, 55.5355,-11.1551, }; //192
-
-    int index = 0;
-    for (int i = 0; i < _countof(d); i += 2 ) {
-        Vec2 pos(d[i], d[i+1]);
-        m_objs.push_back(new Circle(pos, 6, index++));
-    }
-
-}
-*/
-
-void Document::init_preset_grid()
-{
-  //  m_objs = { new Circle(0, 0, 30), new Circle(100, 0, 10), new Circle(100, 100, 10),
-  //           new Circle(0, 100, 10), new Circle(0, -100, 10), new Circle(100, -100, 10) };
-
-    int index = 0;
-
-    m_prob = new Circle(Vec2(0, -40), 20, index++);
-    //m_prob->color = QColor(0, 0, 255, 128);
-    m_objs.push_back(m_prob);
-    
-    Vec2 dx(10, 15);
-    Vec2 dy(-15, 10);
-    Vec2 offs(0, -400);
-    int matSize = 40;
-    int radius = 5;
-    
-   /* Vec2 dx(20, 30);
-    Vec2 dy(-30, 20);
-    Vec2 offs(0, -400);
-    int matSize = 20;
-    int radius = 10;
-    */
-    for(int i = 0; i < matSize; ++i) {
-        for(int j = 0; j < matSize; ++j) {
-            Vec2 pos = dx * i + dy * j + offs;
-            m_objs.push_back(new Circle(pos, radius, index++));
-        }
-    }
-
-}
 
 // ----------------------------------------------
 
-
+/*
 void Document::clearSegMinDist()
 {
     for(auto& ms: m_multisegs)
         ms.clear();
-}
+}*/
 
 
 bool Document::doStep(float deltaTime, bool doUpdate)
@@ -574,7 +485,6 @@ bool Document::doStep(float deltaTime, bool doUpdate)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
-        clearSegMinDist();
         agent->computeNeighbors(m_bihTree);
 
         VODump* vod = nullptr;
@@ -620,7 +530,7 @@ void Document::serialize(ostream& os)
         auto& g = m_goals[i];
         for(auto* ag: g->agents)
             agentToGoal[ag] = i;
-        os << "g," << g->p.x << "," << g->p.y << ",\n";
+        os << "g," << g->def.p.x << "," << g->def.p.y << "," << g->def.radius << "," << g->def.type << ",\n";
     }
     for(auto* agent: m_agents)
         os << "a," << agent->m_position.x << "," << agent->m_position.y << "," << ((agentToGoal.find(agent) != agentToGoal.end())?agentToGoal[agent]:-1)
@@ -646,10 +556,10 @@ void Document::deserialize(istream& is)
         string h;
         is >> h;
         //OUT("CMD `" << h << "`");
-        if (h == "p") {
+        if (h[0] == 'p') {
             m_mapdef.add();
         }
-        else if (h == "v") {
+        else if (h[0] == 'v') {
             Vec2 v;
             is >> v.x >> v.y;
             if (is.fail())
@@ -657,14 +567,16 @@ void Document::deserialize(istream& is)
             m_mapdef.addToLast(v);
             ++count;
         }
-        else if (h == "g") {
+        else if (h[0] == 'g') {
             Vec2 v;
-            is >> v.x >> v.y;
+            float radius;
+            int type;
+            is >> v.x >> v.y >> radius >> type;
             if (is.fail())
                 break;
-            addGoal(v);
+            addGoal(v, radius, (EGoalType)type);
         }
-        else if (h == "a") {
+        else if (h[0] == 'a') {
             Vec2 pos, vel;
             int goali = 0;
             float radius = 0.0f, ps = 0.0f, ms = 0.0f;
@@ -676,7 +588,7 @@ void Document::deserialize(istream& is)
             auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
             a->m_velocity = vel;
         }
-        else if (h == "e") {
+        else if (h[0] == 'e') {
             return;
         }
         else if (!h.empty()){
