@@ -60,7 +60,7 @@ void NavDialog::readPolyPoints()
 {
     m_polypointitems.clear();
     for(const auto& pl : m_doc->m_mapdef.m_pl) {
-        for(auto* pv : pl.m_d) {
+        for(auto* pv : pl->m_d) {
             auto i = new PolyPointItem(this, pv);
             m_scene->addItem(i);
             m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
@@ -385,7 +385,8 @@ void NavDialog::on_actionLoad_triggered(bool)
     if (!ifs.good())
         return;
 
-    m_doc->deserialize(ifs);
+    map<string, string> dummy;
+    m_doc->deserialize(ifs, dummy);
     //cout << "Read " << count << " vertices " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
     readDoc();
     update();

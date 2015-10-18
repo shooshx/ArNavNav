@@ -15,7 +15,7 @@ void runTri(MapDef* mapdef, Mesh& out)
 
     int vcount = 0;
     for(const auto& mp: mapdef->m_pl) 
-        vcount += mp.m_d.size();
+        vcount += mp->m_d.size();
 
     vector<p2t::Point> rep;
     rep.reserve(vcount);
@@ -31,10 +31,10 @@ void runTri(MapDef* mapdef, Mesh& out)
     for(const auto& mp: mapdef->m_pl) 
     {
         polyline.clear();
-        for(int i = 0; i < mp.m_d.size(); ++i) 
+        for(int i = 0; i < mp->m_d.size(); ++i) 
         {
-            Vertex* pv = mp.m_d[i];
-            if (i > 0 && pv->p == mp.m_d[i - 1]->p) // repeat vertex - ignore it
+            Vertex* pv = mp->m_d[i];
+            if (i > 0 && pv->p == mp->m_d[i - 1]->p) // repeat vertex - ignore it
                 continue;
             rep.push_back( p2t::Point(pv->p.x, pv->p.y, out.m_vtx.size()) ); // will not reallocate due to reserve
             out.m_vtx.push_back(Vertex(out.m_vtx.size(), pv->p) );

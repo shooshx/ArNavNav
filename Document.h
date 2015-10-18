@@ -41,7 +41,7 @@ public:
     void clearObst();
     void clearAllObj();
 
-    Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = -1.0f, float maxSpeed = 7.0f);
+    Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = -1.0f, float maxSpeed = -1.0f);
     void addAgentRadius(float radius);
     
     Goal* addGoal(const Vec2& p, float radius, EGoalType type);
@@ -53,8 +53,9 @@ public:
     void updatePlan(Agent* agent);
 
     void serialize(ostream& os);
-    void deserialize(istream& is);
+    void deserialize(istream& is, map<string, string>& imported);
 
+    void readStream(istream& is, map<string, string>& imported, const string& module);
 public:
     // input
     vector<Agent*> m_agents; // not owning

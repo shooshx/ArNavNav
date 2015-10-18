@@ -1,7 +1,7 @@
 <html><head><script>
 var canvas, ctx, output, scroll;
 var added_poly_point, moved_object, started_new_poly, added_agent, add_goal, remove_goal, cpp_progress, set_goal;
-var serialize, deserialize, go_to_frame, change_size, update_goal
+var serialize, deserialize, go_to_frame, change_size, update_goal, add_imported
 var grass_pattern, rock_pattern
 var world_width, world_height
 var needDraw = true
@@ -29,6 +29,9 @@ ObjSelType = {
 ObjType = {
     POLYPOINT: 0, AGENT: 1, GOAL: 2
 }
+var INIT_SQUARE = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
+
+// file:///C:/projects/nav/js/page.html?loadFrom=localhost:8000
 
 function init() {
     canvas = document.getElementById("canvas")
@@ -59,6 +62,7 @@ function init() {
         go_to_frame = Module.cwrap('go_to_frame', null, ['number'])
         change_size = Module.cwrap('change_size', null, ['number', 'number'])
         update_goal = Module.cwrap('update_goal', null, ['number', 'number', 'number'])
+        add_imported = Module.cwrap('add_imported', null, ['string', 'string'])
     }
     
     canvas_place.onmousedown = canvas.onmousedown = handleMouseDown;
@@ -83,7 +87,7 @@ function init() {
     //var centerX = Math.round(canvas_cont.clientWidth * WORLD_FACTOR / 200 * 0.5) * 200
     //var landExt = Math.round(canvas_cont.clientHeight * WORLD_FACTOR / 200 * 0.4) * 200
     //var ay = centerY - landExt, ax = centerX - landExt, by = centerY + landExt, bx = centerX + landExt
-    scene_edit.value = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
+    scene_edit.value = INIT_SQUARE
     //out(scene_edit.value)
 
     sceneEditChange()
@@ -106,8 +110,25 @@ function init() {
     rock_img.onload()
 
     showTri.checked = true
+    showGoalRadius.checked = false
+
+    parseUrl()
+    initDemos()
 
     progress();
+}
+
+var urlArgs = {}
+
+function parseUrl() {
+    var query = window.location.search.substring(1);
+    var vars = query.split('&');
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split('=');
+        if (pair.length == 2)
+            urlArgs[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1])
+    }
+    
 }
 
 function Transform() {
@@ -426,7 +447,7 @@ Circle.prototype.draw3 = function() {
     ctx.strokeStyle = '#000000';
     ctx.stroke();
 
-    if (this.dsecondRadius != null) {
+    if (this.dsecondRadius != null && showGoalRadius.checked) {
         ctx.beginPath();
         ctx.arc(this.dx, this.dy, this.dsecondRadius, 0, 2 * Math.PI, false)
         ctx.lineWidth = 2;
@@ -667,9 +688,9 @@ function resize() {
     canvas.style.height = canvas.height = canvas_cont.clientHeight
     
    // but_rel.style.height = window.innerHeight - 16
-    scene_def.style.maxHeight = window.innerHeight - 200
+    scene_def.style.maxHeight = window.innerHeight - 360
     frame_ctrl.style.width = canvas_cont.clientWidth
-    frame_scroll.style.width = canvas_cont.clientWidth - 40 - 45 - 4; // 2 margin in each side
+    frame_scroll.style.width = canvas_cont.clientWidth - 40 - 45 - 4 - 30; // 2 margin in each side
     
     var s = zoomValue()
     adjustPlaceSize(s)
@@ -679,7 +700,7 @@ function resize() {
     for(var ci in circles)
         circles[ci].makeDCoord()
     for(var ti in triangles)
-        triangles[ci].makeDCoord()    
+        triangles[ti].makeDCoord()    
         
     out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
 }
@@ -801,6 +822,135 @@ function goalRadiusChange() {
     update_goal(selectedGoal.ptr, parseInt(goalRadius.value), -1)
 }
 
+function playDelFrames() {
+    readScene();
+}
+
+function isInside(event, element) {
+    var rect = element.getBoundingClientRect();
+    return (rect.top <= event.clientY && event.clientY <= rect.top + rect.height
+                   && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
+}
+
+function onLoadButton() {
+    loadFrame.style.visibility = loadBut.checked ? "visible" : "hidden"
+    document.onclick = function (event) {
+        if (!isInside(event, loadFrame) && !isInside(event, loadBut)) {
+            loadFrame.style.visibility = "hidden"
+            document.onclick = null
+            loadBut.checked = false
+        }
+    }
+    return true
+}
+
+var demos = [ // set the order of the load list
+    { "Circle-10": function () { return demoCircle(10, 30) } },
+    { "Circle-20": function () { return demoCircle(20, 40) } },
+    { "Grid-5x5": function() { return demoGrid(5, 10) } },
+]
+var demosIndex = {} // map name to func
+
+function onLoad(name) {
+    loadFrame.style.visibility = "hidden"
+    document.onclick = null
+    loadBut.checked = false
+
+    var text = demosIndex[name]()
+    add_imported(name, text)
+    scene_edit.value = "i," + name
+    sceneEditChange()
+}
+
+function demoCircle(count, radius) {
+    text = ""
+    for (var i = 0; i < count; ++i) {
+        var x = Math.round(Math.cos(i / count * 2 * Math.PI) * radius)
+        var y = Math.round(Math.sin(i / count * 2 * Math.PI) * radius)
+        text += "g," + -x + "," + -y + ",20,0\n";
+        text += "a," + x + "," + y + "," + i + ",0,0,3,1,2\n";
+    }
+
+    return INIT_SQUARE + "\n" + text
+}
+function demoGrid(n, d) {
+    text = ""
+    var s = -n*d/2
+    for (var i = 0; i < n; ++i) {
+        for (var j = 0; j < n; ++j) {
+            var x = s + i * d
+            var y = s + j * d
+            text += "a," + x + "," + y + ",-1,0,0,3,1,2\n";
+        }
+    }
+    return INIT_SQUARE + "\n" + text
+}
+
+
+function sceneLoadFromServer(name) {
+    var url = "http://" + urlArgs["loadFrom"] + "/" + name + ".txt";
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function () {
+        if (xhttp.readyState != 4)
+            return
+        if (xhttp.status != 200) {
+            alert("Failed to open " + url)
+            return 
+        }
+        add_imported(name, xhttp.responseText)
+        scene_edit.value = "i," + name
+        sceneEditChange()
+    }
+    xhttp.open("GET", url, true);
+    xhttp.send();
+    return INIT_SQUARE
+}
+
+function initDemos() {
+    var dispDemos = function () {
+        var fhtml = ""
+        for (n in demos) {
+            var nm = Object.keys(demos[n])[0]
+            if (nm.length > 0) {
+                fhtml += "<span class=\"loadlnk\" onclick=\"onLoad('" + nm + "')\">" + nm + "</span><br />"
+                demosIndex[nm] = demos[n][nm]
+            }
+            else
+                fhtml += demos[n][nm] // add as <hr> html
+        }
+        loadFrame.innerHTML = fhtml;
+        var h = parseInt(window.getComputedStyle(loadFrame).fontSize) * demos.length + 12
+        loadFrame.style.height = h + "px"
+    }
+    dispDemos();
+
+    if ("loadFrom" in urlArgs) {
+        var baseUrl = "http://" + urlArgs["loadFrom"];
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (xhttp.readyState != 4 || xhttp.status != 200)
+                return
+            var names = xhttp.responseText.split(/\s+/);
+            var addDemos = []
+            var makeFunc = function(name) { // needed for closure capture of the name
+                return function () { return sceneLoadFromServer(name) }
+            }
+            for (i in names) {
+                var d = {}
+                var on = names[i]
+                d[on] = makeFunc(on)
+                addDemos.push(d)
+            }
+            addDemos.push( {"":"<hr class='menuDivider'>"} )
+            demos = addDemos.concat(demos)
+            dispDemos()
+        }
+        xhttp.open("GET", baseUrl + "/scene_names.txt", true);
+        xhttp.send();
+    }
+
+}
+
 </script>
 <script src="js_main.js"></script>
 <style>
@@ -900,8 +1050,7 @@ body { /* disable selection so the double click will not select */
     
 #frame_scroll {
     position: absolute;
-    width: 700px;
-    left: 45px;
+    left: 80px;
     right: 30px;
     height: 26px;
     margin: 2px;
@@ -915,6 +1064,25 @@ body { /* disable selection so the double click will not select */
     margin-left: 8px;
     border-radius: 5px;
 }
+#play_but:hover {
+  filter: url(#svg_inglow);
+}
+#play_del {
+    position: absolute;
+    left: 30px;
+    width: 28px;
+    height: 26px;
+    margin: 2px;
+    margin-left: 8px;
+    border-radius: 5px;
+}
+#play_del:hover {
+  filter: url(#svg_inglow);
+}
+#play_del:active {
+  filter: url(#svg_active);
+}
+
 #frame_num {
     position: absolute;
     width: 36px;
@@ -927,9 +1095,7 @@ body { /* disable selection so the double click will not select */
     line-height: 26px;
 }
 
-#play_but:hover {
-  filter: url(#svg_inglow);
-}
+
 
 /* ---------------- side buttons http://www.mattboldt.com/demos/social-buttons/ */
 .sc-btn {
@@ -1055,13 +1221,20 @@ body { /* disable selection so the double click will not select */
 #goalRadius {
     position: absolute;
     top: 233px;
-    left: 80px;
-    width: 55px;
+    left: 85px;
+    width: 50px;
 }
 #goalRadiusLabel {
     position: absolute;
+    top: 235px;
+    left: 33px;
+}
+#showGoalRadius {
+    position: absolute;
     top: 233px;
-    left: 22px;
+    left: 10px;
+    width: 15px;
+    height: 15px;
 }
 #goalPoint {
     top: 260px;
@@ -1079,18 +1252,47 @@ body { /* disable selection so the double click will not select */
 #goalAttack:before {
   content: "Attack";
 }
+
+#loadBut:before {
+    content: "Load...";
+}
+#loadBut {
+    top: 310px;
+    left: 8px;
+    width: 63px;
+}
+#loadFrame {
+    position: absolute;
+    top: 335px;
+    left: 8px;
+    width: 120px;
+    height: 100px;
+    border: 3px outset #A9A7A7;
+    padding: 4px;
+    background: linear-gradient(to bottom, #fff 0%,#ddd 100%);
+    border-radius: 7px;
+    visibility: hidden
+}
+.loadlnk {
+    cursor:pointer;
+    color:blue;
+    text-decoration:underline;
+}
+.menuDivider {
+    margin: 2px;
+}
 </style>
 </head>
 
 <body onload="init()" onresize="resize()">
-<script>
+<!--<script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
   })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
   ga('create', 'UA-2231125-4', 'auto');
   ga('send', 'pageview');
-</script>
+</script>-->
 
   <canvas id="canvas" width="200" height="200"></canvas>
   <div id="canvas_cont" onscroll="canvasScroll()">
@@ -1101,27 +1303,29 @@ body { /* disable selection so the double click will not select */
       <input id="checkboxPoly" class="sc-btn" type="checkbox" onclick="triggerPolyline()"/>
       <div id="agentsFrame" class="frame"></div>
       <input id="checkboxAgent" class="sc-btn" type="checkbox" onclick="triggerAgent()"/>
-      <input id="agentSize" type="number" value="3" min="1" max="100" oninput="agentSizeChange()"><span id="agentSizeLabel" for="agentSize">Radius:</span>
+      <input id="agentSize" type="number" value="3" min="1" max="100" oninput="agentSizeChange()"><span id="agentSizeLabel">Radius:</span>
 
       <input id="zoom_scroll" type="range" name="zoom" min="-75" max="200" value="0" oninput="zoomChanged()" onmousedown="zoomStart()"/> 
       <input id="showTri" type="checkbox" onclick="triggerShowTri()" /><label id="showTriLabel" for="showTri">Triangulation</label>
       <input id="showTex" type="checkbox" onclick="triggerShowTex()" /><label id="showTexLabel" for="showTex">Textures</label>
 
       <div id="goalFrame" class="frame"></div><div id="goalFrameText">&nbsp;Goal&nbsp;</div>
-      <input id="goalRadius" type="number" value="20" min="1" max="100" oninput="goalRadiusChange()"><span id="goalRadiusLabel" for="goalRadius">Radius:</span>
+      <input id="goalRadius" type="number" value="20" min="1" max="100" oninput="goalRadiusChange()">
+      <input id="showGoalRadius" type="checkbox"/><span id="goalRadiusLabel" for="showGoalRadius">Radius:</span>
       <input id="goalPoint" class="sc-btn" type="checkbox" checked="true" onclick="triggerGoalType(0)"/>
       <input id="goalAttack" class="sc-btn" type="checkbox" onclick="triggerGoalType(1)"/>
 
       <div id="scene_def" onclick="sceneTextClick()"></div>
       <textarea id="scene_edit" style="visibility:hidden;" onblur="sceneEditBlur()" oninput="sceneEditChange()"></textarea>
+      <div id="loadFrame"></div>
+      <input id="loadBut" class="sc-btn" type="checkbox" onclick="onLoadButton()"/>
       
   </div></div>
   
   <div id="frame_ctrl"><div id="frame_rel" style="position:relative; width:100%; height:100%">
      <!-- <input id="play_but" type="button" value="Stop" onclick="playstop()"/> -->
     <svg id="play_but" xmlns="http://www.w3.org/2000/svg" version="1.1"  viewBox="0 0 120 121" height="28px" width="28px" onclick="playstop()">
-      <defs
-         id="defs3115">
+      <defs>
         <filter color-interpolation-filters="sRGB" id="svg_inglow">
           <feGaussianBlur stdDeviation="5" result="result8" />
           <feComposite in2="result8" result="result6" in="SourceGraphic" operator="in" />
@@ -1137,6 +1341,15 @@ body { /* disable selection so the double click will not select */
           <path style="fill:#000000" d="m 49.990939,100.8508 c -1.384296,4.00567 -11.938566,3.75061 -13.896261,3.75061 -1.957693,0 -12.511963,0.25506 -13.896261,-3.75061 -1.384296,-4.00568 -1.296149,-34.546086 -1.296149,-40.210972 0,-5.664886 -0.08815,-36.205293 1.296149,-40.210973 1.384298,-4.005678 11.938568,-3.750607 13.896261,-3.750607 1.957692,0 12.511965,-0.255072 13.896261,3.750607 1.384298,4.00568 1.296149,34.546085 1.296149,40.210971 0,5.664885 0.08815,36.205294 -1.296149,40.210974 z"/>
           <path style="fill:#000000" d="m 95.725861,100.83689 c -1.384296,4.00567 -11.938566,3.7506 -13.896261,3.7506 -1.957693,0 -12.511963,0.25507 -13.896261,-3.7506 -1.384296,-4.005685 -1.296149,-34.546091 -1.296149,-40.210977 0,-5.664886 -0.08815,-36.205293 1.296149,-40.210973 1.384298,-4.005678 11.938568,-3.750607 13.896261,-3.750607 1.957692,0 12.511965,-0.255072 13.896261,3.750607 1.384298,4.00568 1.296149,34.546085 1.296149,40.210971 0,5.664885 0.08815,36.205294 -1.296149,40.210979 z"/>
       </g>
+    </svg>
+    <svg id="play_del" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 121" height="28px" width="28px" onclick="playDelFrames()">
+      <defs>
+          <filter id="svg_active">
+             <feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.7 0"/>
+          </filter>
+      </defs>
+      <path style="fill:#ffffff;" d="m 116.30127,60.31374 c 0,64.67211 5.10064,59.46589 -58.259907,59.46589 -63.3605542,0 -58.25991572,5.20622 -58.25991572,-59.46589 0,-64.6721207 -5.10063848,-59.46588817 58.25991572,-59.46588817 63.360547,0 58.259907,-5.20623253 58.259907,59.46588817 z"/>
+      <path style="fill:#800000;" d="m 29.887177,17.15051 c -3.248195,0.34502 -8.302393,6.420894 -9.003181,7.165796 -0.70452,0.74887 -7.425445,6.869166 -5.51215,9.738133 1.534094,2.30036 15.488038,16.07308 26.090847,26.642062 -8.437577,8.439257 -25.371951,25.387073 -26.642062,27.560755 -1.74983,2.994682 6.130741,9.488451 6.982057,10.289348 0.748871,0.704519 6.86917,7.241706 9.738134,5.328416 2.336317,-1.55808 16.456648,-15.684443 27.009539,-26.274589 8.38008,8.378965 25.377425,25.550049 27.560755,26.825799 2.994682,1.74983 9.488448,-6.130741 10.289348,-6.982056 0.704521,-0.74887 7.241706,-6.685428 5.328416,-9.554395 C 100.1708,85.553461 86.044434,71.24939 75.45429,60.696501 83.961036,52.187352 100.64942,35.48134 101.91261,33.319486 103.66244,30.324802 95.781874,23.831033 94.930557,23.030136 94.181686,22.325617 88.245126,15.78843 85.376162,17.701725 83.055525,19.249342 68.928391,33.195018 58.366623,43.792572 49.801734,35.230717 33.325395,18.591718 31.173345,17.334247 30.799007,17.11552 30.351202,17.101221 29.887177,17.15051 z"/>
     </svg>
 
       <input id="frame_scroll" type="range" name="points" min="0" max="100" value="0" oninput="frameChange()"/>

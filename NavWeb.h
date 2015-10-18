@@ -57,7 +57,11 @@ public slots:
     Q_INVOKABLE void update_goal(PTR_T ptr, float radius, int type) {
         ::update_goal(ptr, radius, type);
     }
-
+    Q_INVOKABLE void add_imported(QString qname, QString qtext) {
+        auto name = fromq(qname);
+        auto text = fromq(qtext);
+        ::add_imported(name.c_str(), text.c_str());
+    }
 };
 
 class NavWeb : public QDialog
