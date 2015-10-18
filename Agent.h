@@ -13,7 +13,7 @@
 
 class BihTree;
 
-#define NEI_DIST_RADIUS_FACTOR (2.0f)
+#define NEI_DIST_RADIUS_FACTOR (3.0f)
 
 struct Candidate
 {

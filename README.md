@@ -10,22 +10,22 @@ Current features
 - Fast collision detection of multiple agents that move in the scene
 - Web GUI using Qt QWebView or Emscripten
 
-BUGs:
-- strange corner added to plan
-
 TBD
-- extract polylines from terrain mesh
-- handling self intersections
-  - inside poly intersects outside
-
+- replan when stuck
 - UI
   - show path, future path
   - define speed
-  - clear frames
+
   - clear scene
   - BUG: backtrack, play: not doing the same thing
   - single step
+  - rewind button
+  - performance - read all movements
+  - load from address
+  - cookies
+  - url
 - remesh should do replan for all
+
 
 Maybe
 - more accurate A* - not between mid-segments

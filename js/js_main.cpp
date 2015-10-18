@@ -204,10 +204,9 @@ public:
         m_quiteCount = 0;
     }
 
-    void recordFrame() {
-        ++m_atFrame;
-        if (m_atFrame < m_frames.size())
-            m_frames.resize(m_atFrame); // truncate any future frames
+    void recordFrame() 
+    {
+        m_frames.resize(m_atFrame); // truncate any future frames
         m_frames.push_back(Frame());
         auto& frame = m_frames.back();
 
@@ -216,15 +215,16 @@ public:
             frame.m_agents.push_back(AgentData{a->m_a->m_position, a->m_a->m_velocity});
         }
         EM_ASM_( set_max_frame($0), m_frames.size()-1);
+        ++m_atFrame;
     }
     
     bool progress(float deltaSec) 
     {
         if (m_quiteCount >= 100 || m_goalitems.empty())
             return true;
+        recordFrame();
         if (m_doc.doStep(deltaSec, true))  //0.25
             ++m_quiteCount;
-        recordFrame();
 
         return false;
     }
@@ -250,6 +250,12 @@ public:
     
     void updateMesh();
     void readDoc();
+
+    void resetFrames() {
+        m_frames.clear();
+        m_atFrame = 0;
+        EM_ASM_( set_max_frame($0), 0);
+    }
     
     vector<shared_ptr<PolyPointItem>> m_polypointitems;
     vector<shared_ptr<TriItem>> m_meshitems;
@@ -257,9 +263,10 @@ public:
     vector<shared_ptr<GoalItem>> m_goalitems;
     Document m_doc;
     vector<Frame> m_frames;
-    int m_atFrame = 0;
+    int m_atFrame = 0; // the index of the last frame that was recorded
     int m_quiteCount = 0; // frames that are quiet
     map<AgentItem*, GoalItem*> m_agentToGoal; // this info should not be in Agent because Anget is not aware of Goal
+    map<string, string> m_importedTexts;
 };
 
 // depends on NavCtrl
@@ -287,6 +294,7 @@ void NavCtrl::updateMesh()
         return;
     }
     m_meshitems.clear();
+    OUT("Triangles " << m_doc.m_mesh.m_tri.size());
     for(auto& tri : m_doc.m_mesh.m_tri) {
         auto i = new TriItem(this, &tri);
         m_meshitems.push_back(shared_ptr<TriItem>(i));
@@ -308,8 +316,8 @@ void NavCtrl::readDoc()
         m_goalitems.push_back(shared_ptr<GoalItem>(new GoalItem(this, goal.get()))); 
     }
     //OUT("PPItems " << m_doc.m_mapdef.m_vtx.size());
-    for(auto* pv: m_doc.m_mapdef.m_vtx) {
-        m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, pv)));
+    for(const auto& pv: m_doc.m_mapdef.m_vtx) {
+        m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, pv.get())));
     }
 }
 
@@ -371,19 +379,21 @@ bool cpp_progress(float deltaSec) {
         return false;
     }
 }
-
+// write doc
 const char* serialize() {
+    g_ctrl->resetFrames(); // new script so we start the play from the start
     ostringstream ss;
     g_ctrl->m_doc.serialize(ss);
     static string s;
     s = ss.str();
     return s.c_str();
 }
+// read to doc
 void deserialize(const char* sp) {
     string a(sp);
     istringstream ss(a);
     //OUT("DESER " << a);
-    g_ctrl->m_doc.deserialize(ss);
+    g_ctrl->m_doc.deserialize(ss, g_ctrl->m_importedTexts);
     g_ctrl->readDoc();
     g_ctrl->updateMesh();
 }
@@ -404,6 +414,11 @@ void update_goal(ptr_t ptr, float radius, int type) {
     if (g == nullptr)
         return; // shouldn't happen
     g_ctrl->updateGoal(g, radius, type);
+}
+
+void add_imported(const char* name, const char* text) {
+    g_ctrl->m_importedTexts.clear();
+    g_ctrl->m_importedTexts[name] = text;
 }
 
 

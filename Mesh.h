@@ -3,6 +3,8 @@
 #include <vector>
 #include <functional>
 #include <map>
+#include <memory>
+#include <string>
 #include "Vec2.h"
 
 using namespace std;
@@ -76,32 +78,38 @@ public:
     ~MapDef() {
         clear();
     }
-    void add() {
-        m_pl.push_back(Polyline());
+    Polyline* add(const string& module = string()) {
+        auto p = new Polyline();
+        m_pl.push_back(unique_ptr<Polyline>(p));
+        if (!module.empty())
+            m_objModules[p] = module;
+        return p;
     }
-    Vertex* addToLast(const Vec2& p) {
+    Vertex* addToLast(const Vec2& p, const string& module = string()) {
         if (m_pl.empty())
-            m_pl.push_back(Polyline());
+            add(module);
         auto v = new Vertex(m_vtx.size(), p);
-        m_vtx.push_back(v);
-        m_pl.back().m_d.push_back(v);
-        m_pl.back().m_di.push_back(m_vtx.size() - 1);
+        m_vtx.push_back(unique_ptr<Vertex>(v));
+        Polyline* pl = m_pl.back().get();
+        pl->m_d.push_back(v);
+        pl->m_di.push_back(m_vtx.size() - 1);
+        if (!module.empty())
+            m_objModules[v] = module;
         return v;
     }
     bool isLastEmpty() {
-        return m_pl.empty() || m_pl.back().m_d.empty();
+        return m_pl.empty() || m_pl.back()->m_d.empty();
     }
     void clear() {
-        for(auto v: m_vtx)
-            delete v;
         m_vtx.clear();
         m_pl.clear();
     }
 
-    vector<Vertex*> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
+    vector<unique_ptr<Vertex>> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
                            // needs to be pointers since display items reference them
-    vector<Polyline> m_pl;
+    vector<unique_ptr<Polyline>> m_pl;
     
+    map<void*, string> m_objModules; // defined objects can have optional string modules where they came from
 };
 
 
@@ -140,6 +148,7 @@ public:
     vector<HalfEdge> m_he;
 
     // for every radius, have a set of alternative position per vertex for plan creation
+    // used at the beginning of the planning to determine the correct triangle the agent and the goal is at
     map<float, vector<Vec2>> m_altVtxPosByRadius;
 };
 

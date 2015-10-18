@@ -23,7 +23,7 @@ Document::Document()
 void Document::init_test()
 {
     auto gend = addGoal(Vec2(-200, 0), 20, GOAL_POINT);
-    for(int i = 0; i < 6 ; ++i)
+    for(int i = 0; i < 1 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
@@ -248,8 +248,8 @@ void Document::runTriangulate()
         ms.makeSegments();
     }
 
+    // redo the radiuses
     m_mesh.m_altVtxPosByRadius.clear();
-
     vector<float> possibleRadiuses;
     for(auto agent: m_agents)
         possibleRadiuses.push_back(agent->m_radius);
@@ -335,7 +335,7 @@ void Document::updatePlan(Agent* agent)
             if (subGoalMaker == nullptr)
                 return v->p; // vertex that is not part of a parimiter
                              //CHECK(subGoalMaker != nullptr, "null subGoalMaker");
-            return subGoalMaker->makePathRef(agent->m_endGoalPos.radius);
+            return subGoalMaker->makePathRef(agent->m_radius);
         });
         PathMaker pm(outf, posf);
         pm.makePath(corridor, startp, endp);
@@ -432,7 +432,7 @@ Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpee
     if (prefSpeed < 0)
         prefSpeed = 1.0f;
     if (maxSpeed < 0)
-        maxSpeed = prefSpeed * 1.5;
+        maxSpeed = prefSpeed * 2;
     //OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
     Agent* a = new Agent(m_agents.size(), pos,
         (g != nullptr)?g->def : GoalDef(), // goal 
@@ -514,12 +514,24 @@ bool Document::doStep(float deltaTime, bool doUpdate)
 
 void Document::serialize(ostream& os)
 {
+    set<string> wroteImport;
+    for(const auto& kv : m_mapdef.m_objModules) {
+        auto& name = kv.second;
+        if (wroteImport.count(name) > 0)
+            continue;
+        wroteImport.insert(name);
+        os << "i," << kv.second << ",\n";
+    }
+
     int count = 0;
     for(const auto& pl : m_mapdef.m_pl) {
-        if (pl.m_d.size() == 0)
+        if (pl->m_d.size() == 0)
             continue;
+        if (m_mapdef.m_objModules.find(pl.get()) != m_mapdef.m_objModules.end())
+            continue; // this polyline was included in a file
+
         os << "p,\n";
-        for(auto pv : pl.m_d) {
+        for(const auto& pv : pl->m_d) {
             os << "v," << pv->p.x << "," << pv->p.y << ",\n";
             ++count;
         }
@@ -539,16 +551,12 @@ void Document::serialize(ostream& os)
     //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
 
-void Document::deserialize(istream& is)
+void Document::readStream(istream& is, map<string, string>& imported, const string& module)
 {
     // see http://stackoverflow.com/questions/7302996/changing-the-delimiter-for-cin-c
     vector<ctype<char>::mask> bar(ctype<char>::classic_table(), ctype<char>::classic_table() + ctype<char>::table_size);
     bar[','] ^= ctype_base::space;
     is.imbue(locale(cin.getloc(), new ctype<char>(bar.data()))); // treat comma as a space, locale will delete it
-
-    m_mapdef.clear();
-    clearAllObj();
-    m_goals.clear();
 
     int count = 0;
     while (!is.eof()) 
@@ -557,14 +565,14 @@ void Document::deserialize(istream& is)
         is >> h;
         //OUT("CMD `" << h << "`");
         if (h[0] == 'p') {
-            m_mapdef.add();
+            m_mapdef.add(module);
         }
         else if (h[0] == 'v') {
             Vec2 v;
             is >> v.x >> v.y;
             if (is.fail())
                 break;
-            m_mapdef.addToLast(v);
+            m_mapdef.addToLast(v, module);
             ++count;
         }
         else if (h[0] == 'g') {
@@ -591,10 +599,28 @@ void Document::deserialize(istream& is)
         else if (h[0] == 'e') {
             return;
         }
+        else if (h[0] == 'i') {
+            string name;
+            is >> name;
+            auto it = imported.find(name);
+            CHECK(it != imported.end(), "Imported file not found " + name);
+            istringstream iss(it->second);
+            readStream(iss, imported, name);
+        }
         else if (!h.empty()){
             OUT("Unknown CMD " << h);
         }
 
     }
+}
+
+void Document::deserialize(istream& is, map<string, string>& imported)
+{
+    m_mapdef.clear();
+    clearAllObj();
+    m_goals.clear();
+
+    readStream(is, imported, "");
+
     //cout << "Read " << m_mapdef.m_pl[0].m_d.size() << endl;
 }

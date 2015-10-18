@@ -27,5 +27,6 @@ void deserialize(const char* sp);
 void go_to_frame(int f);
 void change_size(ptr_t ptr, float sz);
 void update_goal(ptr_t ptr, float radius, int type);
+void add_imported(const char* name, const char* text);
 
 }

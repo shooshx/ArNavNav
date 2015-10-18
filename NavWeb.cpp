@@ -50,7 +50,10 @@ NavWeb::NavWeb(QWidget *parent)
     ui.setupUi(this);
 
     m_page = new QMyWebPage(ui.webView);
+
     auto url = QUrl::fromLocalFile("C:\\projects\\nav\\js\\page.html");
+    //QUrl url("file:///C:/projects/nav/js/page.html?loadFrom=localhost:8000");
+
     m_page->mainFrame()->load(url);
     connect(m_page->mainFrame(), SIGNAL(javaScriptWindowObjectCleared()), this, SLOT(populateJavaScriptWindowObject()));
     connect(m_page->mainFrame(), SIGNAL(loadFinished(bool)), this, SLOT(pageLoadFinished(bool)));
