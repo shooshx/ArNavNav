@@ -85,9 +85,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Agent.cpp" />
-    <ClCompile Include="BihTree.cpp" />
-    <ClCompile Include="Document.cpp" />
+    <ClCompile Include="src\Agent.cpp" />
+    <ClCompile Include="src\BihTree.cpp" />
+    <ClCompile Include="src\Document.cpp" />
     <ClCompile Include="GeneratedFiles\Debug\moc_NavDialog.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -112,21 +112,21 @@
     <ClCompile Include="GeneratedFiles\Release\moc_NavWeb.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="js\js_main.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="NavDialog.cpp" />
-    <ClCompile Include="NavGraphicsView.cpp" />
-    <ClCompile Include="NavWeb.cpp" />
-    <ClCompile Include="poly2tri\advancing_front.cc" />
-    <ClCompile Include="poly2tri\adapter.cc" />
-    <ClCompile Include="poly2tri\shapes.cc" />
-    <ClCompile Include="poly2tri\sweep.cc" />
-    <ClCompile Include="poly2tri\sweep_context.cc" />
-    <ClCompile Include="terrainExtract.cpp" />
+    <ClCompile Include="src\js\js_main.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Mesh.cpp" />
+    <ClCompile Include="src\NavDialog.cpp" />
+    <ClCompile Include="src\NavGraphicsView.cpp" />
+    <ClCompile Include="src\NavWeb.cpp" />
+    <ClCompile Include="src\poly2tri\advancing_front.cc" />
+    <ClCompile Include="src\poly2tri\adapter.cc" />
+    <ClCompile Include="src\poly2tri\shapes.cc" />
+    <ClCompile Include="src\poly2tri\sweep.cc" />
+    <ClCompile Include="src\poly2tri\sweep_context.cc" />
+    <ClCompile Include="src\terrainExtract.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="nav.ui">
+    <CustomBuild Include="src\nav.ui">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\uic.exe;%(AdditionalInputs)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Uic%27ing %(Identity)...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\ui_%(Filename).h;%(Outputs)</Outputs>
@@ -138,14 +138,14 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Agent.h" />
-    <ClInclude Include="BihTree.h" />
-    <ClInclude Include="Except.h" />
+    <ClInclude Include="src\Agent.h" />
+    <ClInclude Include="src\BihTree.h" />
+    <ClInclude Include="src\Except.h" />
     <ClInclude Include="GeneratedFiles\ui_NavWeb.h" />
-    <ClInclude Include="js\js_main.h" />
-    <ClInclude Include="js\qt_emasm.h" />
-    <ClInclude Include="Mesh.h" />
-    <CustomBuild Include="NavWeb.h">
+    <ClInclude Include="src\js\js_main.h" />
+    <ClInclude Include="src\js\qt_emasm.h" />
+    <ClInclude Include="src\Mesh.h" />
+    <CustomBuild Include="src\NavWeb.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing NavWeb.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -155,16 +155,16 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DUNICODE -DWIN32 -DWIN64 -DQT_DLL -DQT_NO_DEBUG -DNDEBUG -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include\QtCore" "-I$(QTDIR)\include\QtGui" "-I$(QTDIR)\include\QtWidgets"</Command>
     </CustomBuild>
-    <ClInclude Include="Objects.h" />
-    <ClInclude Include="poly2tri\advancing_front.h" />
-    <ClInclude Include="poly2tri\cdt.h" />
-    <ClInclude Include="poly2tri\poly2tri.h" />
-    <ClInclude Include="poly2tri\shapes.h" />
-    <ClInclude Include="poly2tri\sweep.h" />
-    <ClInclude Include="poly2tri\sweep_context.h" />
-    <ClInclude Include="poly2tri\utils.h" />
-    <ClInclude Include="Vec2.h" />
-    <ClInclude Include="Document.h">
+    <ClInclude Include="src\Objects.h" />
+    <ClInclude Include="src\poly2tri\advancing_front.h" />
+    <ClInclude Include="src\poly2tri\cdt.h" />
+    <ClInclude Include="src\poly2tri\poly2tri.h" />
+    <ClInclude Include="src\poly2tri\shapes.h" />
+    <ClInclude Include="src\poly2tri\sweep.h" />
+    <ClInclude Include="src\poly2tri\sweep_context.h" />
+    <ClInclude Include="src\poly2tri\utils.h" />
+    <ClInclude Include="src\Vec2.h" />
+    <ClInclude Include="src\Document.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing Document.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -175,7 +175,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DUNICODE -DWIN32 -DWIN64 -DQT_DLL -DQT_NO_DEBUG -DNDEBUG -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include\QtCore" "-I$(QTDIR)\include\QtGui" "-I$(QTDIR)\include\QtWidgets"</Command>
     </ClInclude>
     <ClInclude Include="GeneratedFiles\ui_nav.h" />
-    <CustomBuild Include="NavDialog.h">
+    <CustomBuild Include="src\NavDialog.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing NavDialog.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -185,7 +185,7 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DUNICODE -DWIN32 -DWIN64 -DQT_DLL -DQT_NO_DEBUG -DNDEBUG -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include\QtCore" "-I$(QTDIR)\include\QtGui" "-I$(QTDIR)\include\QtWidgets"</Command>
     </CustomBuild>
-    <CustomBuild Include="NavGraphicsView.h">
+    <CustomBuild Include="src\NavGraphicsView.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing NavGraphicsView.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -197,7 +197,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="nav.qrc">
+    <CustomBuild Include="src\nav.qrc">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(FullPath);%(AdditionalInputs)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Rcc%27ing %(Identity)...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\qrc_%(Filename).cpp;%(Outputs)</Outputs>
@@ -209,7 +209,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="NavWeb.ui">
+    <CustomBuild Include="src\NavWeb.ui">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(QTDIR)\bin\uic.exe;%(AdditionalInputs)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Uic%27ing %(Identity)...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\GeneratedFiles\ui_%(Filename).h;%(Outputs)</Outputs>
@@ -221,7 +221,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="js\page.html" />
+    <None Include="src\js\page.html" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
