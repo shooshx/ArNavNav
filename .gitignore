@@ -7,3 +7,8 @@
 *.sdf
 *.opensdf
 _old
+/terrain
+/tests
+/src/js/prev_img
+/src/js/js_main.html
+*.vspscc
