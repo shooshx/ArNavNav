@@ -49,28 +49,19 @@
     <ClCompile Include="GeneratedFiles\Release\moc_NavDialog.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="Document.cpp" />
-    <ClCompile Include="main.cpp">
-      <Filter>main</Filter>
-    </ClCompile>
-    <ClCompile Include="BihTree.cpp" />
-    <ClCompile Include="Agent.cpp">
-      <Filter>hrvo</Filter>
-    </ClCompile>
-    <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="poly2tri\advancing_front.cc">
+    <ClCompile Include="src\poly2tri\advancing_front.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
-    <ClCompile Include="poly2tri\shapes.cc">
+    <ClCompile Include="src\poly2tri\shapes.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
-    <ClCompile Include="poly2tri\sweep.cc">
+    <ClCompile Include="src\poly2tri\sweep.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
-    <ClCompile Include="poly2tri\sweep_context.cc">
+    <ClCompile Include="src\poly2tri\sweep_context.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
-    <ClCompile Include="poly2tri\adapter.cc">
+    <ClCompile Include="src\poly2tri\adapter.cc">
       <Filter>poly2tri</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_NavWeb.cpp">
@@ -79,39 +70,54 @@
     <ClCompile Include="GeneratedFiles\Release\moc_NavWeb.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="NavWeb.cpp">
+    <ClCompile Include="src\NavWeb.cpp">
       <Filter>WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="js\js_main.cpp">
+    <ClCompile Include="src\js\js_main.cpp">
       <Filter>WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="NavDialog.cpp">
+    <ClCompile Include="src\NavDialog.cpp">
       <Filter>qUI</Filter>
     </ClCompile>
-    <ClCompile Include="NavGraphicsView.cpp">
+    <ClCompile Include="src\NavGraphicsView.cpp">
       <Filter>qUI</Filter>
     </ClCompile>
-    <ClCompile Include="terrainExtract.cpp">
+    <ClCompile Include="src\terrainExtract.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Mesh.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Agent.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BihTree.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Document.cpp">
       <Filter>main</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="nav.qrc">
-      <Filter>main</Filter>
-    </CustomBuild>
-    <CustomBuild Include="nav.ui">
-      <Filter>main</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NavWeb.ui">
-      <Filter>main</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NavWeb.h">
+    <CustomBuild Include="src\NavWeb.h">
       <Filter>WebUI</Filter>
     </CustomBuild>
-    <CustomBuild Include="NavDialog.h">
+    <CustomBuild Include="src\NavDialog.h">
       <Filter>qUI</Filter>
     </CustomBuild>
-    <CustomBuild Include="NavGraphicsView.h">
+    <CustomBuild Include="src\NavGraphicsView.h">
+      <Filter>qUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\nav.ui">
+      <Filter>qUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\NavWeb.ui">
+      <Filter>qUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\nav.qrc">
       <Filter>qUI</Filter>
     </CustomBuild>
   </ItemGroup>
@@ -119,50 +125,60 @@
     <ClInclude Include="GeneratedFiles\ui_nav.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="Except.h" />
-    <ClInclude Include="BihTree.h" />
-    <ClInclude Include="Agent.h">
+    <ClInclude Include="src\Agent.h">
       <Filter>hrvo</Filter>
     </ClInclude>
-    <ClInclude Include="Vec2.h" />
-    <ClInclude Include="Mesh.h" />
-    <ClInclude Include="poly2tri\advancing_front.h">
+    <ClInclude Include="src\poly2tri\advancing_front.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\cdt.h">
+    <ClInclude Include="src\poly2tri\cdt.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\poly2tri.h">
+    <ClInclude Include="src\poly2tri\poly2tri.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\shapes.h">
+    <ClInclude Include="src\poly2tri\shapes.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\sweep.h">
+    <ClInclude Include="src\poly2tri\sweep.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\sweep_context.h">
+    <ClInclude Include="src\poly2tri\sweep_context.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="poly2tri\utils.h">
+    <ClInclude Include="src\poly2tri\utils.h">
       <Filter>poly2tri</Filter>
     </ClInclude>
-    <ClInclude Include="Objects.h">
+    <ClInclude Include="src\Objects.h">
       <Filter>hrvo</Filter>
     </ClInclude>
-    <ClInclude Include="Document.h" />
     <ClInclude Include="GeneratedFiles\ui_NavWeb.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="js\js_main.h">
+    <ClInclude Include="src\js\js_main.h">
       <Filter>WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="js\qt_emasm.h">
+    <ClInclude Include="src\js\qt_emasm.h">
       <Filter>WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BihTree.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Document.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Except.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Mesh.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vec2.h">
+      <Filter>main</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="js\page.html">
+    <None Include="src\js\page.html">
       <Filter>WebUI</Filter>
     </None>
   </ItemGroup>
