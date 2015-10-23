@@ -6,6 +6,7 @@ var grass_pattern, rock_pattern
 var world_width, world_height
 var needDraw = true
 var inq = false
+var thecookie = {}
 
 var WORLD_FACTOR = 4
 
@@ -31,7 +32,7 @@ ObjType = {
 }
 var INIT_SQUARE = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
 
-// file:///C:/projects/nav/js/page.html?loadFrom=localhost:8000
+// file:///C:/projects/nav/src/js/page.html?loadFrom=localhost:8000
 
 function init() {
     canvas = document.getElementById("canvas")
@@ -90,8 +91,7 @@ function init() {
     scene_edit.value = INIT_SQUARE
     //out(scene_edit.value)
 
-    sceneEditChange()
-    readScene()
+    syncScene()
 
     grass_img.onload = function () {
         if (!grass_pattern)
@@ -109,10 +109,20 @@ function init() {
     rock_img.src = "data:image/svg+xml;base64," + btoa(rock_cont.innerHTML)
     rock_img.onload()
 
-    showTri.checked = true
-    showGoalRadius.checked = false
-
     parseUrl()
+
+    if (!("resetCookie" in urlArgs))
+        parseCookie()
+    showTri.checked = (readCookie("showTri", "false") == "true")
+    showTex.checked = (readCookie("showTex", "true") == "true")
+    showGoalRadius.checked = (readCookie("showGoalRadius", "true") == "true")
+    agentSize.value = parseInt(readCookie("agentSize", "3"))
+    goalRadius.value = parseInt(readCookie("goalRadius", "20"))
+    var goalType = parseInt(readCookie("goalType", "0"))
+    goalPoint.checked = (goalType == 0)
+    goalAttack.checked = (goalType == 1)
+
+
     initDemos()
 
     progress();
@@ -127,8 +137,30 @@ function parseUrl() {
         var pair = vars[i].split('=');
         if (pair.length == 2)
             urlArgs[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1])
+    }   
+}
+
+function setCookie(k, v) {
+    thecookie[k] = v
+    var cstr = k + "=" + v + "; "
+    date = new Date();
+    date.setTime(date.getTime()+(100*24*60*60*1000));
+    cstr += "expires=" + date.toGMTString();
+    document.cookie = cstr // manages the collection on its own
+}
+
+function parseCookie() {
+    var s = document.cookie.split(';')
+    for (var i in s) {
+        var pair = s[i].split('=');
+        if (pair.length == 2)
+            thecookie[pair[0].trim()] = pair[1].trim()
     }
-    
+}
+function readCookie(k, defVal) {
+    if (typeof thecookie[k] == 'undefined')
+        return defVal
+    return thecookie[k]
 }
 
 function Transform() {
@@ -176,10 +208,17 @@ var addingPoly = false;
 var addingAgent = false;
 var selectSquare = null; // x1, y1, x2, y2, isActive
 var multiSelected = []; // agents that were multi selected
-var activeGoals = {}; // ptr -> true
+var activeGoals = {}; // ptr -> true  goals that have agents
 var selectedGoal = null;
 var isPlaying = true;
 //var dt = new Transform()
+
+function resetSelect() {
+    pressedObject = null;
+    pressedStart = null;
+    multiSelected = []
+    selectedGoal = null
+}
 
 function getXY(event) {
     var dt = getTransform()
@@ -288,6 +327,8 @@ function handleMouseUp(event) {
     if (selectSquare && !selectSquare.isActive &&  multiSelected.length > 0) {
         setGoal(x, y, multiSelected);
         readScene()
+        if (!isPlaying)
+            playstop() // setting the goal should start play so there's something happening
     }
     else if ((!selectSquare || !selSquareBig()) && pressedObject != null && pressedObject.selType != ObjSelType.NONE && pressedMoveLittle(x, y)) {
         clearMultiSel()
@@ -636,7 +677,7 @@ function progress() {
 
 var polyData = []
 
-function readScene() {
+function readScene() { // into the html, called whenever the scene changes
     var str = serialize()
     if (str[str.length-1] == '\n')
         str = str.substring(0,str.length-1)
@@ -759,14 +800,23 @@ function sceneTextClick() {
     scene_edit.style.height = scene_def.clientHeight + 8;
     scene_edit.value = scene_def.innerHTML.replace(/<br>/g,'\n');
     scene_edit.focus()
+    scene_edit.setSelectionRange(0, 0);
+    scene_edit.scrollLeft = 0
 }
 function sceneEditBlur() {
     scene_edit.style.visibility = 'hidden'
 }
 
-function sceneEditChange() {
+function syncScene() {
     deserialize(scene_edit.value)
-    readScene();
+    readScene()
+    resetSelect()
+}
+
+function sceneEditChange() {
+    if (isPlaying)
+        playstop() // don't want to play it each time the text is changing
+    syncScene()
 }
 
 function set_max_frame(v) {
@@ -787,11 +837,17 @@ function agentSizeChange() {
         change_size(multiSelected[i].ptr, parseInt(agentSize.value))
         readScene();
     }
+    setCookie("agentSize", agentSize.value)
 }
 
 function triggerShowTri() {
+    setCookie("showTri", showTri.checked)
 }
 function triggerShowTex() {
+    setCookie("showTex", showTex.checked)
+}
+function triggerShowGoalRadius() {
+    setCookie("showGoalRadius", showGoalRadius.checked);
 }
 function canvasScroll() {
     needDraw = true
@@ -809,6 +865,7 @@ function triggerGoalType(which) {
         else
             goalAttack.checked = false
     }
+    setCookie("goalType", which)
 
     if (selectedGoal == null)
         return;
@@ -817,13 +874,14 @@ function triggerGoalType(which) {
 }
 
 function goalRadiusChange() {
+    setCookie("goalRadius", goalRadius.value)
     if (selectedGoal == null)
         return;
     update_goal(selectedGoal.ptr, parseInt(goalRadius.value), -1)
 }
 
 function playDelFrames() {
-    readScene();
+    readScene(); // serialize causes the deletion of frames
 }
 
 function isInside(event, element) {
@@ -859,7 +917,7 @@ function onLoad(name) {
     var text = demosIndex[name]()
     add_imported(name, text)
     scene_edit.value = "i," + name
-    sceneEditChange()
+    syncScene()
 }
 
 function demoCircle(count, radius) {
@@ -899,7 +957,7 @@ function sceneLoadFromServer(name) {
         }
         add_imported(name, xhttp.responseText)
         scene_edit.value = "i," + name
-        sceneEditChange()
+        syncScene()
     }
     xhttp.open("GET", url, true);
     xhttp.send();
@@ -1017,6 +1075,7 @@ body { /* disable selection so the double click will not select */
     width: 147px;
     margin-left: 2px;
     overflow: hidden;
+    white-space: nowrap
     
    -webkit-touch-callout: text;
    -webkit-user-select: text;
@@ -1311,7 +1370,7 @@ body { /* disable selection so the double click will not select */
 
       <div id="goalFrame" class="frame"></div><div id="goalFrameText">&nbsp;Goal&nbsp;</div>
       <input id="goalRadius" type="number" value="20" min="1" max="100" oninput="goalRadiusChange()">
-      <input id="showGoalRadius" type="checkbox"/><span id="goalRadiusLabel" for="showGoalRadius">Radius:</span>
+      <input id="showGoalRadius" type="checkbox" onclick="triggerShowGoalRadius()"/><span id="goalRadiusLabel" for="showGoalRadius">Radius:</span>
       <input id="goalPoint" class="sc-btn" type="checkbox" checked="true" onclick="triggerGoalType(0)"/>
       <input id="goalAttack" class="sc-btn" type="checkbox" onclick="triggerGoalType(1)"/>
 
@@ -1379,11 +1438,10 @@ body { /* disable selection so the double click will not select */
           <feComposite in="SourceGraphic" in2="result91" k1="1.5" operator="arithmetic" />
         </filter>
       </defs>
-      <rect style="fill:#774119;" width="400" height="400" x="0" y="0"/>
-      <rect style="fill:#512006;filter:url(#filter_grass3)" width="400" height="400" x="0" y="0"/>
+      <rect style="fill:#983600;" width="400" height="400" x="0" y="0"/> <!--774119-->
+      <rect style="fill:#72300d;filter:url(#filter_grass3)" width="400" height="400" x="0" y="0"/> <!--512006-->
     </svg></div>
     <img id="rock_img" style="display:none;"/>
-
 
 </body>
 

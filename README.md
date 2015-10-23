@@ -13,6 +13,7 @@ Current features
 
 TBD
 - replan when stuck
+- add buildings, unify buildings meshes
 - UI
   - show path, future path
   - define speed
@@ -22,8 +23,7 @@ TBD
   - single step
   - rewind button
   - performance - read all movements
-  - load from address
-  - cookies
+
   - url
 - remesh should do replan for all
 

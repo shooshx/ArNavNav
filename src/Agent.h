@@ -29,7 +29,7 @@ struct VelocityObstacle
     Vec2 m_side2;
     Vec2 p1 = INVALID_VEC2;
     Vec2 p2 = INVALID_VEC2; // the points that originated the sides, for unification of VOs
-    bool isBig = false; // is the angle more than 180, us
+    bool isBig = false; // is the angle more than 180, use the sideMid point as well
     Vec2 m_sideMid = INVALID_VEC2;
 };
 
