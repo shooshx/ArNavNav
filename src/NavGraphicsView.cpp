@@ -221,14 +221,14 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     }
     trimid /= 3.0f;
 
-  /*  for(int i = 0; i < 3; ++i) { // HalfEdge number
+    for(int i = 0; i < 3; ++i) { // HalfEdge number
         const HalfEdge* he = m_t->h[i];
         Vec2 mid = (0.4 * he->to->p + 0.6 * he->from->p);
         float d = length(mid - trimid);
         Vec2 towardsMid = ((mid - trimid)*((d-10)/d)) + trimid;
 
         painter->drawText(towardsMid.x - 20, towardsMid.y - 20, 40, 40, Qt::AlignCenter, QString("%1").arg(he->index));
-    }*/
+    }
 }
 QRectF TriItem::boundingRect() const {
     Vec2 mx = m_t->v[0]->p, mn = m_t->v[0]->p;

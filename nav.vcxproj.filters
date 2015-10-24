@@ -91,14 +91,14 @@
     <ClCompile Include="src\Mesh.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="src\Agent.cpp">
-      <Filter>main</Filter>
-    </ClCompile>
-    <ClCompile Include="src\BihTree.cpp">
-      <Filter>main</Filter>
-    </ClCompile>
     <ClCompile Include="src\Document.cpp">
       <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Agent.cpp">
+      <Filter>hrvo</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BihTree.cpp">
+      <Filter>hrvo</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -161,9 +161,6 @@
     <ClInclude Include="src\js\qt_emasm.h">
       <Filter>WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="src\BihTree.h">
-      <Filter>main</Filter>
-    </ClInclude>
     <ClInclude Include="src\Document.h">
       <Filter>main</Filter>
     </ClInclude>
@@ -175,6 +172,9 @@
     </ClInclude>
     <ClInclude Include="src\Vec2.h">
       <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BihTree.h">
+      <Filter>hrvo</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -13,7 +13,9 @@
 
 class BihTree;
 
-#define NEI_DIST_RADIUS_FACTOR (3.0f)
+#define NEI_DIST_RADIUS_FACTOR (2.0f)
+// changing this factor also changes how narrow a tri-to-segment corridor the agent can pass
+// since the neighbors check determines when the agent detects the segment
 
 struct Candidate
 {

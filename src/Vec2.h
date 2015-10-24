@@ -19,6 +19,9 @@ T iabs(T a) {
 
 #define INVALID_VEC2 Vec2(FLT_MAX, FLT_MAX)
 
+#define SQRT_2 (1.4142135623730950488016887242097f)
+
+
 class Vec2
 {
 public:
@@ -69,6 +72,12 @@ public:
 
     bool isValid() const {
         return x != FLT_MAX;
+    }
+
+    static float distSq(const Vec2& a, const Vec2& b) {
+        float dx = a.x - b.x;
+        float dy = a.y - b.y;
+        return dx*dx + dy*dy;
     }
 };
 
@@ -156,6 +165,15 @@ inline Vec2 project(const Vec2& p, const Vec2& a, const Vec2& b) {
     return a + d * ab;
 }
 
+// distance squared to p projected on segment a-b or FLT_MAX if it is not projected
+inline float distSqToProjectOrMax(const Vec2& p, const Vec2& a, const Vec2& b) {
+    Vec2 ab = (b-a);
+    Vec2 ap = (p-a);
+    float d = dot(ap, ab) / dot(ab, ab);
+    if (d < 0.0 || d > 1.0)
+        return FLT_MAX;
+    return absSq(a + d * ab - p);
+}
 
 
 class Vec3 {

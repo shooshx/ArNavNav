@@ -11,6 +11,7 @@
 #include <sstream>
 
 
+#define DISPLAY_VOS
 
 namespace qui {
 
@@ -241,11 +242,13 @@ void NavDialog::update()
         for(; frame < 2000; ++frame) 
         {
             g_curFrame = frame;
-            if (false) // VelocityObjects 
+#ifdef DISPLAY_VOS            
+            //if (false) // VelocityObjects 
             {
                 m_pathVos.push_back(VODump());
                 m_doc->m_debugVoDump = &m_pathVos.back();
             }
+#endif
 
             if (m_doc->doStep(0.25, true))
                 break;
@@ -272,7 +275,8 @@ void NavDialog::update()
 
         //---------------------- VO
         updateSliderVOs(ui.frameSlider->value());
-        if (false)  // VelocityObjects 
+#ifdef DISPLAY_VOS
+        //if (false)  // VelocityObjects 
         {
             auto* agentProb = dynamic_cast<Agent*>(m_doc->m_prob);
             float origNeiDist = agentProb->m_neighborDist;
@@ -282,6 +286,7 @@ void NavDialog::update()
                 agentProb->computeNewVelocity(m_vos->m_data);
             agentProb->m_neighborDist = origNeiDist;
         }
+#endif
     }
     //std::cout << m_vos->m_data.selected << endl;
    

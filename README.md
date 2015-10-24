@@ -13,6 +13,8 @@ Current features
 
 TBD
 - replan when stuck
+- string-pull on radius-specific mesh
+- narrow passage - with chopped VO
 - add buildings, unify buildings meshes
 - UI
   - show path, future path
@@ -25,7 +27,9 @@ TBD
   - performance - read all movements
 
   - url
-- remesh should do replan for all
+- don't mutate mesh in Astar  
+  
+- remesh should do replan for all ?
 
 
 Maybe

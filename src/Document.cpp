@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 
+#define SHOW_MARKERS
 
 Document::Document()
 {
@@ -101,7 +102,6 @@ public:
 };
 
 
-#define SQRT_2 (1.4142135623730950488016887242097f)
 
 #define ANTI_OVERLAP_FACTOR 0.0 //0.1
 
@@ -218,15 +218,6 @@ bool checkSelfIntersect(vector<Vec3>& vtx, vector<int>& pl);
 
 void Document::runTriangulate()
 {
-   /* {
-        vector<Vec3> vtx;
-        for(auto& v: m_mapdef.m_vtx) 
-            vtx.push_back(Vec3(v->p.x, 0, v->p.y));
-        checkSelfIntersect(vtx, m_mapdef.m_pl[0].m_di);
-        return;
-    }*/
-    
-
     vector<Vec2> gt;
     m_mesh.clear();
     runTri(&m_mapdef, m_mesh);
@@ -266,13 +257,13 @@ void Document::runTriangulate()
         Vec2 p1, p2;
         seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
 
-        /*if (cnt < 97) {
+#ifdef SHOW_MARKERS
+        if (cnt < 97) {
             m_markers[cnt++]->p = p1;
             m_markers[cnt++]->p = p2;
-        }*/
+        }
+#endif
     }
-
-
 
     //------------------------------------
 
@@ -281,6 +272,7 @@ void Document::runTriangulate()
         updatePlan(agent);
     }
 }
+
 
 
 void Document::updatePlan(Agent* agent)
@@ -310,7 +302,7 @@ void Document::updatePlan(Agent* agent)
 
     // find corridor
     vector<Triangle*> corridor;
-    if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor))
+    if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor, agent->m_radius))
     {
         //for(auto* t: corridor)
         //    if (t->highlight == 0)

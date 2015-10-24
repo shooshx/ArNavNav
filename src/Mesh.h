@@ -34,6 +34,9 @@ public:
     HalfEdge *next = nullptr;
     Triangle *tri = nullptr; 
     int index = 0;
+    float lengthSq = 0;
+    float passToNextSq = FLT_MAX; // distance squared between the 'to' point to the segment of the other two points in the tri, or FLT_MAX if projection is outside the segment
+                                  // used for detecting if an agent can pass through this trignagle to the HalfEdge in 'next'
 
     void clearData() {
         //midPnt = Vec2();
@@ -43,6 +46,7 @@ public:
         curMidPntPtr = &_midPnt;
     }
 
+    // mutable data in Astar 
     Vec2* curMidPntPtr = nullptr; // points to midPnt or to an override in astar
     Vec2 _midPnt; // not referenced directly
     HalfEdge* cameFrom = nullptr; 
@@ -133,7 +137,7 @@ public:
 
     void connectTri();
     Triangle* findContaining(const Vec2& p, vector<Vec2>& posRef);
-    bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor);
+    bool edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor, float agetnRadiusSq);
 
     HalfEdge* addHe() {
         m_he.push_back(HalfEdge());
