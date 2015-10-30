@@ -18,7 +18,7 @@ Document::Document()
 
 void Document::init_test()
 {
-    auto gend = addGoal(Vec2(-200, 0), 20, GOAL_POINT);
+    auto gend = addGoal(Vec2(-200, 0), 50, GOAL_POINT);
     for(int i = 0; i < 5 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
@@ -288,7 +288,7 @@ void Document::runTriangulate()
 }
 
 
-
+// assumnes Agent::setEndGoal was called for this agent
 void Document::updatePlan(Agent* agent)
 {
     if (m_mesh.m_vtx.empty())
@@ -306,11 +306,13 @@ void Document::updatePlan(Agent* agent)
     Triangle* endTri = m_mesh.findContaining(endp, posReference);
 
     agent->m_plan.clear();
+    agent->m_goalIsReachable = false;
     if (!endTri || !startTri || startTri == endTri) 
     {
         agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[0];
+        agent->m_goalIsReachable = (startTri == endTri);
         return;
     }
 
@@ -381,9 +383,10 @@ void Document::updatePlan(Agent* agent)
         //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
+        agent->m_goalIsReachable = true;
     }
     else 
-    { // go in the direction but never reach it
+    { // go in the direction but never reach it (agent->m_goalIsReachable remains false)
         agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
@@ -473,6 +476,32 @@ void Document::clearSegMinDist()
         ms.clear();
 }*/
 
+bool Document::shouldReplan(Agent* agent)
+{
+    if (!agent->m_goalIsReachable)
+        return false; // if its not reachable, you're bound to get stuck sooner or later
+
+    bool hasAgentsNei = false;
+    bool allSameGoal = true;
+    for(auto& ra: agent->m_neighbors.c) 
+    {
+        if (ra.second->m_type == Object::TypeAgent) {
+            hasAgentsNei = true;
+            auto* a = static_cast<Agent*>(ra.second);
+            if (a->m_endGoalId != agent->m_endGoalId)
+                allSameGoal = false;
+        }
+    }
+
+    // If I'm alone here
+    // If all around me are agents going the same way
+    if (!hasAgentsNei || allSameGoal) {
+        return true;
+    }
+    return false;
+}
+
+#define REPLAN_VEL_THRESH (0.1)
 
 bool Document::doStep(float deltaTime, bool doUpdate)
 {
@@ -487,7 +516,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
 
     for(auto* agent: m_agents)
     {
-        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
+        if (agent->m_curGoalPos == nullptr)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
@@ -506,11 +535,21 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     bool reachedGoals = true;
     for (auto* agent: m_agents) 
     {
-        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
+        if (agent->m_curGoalPos == nullptr)
             continue;
 
         agent->m_reached = agent->update(deltaTime);
         reachedGoals &= agent->m_reached;
+
+        // detect need to replay
+        auto velSq = absSq(agent->m_velocity);
+        if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH) 
+        {
+            if (shouldReplan(agent)) {
+                OUT("Agent " << agent->index << " replan");
+                updatePlan(agent);
+            }
+        }
     }
 
     //m_globalTime += deltaTime;
@@ -556,6 +595,7 @@ void Document::serialize(ostream& os)
 
     //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
+
 
 void Document::readStream(istream& is, map<string, string>& imported, const string& module)
 {

@@ -51,7 +51,7 @@ NavWeb::NavWeb(QWidget *parent)
 
     m_page = new QMyWebPage(ui.webView);
 
-    auto url = QUrl::fromLocalFile("C:\\projects\\nav\\js\\page.html");
+    auto url = QUrl::fromLocalFile("C:\\projects\\nav\\src\\js\\page.html");
     //QUrl url("file:///C:/projects/nav/js/page.html?loadFrom=localhost:8000");
 
     m_page->mainFrame()->load(url);

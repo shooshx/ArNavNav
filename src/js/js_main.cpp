@@ -168,6 +168,7 @@ public:
             g->m_g->def.type = (EGoalType)type;
         for(auto* a: g->m_g->agents) {
             a->m_endGoalPos = g->m_g->def;
+            // goal-id stays the same
             m_doc.updatePlan(a);
         }
         m_quiteCount = 0;
@@ -176,7 +177,7 @@ public:
 
     // also called from GoalItem::setPos
     void setAgentGoalPos(Agent* a, Goal* g) {
-        a->setEndGoal(g->def);
+        a->setEndGoal(g->def, (void*)g);
         m_doc.updatePlan(a);
         m_quiteCount = 0;
     }
@@ -396,6 +397,15 @@ void deserialize(const char* sp) {
     g_ctrl->m_doc.deserialize(ss, g_ctrl->m_importedTexts);
     g_ctrl->readDoc();
     g_ctrl->updateMesh();
+    if (g_ctrl->m_doc.m_mapdef.m_objModules.size() > 0) // there were imported modules, need to emit scene externts
+    {
+        Vec2 mn(FLT_MAX, FLT_MAX), mx(-FLT_MAX, -FLT_MAX);
+        for(const auto& vtx: g_ctrl->m_doc.m_mapdef.m_vtx) {
+            mn.mmin(vtx->p);
+            mx.mmax(vtx->p);
+        }
+        EM_ASM_(set_scene_extents($0, $1, $2, $3), mn.x, mn.y, mx.x, mx.y);
+    }
 }
 
 void go_to_frame(int f) {

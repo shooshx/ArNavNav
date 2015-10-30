@@ -278,8 +278,9 @@ void GoalItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
     QGraphicsItem::mouseMoveEvent(event);
     auto p = pos();
     m_g->def.p = Vec2(p.x(), p.y()); 
-    for(auto* agent: m_g->agents)
-        agent->m_endGoalPos.p = m_g->def.p;
+    for(auto* agent: m_g->agents) {
+        agent->setEndGoal(m_g->def, (void*)m_g);
+    }
     m_ctrl->update();
 }
 

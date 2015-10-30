@@ -107,6 +107,7 @@ public:
     void clear() {
         m_vtx.clear();
         m_pl.clear();
+        m_objModules.clear();
     }
 
     vector<unique_ptr<Vertex>> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate

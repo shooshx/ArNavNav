@@ -9,7 +9,7 @@ public:
     enum EType {
         TypeCircle = 1,
         TypeAgent = 2,
-        TypeOther = 3
+        TypeOther = 3 // Segment, PointSegment
     };
 
     Object() {}

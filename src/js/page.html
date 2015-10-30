@@ -1,12 +1,15 @@
-<html><head><script>
+<html><head><script>"use strict";
 var canvas, ctx, output, scroll;
 var added_poly_point, moved_object, started_new_poly, added_agent, add_goal, remove_goal, cpp_progress, set_goal;
 var serialize, deserialize, go_to_frame, change_size, update_goal, add_imported
 var grass_pattern, rock_pattern
 var world_width, world_height
 var needDraw = true
-var inq = false
+var inq = (typeof qactions !== 'undefined')
 var thecookie = {}
+if (inq) {
+    var Pointer_stringify = function (a) { return a }
+}
 
 var WORLD_FACTOR = 4
 
@@ -22,12 +25,12 @@ var COLOR_ATTACK_GOAL = '#a40017'
 var RADIUS_GOAL = 2
 var RADIUS_POLYPOINT = 1
 
-ObjSelType = {
+var ObjSelType = {
     NONE: 0,
     SINGLE: 1,
     MULTI: 2
 }
-ObjType = {
+var ObjType = {
     POLYPOINT: 0, AGENT: 1, GOAL: 2
 }
 var INIT_SQUARE = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
@@ -40,13 +43,11 @@ function init() {
     output = document.getElementById("output")
     scroll = document.getElementById("scroll")
 
-    if (typeof qactions !== 'undefined') {
+    if (inq) {
         qactions.cpp_start()
-        for (k in qactions) {
+        for (var k in qactions) {
             window[k.substring(0, k.indexOf('('))] = qactions[k]
         }
-        inq = true
-        Pointer_stringify = function(a) { return a }
     }
     else { // emscripten
         Module.ccall('cpp_start', null);
@@ -79,7 +80,7 @@ function init() {
     } // disable zoom so it wont be distorted
     
     resize();
-    scrollPos = WORLD_FACTOR/2 - 0.5 // center, minus half the length of the bar
+    var scrollPos = WORLD_FACTOR/2 - 0.5 // center, minus half the length of the bar
     canvas_cont.scrollLeft = canvas_cont.clientWidth*scrollPos; // 4->1.5  3->0.33  2->0.5
     canvas_cont.scrollTop = canvas_cont.clientHeight*scrollPos; 
     zoom_scroll.min = -(100 - 100 / WORLD_FACTOR)
@@ -145,7 +146,7 @@ function parseUrl() {
 function setCookie(k, v) {
     thecookie[k] = v
     var cstr = k + "=" + v + "; "
-    date = new Date();
+    var date = new Date();
     date.setTime(date.getTime()+(100*24*60*60*1000));
     cstr += "expires=" + date.toGMTString();
     document.cookie = cstr // manages the collection on its own
@@ -246,9 +247,9 @@ function handleMouseDown(event) {
     needDraw = true
 
     var reversedZ = Object.keys(drawCircles).reverse()
-    for (zi in reversedZ) {
+    for (var zi in reversedZ) {
         var z = reversedZ[zi]
-        for (p in drawCircles[z]) {
+        for (var p in drawCircles[z]) {
             var o = drawCircles[z][p];
             if (o.isInside(x, y)) {
                 pressedObject = o;
@@ -298,7 +299,7 @@ function clearSelGoal() {
 
 function clearMultiSel() {
     multiSelected = []
-    for(i in circles) {
+    for (var i in circles) {
         circles[i].isSelected = false;
     }
 }
@@ -373,7 +374,7 @@ function handleMouseMove(event) {
             clearSelGoal()
 
             //out("sq= " + selectSquare.x1 + " " + selectSquare.y1 + " " + selectSquare.x2 + " " + selectSquare.y2)
-            for(i in circles) {
+            for (var i in circles) {
                 if (circles[i].isInRect(selectSquare)) {
                     selectSquare.isActive = true;
                     multiSelected.push(circles[i])
@@ -429,16 +430,16 @@ function remove_triangle(ptr) {
 function setGoal(x, y, selAgents) {
     var goalPtr = add_goal(x, y, parseFloat(goalRadius.value), goalAttack.checked ? 1:0) // will do add_circle
     activeGoals[goalPtr] = true
-    for(i in selAgents) {
+    for (var i in selAgents) {
         selAgents[i].goalPtr = goalPtr
         set_goal(selAgents[i].ptr, goalPtr);
     }
     var usedGoals = {}
-    for(i in circles) {
+    for (var i in circles) {
         if (circles[i].goalPtr)
             usedGoals[circles[i].goalPtr] = true
     }
-    for(i in activeGoals) {
+    for (var i in activeGoals) {
         if (!(i in usedGoals)) {
             remove_goal(i);
             delete activeGoals[i];
@@ -577,7 +578,7 @@ function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
 
 // feedback from c++
 function move_circle(ptr, x, y) {
-    o = circles[ptr];
+    var o = circles[ptr];
     if (o.x == x && o.y == y)
         return
     o.x = x;
@@ -628,19 +629,19 @@ function draw() {
     //ctx.translate(S2H_XOFFSET, S2H_YOFFSET)
     //ctx.scale(S2H_SCALE, S2H_SCALE);
 
-    for (z in drawTriangles) {
-        for (p in drawTriangles[z]) {
+    for (var z in drawTriangles) {
+        for (var p in drawTriangles[z]) {
             drawTriangles[z][p].draw1();
         }
     }
-    for (z in drawCircles) {
-        for (p in drawCircles[z]) {
+    for (var z in drawCircles) {
+        for (var p in drawCircles[z]) {
             drawCircles[z][p].draw1();
         }
-        for (p in drawCircles[z]) {
+        for (var p in drawCircles[z]) {
             drawCircles[z][p].draw2();
         }
-        for (p in drawCircles[z]) {
+        for (var p in drawCircles[z]) {
             drawCircles[z][p].draw3();
         }        
     }
@@ -655,7 +656,7 @@ function draw() {
         ctx.setLineDash([])
     }
 
-  /*  for (i in polyData) {
+  /*  for (var i in polyData) {
         var d = polyData[i]
         if (d[0] == 'v') {
             ctx.lineTo(d[1], d[2])
@@ -740,13 +741,17 @@ function resize() {
 
     S2H_XOFFSET = world_width * 0.5 // 0,0 should be in the center
     S2H_YOFFSET = world_height * 0.5
-    for(var ci in circles)
+    for (var ci in circles)
         circles[ci].makeDCoord()
-    for(var ti in triangles)
+    for (var ti in triangles)
         triangles[ti].makeDCoord()    
         
     //out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
     needDraw = true
+}
+
+function set_scene_extents(mnx, mny, mxx, mxy) {
+
 }
 
 function readPlayStop() {
@@ -838,7 +843,7 @@ function frameChange() {
 }
 
 function agentSizeChange() {
-    for (i in multiSelected) {
+    for (var i in multiSelected) {
         change_size(multiSelected[i].ptr, parseInt(agentSize.value))
         readScene();
     }
@@ -972,7 +977,7 @@ function sceneLoadFromServer(name) {
 function initDemos() {
     var dispDemos = function () {
         var fhtml = ""
-        for (n in demos) {
+        for (var n in demos) {
             var nm = Object.keys(demos[n])[0]
             if (nm.length > 0) {
                 fhtml += "<span class=\"loadlnk\" onclick=\"onLoad('" + nm + "')\">" + nm + "</span><br />"
@@ -998,7 +1003,7 @@ function initDemos() {
             var makeFunc = function(name) { // needed for closure capture of the name
                 return function () { return sceneLoadFromServer(name) }
             }
-            for (i in names) {
+            for (var i in names) {
                 var d = {}
                 var on = names[i]
                 d[on] = makeFunc(on)

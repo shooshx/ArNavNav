@@ -47,7 +47,7 @@ void Agent::computeNewVelocity(VODump* dump)
 
 			    const float d = 2.0f * mtrig::sin(openingAngle) * mtrig::cos(openingAngle);
 
-                if (otherObj->m_type == TypeAgent && otherAgent->m_isMobile) 
+                if (otherObj->m_type == TypeAgent) 
                 {
                     if (det(otherAgent->m_position - m_position, m_prefVelocity - otherAgent->m_prefVelocity) > 0.0f)
                     {
@@ -67,7 +67,7 @@ void Agent::computeNewVelocity(VODump* dump)
 		    }
 		    else 
             {
-                if (otherObj->m_type == TypeAgent && otherAgent->m_isMobile) {
+                if (otherObj->m_type == TypeAgent) {
 				    vo.m_apex = 0.5f * (otherAgent->m_velocity + m_velocity); 
                 }
                 else {
@@ -490,17 +490,6 @@ bool Agent::update(float deltaTime)
             m_indexInPlan = -1;
             m_velocity = Vec2();*/
         }
-    }
-    else {
-        // did we backtrack?
-        // this is a bad idea since it can cause loops see  back_and_forth_stuck.txt
-   /*     if (m_indexInPlan > 0 && !m_plan.m_d[m_indexInPlan - 1]->isPassed(m_position)  ) {
-            --m_indexInPlan;
-           // cout << "BACK! " << index << endl;
-            m_curGoalPos = m_plan.m_d[m_indexInPlan];
-        }
-        */
-
     }
 
 	/*if (!reachedEnd) {

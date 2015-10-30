@@ -13,9 +13,12 @@ Current features
 
 TBD
 - replan when stuck
-- string-pull on radius-specific mesh
-- narrow passage - with chopped VO
+   avoid when
+   - tryed a few times from the same place (many agents attack small target)
 - add buildings, unify buildings meshes
+
+- string-pull on radius-specific mesh
+- narrow passage - with chopped VO - not dependent on neighbor dist
 - UI
   - show path, future path
   - define speed

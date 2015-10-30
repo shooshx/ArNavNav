@@ -114,11 +114,11 @@
     <CustomBuild Include="src\nav.ui">
       <Filter>qUI</Filter>
     </CustomBuild>
-    <CustomBuild Include="src\NavWeb.ui">
-      <Filter>qUI</Filter>
-    </CustomBuild>
     <CustomBuild Include="src\nav.qrc">
       <Filter>qUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\NavWeb.ui">
+      <Filter>WebUI</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
