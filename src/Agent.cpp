@@ -7,117 +7,26 @@
 #include <iostream>
 
 #include "BihTree.h"
+#include "mtrig.h"
 
 using namespace std;
 
 
-
-namespace mtrig 
-{
-
-// from http://http.developer.nvidia.com/Cg/atan2.html
-float atan2(float y, float x)
-{
-    float t0, t1, t2, t3, t4;
-
-    t3 = iabs(x);
-    t1 = iabs(y);
-    t0 = imax(t3, t1);
-    t1 = imin(t3, t1);
-    t3 = float(1) / t0;
-    t3 = t1 * t3;
-
-    t4 = t3 * t3;
-    t0 =         - float(0.013480470);
-    t0 = t0 * t4 + float(0.057477314);
-    t0 = t0 * t4 - float(0.121239071);
-    t0 = t0 * t4 + float(0.195635925);
-    t0 = t0 * t4 - float(0.332994597);
-    t0 = t0 * t4 + float(0.999995630);
-    t3 = t0 * t3;
-
-    t3 = (abs(y) > abs(x)) ? float(1.570796327) - t3 : t3;
-    t3 = (x < 0) ?  float(3.141592654) - t3 : t3;
-    t3 = (y < 0) ? -t3 : t3;
-
-    return t3;
-}
-
-float asin(float x) {
-    float negate = float(x < 0);
-    x = iabs(x);
-    float ret = -0.0187293;
-    ret *= x;
-    ret += 0.0742610;
-    ret *= x;
-    ret -= 0.2121144;
-    ret *= x;
-    ret += 1.5707288;
-    ret = 3.14159265358979*0.5 - sqrt(1.0 - x)*ret;
-    return ret - 2 * negate * ret;
-}
-
-
-// from http://www.flipcode.com/archives/Fast_Trigonometry_Functions_Using_Lookup_Tables.shtml
-#define MAX_CIRCLE_ANGLE      512
-#define HALF_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE/2)
-#define QUARTER_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE/4)
-#define MASK_MAX_CIRCLE_ANGLE (MAX_CIRCLE_ANGLE - 1)
-#define PI 3.14159265358979323846f
-
-static bool g_wasInited = false;
-static float fast_cossin_table[MAX_CIRCLE_ANGLE];
-
-void build_table() {
-    // Build cossin table
-    for (int i = 0 ; i < MAX_CIRCLE_ANGLE ; i++)
-    {
-        fast_cossin_table[i] = (float)sin((double)i * PI / HALF_MAX_CIRCLE_ANGLE);
-    }
-}
-
-inline float cos(float n)
-{
-    float f = n * HALF_MAX_CIRCLE_ANGLE / PI;
-    int i = (int)f;
-    if (i < 0)
-    {
-        return fast_cossin_table[((-i) + QUARTER_MAX_CIRCLE_ANGLE) & MASK_MAX_CIRCLE_ANGLE];
-    }
-    else
-    {
-        return fast_cossin_table[(i + QUARTER_MAX_CIRCLE_ANGLE) & MASK_MAX_CIRCLE_ANGLE];
-    }
-}
-
-inline float sin(float n)
-{
-    float f = n * HALF_MAX_CIRCLE_ANGLE / PI;
-    int i = (int)f;
-    if (i < 0)
-    {
-        return fast_cossin_table[(-((-i) & MASK_MAX_CIRCLE_ANGLE)) + MAX_CIRCLE_ANGLE];
-    }
-    else
-    {
-        return fast_cossin_table[i & MASK_MAX_CIRCLE_ANGLE];
-    }
-}
-
-}
-
 void Agent::computeNewVelocity(VODump* dump)
 {
+#ifdef USE_MY_TRIG
     if (!mtrig::g_wasInited) {
         mtrig::build_table();
         mtrig::g_wasInited = true;
     }
+#endif
     m_voStore.clear();
     vector<VelocityObstacle>& velocityObstacles = m_voStore;
 	velocityObstacles.reserve(m_neighbors.c.size());
 
     m_neighbors.sort();
 
+    // create VOs
 	for (auto iter = m_neighbors.c.begin(); iter != m_neighbors.c.end(); ++iter)
     {
         VelocityObstacle vo;
@@ -192,6 +101,7 @@ void Agent::computeNewVelocity(VODump* dump)
             }
             vo.p1 = p1;
             vo.p2 = p2;
+            vo.fromObstacle = true;
         }
         // search existing vos for unification
         bool foundUni = false;
@@ -222,51 +132,71 @@ void Agent::computeNewVelocity(VODump* dump)
 
     Candidate candidate;
 
-    Candidate minCandidate;
+    Vec2 minCandidateVel;
     float minScore = FLT_MAX;
+
+    Vec2 bestInvalidVel;
+    int bestInvalidVOIndex = -1; //(int optimal)
+    float bestInvalidMinScore = FLT_MAX;
 
     auto checkCandidate = [&]() {
         float score = absSq(m_prefVelocity - candidate.m_position);
         if (score >= minScore)
             return;
-
+        
+        int invalidatingIndex = -1;
+        bool invalidatedByObstacle = false;
         for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
         {
-            if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2) 
-            { 
-                auto& evo = velocityObstacles[j];
-                Vec2 topos = candidate.m_position - evo.m_apex;
-                if (!evo.isBig) {
-                    float d1 = det(evo.m_side2, topos); 
-                    float d2 = det(evo.m_side1, topos); 
-                    if (d1 < 0.0f && d2 > 0.0f)
-                        return;
-                }
-                else {
-                    float d1 = det(evo.m_side2, topos); 
-                    float dmid = det(evo.m_sideMid, topos); 
-                    float d2 = det(evo.m_side1, topos); 
-                    if ((d1 < 0.0f && dmid > 0.0f) || (dmid < 0.0f && d2 > 0.0f))
-                        return;
-                }
+            if (j == candidate.m_velocityObstacle1 || j == candidate.m_velocityObstacle2) 
+                continue; // don't check VOs that this candidate is part of
+
+            bool isValid = true;
+            auto& evo = velocityObstacles[j];
+            Vec2 topos = candidate.m_position - evo.m_apex;
+            if (!evo.isBig) {
+                float d1 = det(evo.m_side2, topos); 
+                float d2 = det(evo.m_side1, topos); 
+                if (d1 < 0.0f && d2 > 0.0f)
+                    isValid = false;
             }
-            // avoid points that are in the middle between two VOs
-          /*  if (candidate.m_velocityObstacle1 == INT_MAX && j != candidate.m_velocityObstacle2) {
-                float d2 = det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (iabs(d2) < 0.0001)
-                    return;
+            else {
+                float d1 = det(evo.m_side2, topos); 
+                float dmid = det(evo.m_sideMid, topos); 
+                float d2 = det(evo.m_side1, topos); 
+                if ((d1 < 0.0f && dmid > 0.0f) || (dmid < 0.0f && d2 > 0.0f))
+                    isValid = false;
             }
 
-            if (candidate.m_velocityObstacle2 == INT_MAX && j != candidate.m_velocityObstacle1) {
-                float d1 = det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex); 
-                if (iabs(d1) < 0.0001)
-                    return;
-            }*/
-
+            if (!isValid)
+            {
+                if (invalidatingIndex == -1) {
+                    invalidatingIndex = j;
+                }
+                if (evo.fromObstacle) {
+                    invalidatedByObstacle = true;
+                }
+            }
 
         }
-        minCandidate = candidate;
-        minScore = score;
+
+        if (invalidatingIndex != -1) // it's invalid
+        {
+            // its not an obstacle vo, (it can be entered into if there's no alternative)
+            // and its in the VO of the furthest neighbor and the best score among those of the furthest neighbor
+            if (!invalidatedByObstacle && ((invalidatingIndex > bestInvalidVOIndex || 
+                                           (invalidatingIndex == bestInvalidVOIndex && score < bestInvalidMinScore)))) 
+            {
+                bestInvalidVel = candidate.m_position;
+                bestInvalidVOIndex = invalidatingIndex;
+                bestInvalidMinScore = score;
+            }
+        }
+        else 
+        {
+            minCandidateVel = candidate.m_position;
+            minScore = score;
+        }
     };
 
     //std::multimap<float, Candidate> candidates;
@@ -285,7 +215,6 @@ void Agent::computeNewVelocity(VODump* dump)
     checkCandidate();
 	//candidates.insert(std::make_pair(absSq(m_prefVelocity - candidate.m_position), candidate));
 
-#if 1
     // project perf velocity on sides of all vos
 	for (int i = 0; i < (int)velocityObstacles.size(); ++i) 
     {
@@ -318,8 +247,7 @@ void Agent::computeNewVelocity(VODump* dump)
 			}
 		}
 	}
-#endif
-#if 1
+
 	for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
     {
 		candidate.m_velocityObstacle1 = INT_MAX;
@@ -370,8 +298,7 @@ void Agent::computeNewVelocity(VODump* dump)
 			}
 		}
 	}
-#endif
-#if 1
+
 
     // intersections of two VOs
 	for (int i = 0; i < (int)velocityObstacles.size() - 1; ++i) 
@@ -451,42 +378,15 @@ void Agent::computeNewVelocity(VODump* dump)
 			}
 		}
 	}
-#endif
 
-	//int optimal = -1;
 
     m_newVelocity = Vec2();
-    if (minScore != FLT_MAX)
-        m_newVelocity = minCandidate.m_position;
-/*	for (auto iter = candidates.begin(); iter != candidates.end(); ++iter) 
-    {
-		candidate = iter->second;
-
-		bool valid = true;
-
-		for (int j = 0; j < (int)velocityObstacles.size(); ++j) 
-        {
-			if (j != candidate.m_velocityObstacle1 && j != candidate.m_velocityObstacle2 && 
-                det(velocityObstacles[j].m_side2, candidate.m_position - velocityObstacles[j].m_apex) < 0.0f && 
-                det(velocityObstacles[j].m_side1, candidate.m_position - velocityObstacles[j].m_apex) > 0.0f) 
-            {
-				valid = false;
-
-				if (j > optimal) {
-					optimal = j;
-                    // I don't know WTF is this shit but it's not good.
-    		        //m_newVelocity = candidate.m_position;
-				}
-
-				break;
-			}
-		}
-
-		if (valid) {
-    	    m_newVelocity = candidate.m_position;
-			break;
-		}
-	}*/
+    if (minScore != FLT_MAX) {
+        m_newVelocity = minCandidateVel;
+    }
+    else if (bestInvalidVOIndex != -1) {
+        m_newVelocity = bestInvalidVel;
+    }
 
     if (dump != nullptr) {
         dump->vos = velocityObstacles;
@@ -521,6 +421,7 @@ void Agent::computePreferredVelocity(float deltaTime)
 	}
 }
 
+
 void Agent::computeNeighbors(BihTree& bihTree)
 {
     m_neighbors.clear();
@@ -530,6 +431,7 @@ void Agent::computeNeighbors(BihTree& bihTree)
         insertNeighbor(obj, adjustingRangeSq);
     });
 }
+
 
 
 void Agent::insertNeighbor(Object* otherObj, float &rangeSq)
@@ -554,7 +456,6 @@ void Agent::insertNeighbor(Object* otherObj, float &rangeSq)
             rangeSq = m_neighbors.top().first;
         }
 	}
-	
 }
 
 namespace qui {

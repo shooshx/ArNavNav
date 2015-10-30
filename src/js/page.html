@@ -121,7 +121,9 @@ function init() {
     var goalType = parseInt(readCookie("goalType", "0"))
     goalPoint.checked = (goalType == 0)
     goalAttack.checked = (goalType == 1)
+    isPlaying = false;
 
+    readPlayStop();
 
     initDemos()
 
@@ -743,14 +745,17 @@ function resize() {
     for(var ti in triangles)
         triangles[ti].makeDCoord()    
         
-    out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
+    //out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
+    needDraw = true
 }
 
-function playstop() {
-    isPlaying = !isPlaying
-    //play_but.value = isPlaying ? "Stop" : "Play"
+function readPlayStop() {
     svg_play.style.visibility = isPlaying ? "hidden" : "visible"
     svg_pause.style.visibility = isPlaying ? "visible" : "hidden"
+}
+function playstop() {
+    isPlaying = !isPlaying
+    readPlayStop()
 }
 
 var startx = 0, starty = 0, starts = 0

@@ -37,6 +37,7 @@ public:
     void runTriangulate();
 
     void init_test();
+    void init_circle();
 
     void clearObst();
     void clearAllObj();

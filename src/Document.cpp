@@ -8,13 +8,8 @@
 
 Document::Document()
 {
-    //init_preset();
     init_test();
-
-    //init_tri();
-
     //init_circle();
-    //init_grid();
 
     for(int i = 0;i < 100; ++i)
         m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
@@ -24,12 +19,31 @@ Document::Document()
 void Document::init_test()
 {
     auto gend = addGoal(Vec2(-200, 0), 20, GOAL_POINT);
-    for(int i = 0; i < 1 ; ++i)
+    for(int i = 0; i < 5 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
-
 }
+
+#define COUNT 20 //40
+#define RADIUS 6.0
+#define ANG_OFFST 1
+const float TWO_PI = 6.283185307179586f;
+
+void Document::init_circle()
+{
+    float d = 1.0/COUNT;
+
+    for (int i = 0; i < COUNT; ++i) 
+    {
+        Vec2 pos = 100.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
+        Goal g(-pos, 1.5, GOAL_POINT);
+
+        auto* a = addAgent(pos, &g, RADIUS, 1.0, 2.0);
+        a->m_neighborDist = 15.0;
+    }
+}
+
 
 static ostream& operator<<(ostream& os, const Vec2& p) {
     os << p.x << "," << p.y;

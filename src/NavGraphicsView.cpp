@@ -5,6 +5,8 @@
 
 namespace qui {
 
+
+
 BaseItem::BaseItem(NavDialog* ctrl, Object* obj) 
     : m_ctrl(ctrl), m_obj(obj) 
 {
@@ -12,6 +14,7 @@ BaseItem::BaseItem(NavDialog* ctrl, Object* obj)
     setFlag(ItemIsSelectable);
     setCacheMode(NoCache);
     setPos(m_obj->m_position.x, m_obj->m_position.y);
+
 }
 
 void BaseItem::preparePainter(QPainter* painter, const QStyleOptionGraphicsItem* option)
@@ -311,7 +314,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
     if (m_pos.size() == 0)
         return;
     QPen pen(QColor(0,0,0));
-    pen.setWidth(2);
+    pen.setWidth(0.5); // 2
     painter->setPen(pen);
     QVector<QPointF> lp;
     for(auto v: m_pos) {
@@ -322,7 +325,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
     if (m_atframe != -1) // ghost
     {
         CHECK(m_atframe < m_pos.size(), "unexpected atframe");
-        pen.setWidth(1);
+        pen.setWidth(0.5);
         painter->setPen(pen);
         painter->setBrush(QBrush(QColor(255, 200, 200, 180)));
         int radius = m_agent->size.x / 2;
@@ -362,6 +365,7 @@ QRectF PathItem::boundingRect() const {
 NavGraphicsView::NavGraphicsView(QWidget *parent)
     : QGraphicsView(parent)
 {
+    //scale(2,2);
 }
 
 void NavGraphicsView::mousePressEvent(QMouseEvent *event)

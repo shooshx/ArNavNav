@@ -11,7 +11,8 @@
 #include <sstream>
 
 
-#define DISPLAY_VOS
+//#define DISPLAY_VOS
+//#define DUMP_SAMPLE
 
 namespace qui {
 
@@ -153,7 +154,7 @@ void NavDialog::readDoc()
     for(auto* agent: m_doc->m_agents) {
         auto p = new PathItem(this, agent);
         m_pathitems.push_back(shared_ptr<PathItem>(p));
-        p->setZValue(5);
+        p->setZValue(5); // also the ghost agents
         m_scene->addItem(p);
         if (agent == m_doc->m_prob)
             m_probPath = p;
@@ -236,6 +237,9 @@ void NavDialog::update()
             m_pathitems[i]->m_vel.push_back( Vec2());
             m_pathitems[i]->m_atframe = -1;
         }
+#ifdef DUMP_SAMPLE
+        ofstream outf2("C:\\projects\\nav_old\\output_all_new.txt");
+#endif
 
         m_pathVos.clear();
         int frame = 0;
@@ -249,6 +253,29 @@ void NavDialog::update()
                 m_doc->m_debugVoDump = &m_pathVos.back();
             }
 #endif
+#ifdef DUMP_SAMPLE
+            //-----
+            outf2 << frame << "\np= ";
+            outf2.precision(10);
+            for (int i = 0; i < m_doc->m_agents.size(); ++i) {
+                auto p = m_doc->m_agents[i]->m_position;
+                outf2 << p.x << "," << p.y << ", ";
+            }
+            outf2 << "\nv= ";
+            for (int i = 0; i < m_doc->m_agents.size(); ++i) {
+                auto p = dynamic_cast<Agent*>(m_doc->m_agents[i])->m_velocity;
+                outf2 << p.x << "," << p.y << ", ";
+            }
+            for (int i = 0; i < m_doc->m_agents.size(); ++i) {
+                auto a = dynamic_cast<Agent*>(m_doc->m_agents[i]);
+                outf2 << "n" << i << ":" << a->m_neighbors.c.size() << "= ";
+                for(auto pr: a->m_neighbors.c)
+                    outf2 << pr.first << " : " << pr.second->index << ",  ";
+                outf2 << "\n";
+            }
+            outf2 << "\n";
+            //-----
+#endif
 
             if (m_doc->doStep(0.25, true))
                 break;
@@ -257,6 +284,9 @@ void NavDialog::update()
                 m_pathitems[i]->m_pos.push_back( m_doc->m_agents[i]->m_position );
                 m_pathitems[i]->m_vel.push_back( m_doc->m_agents[i]->m_prefVelocity);// m_velocity );
             }
+
+
+
         }
 
         // restore backup

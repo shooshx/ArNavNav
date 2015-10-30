@@ -176,6 +176,9 @@
     <ClInclude Include="src\BihTree.h">
       <Filter>hrvo</Filter>
     </ClInclude>
+    <ClInclude Include="src\mtrig.h">
+      <Filter>hrvo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\js\page.html">

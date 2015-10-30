@@ -149,9 +149,6 @@ inline Vec2 operator-(const Vec2& v) {
     return Vec2(-v.x, -v.y);
 }
 
-//inline float atan(const Vec2& v) {
-//    return std::atan2(v.y, v.x);
-//}
 
 inline float sqr(float scalar) {
     return scalar * scalar;
