@@ -37,6 +37,7 @@ public:
     void runTriangulate();
 
     void init_test();
+    void init_circle();
 
     void clearObst();
     void clearAllObj();
@@ -51,6 +52,7 @@ public:
     bool doStep(float deltaTime, bool doUpdate);
 
     void updatePlan(Agent* agent);
+    bool shouldReplan(Agent* agent);
 
     void serialize(ostream& os);
     void deserialize(istream& is, map<string, string>& imported);

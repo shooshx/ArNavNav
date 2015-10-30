@@ -4,6 +4,8 @@
 #include <queue>
 #include <iostream>
 
+#include "Agent.h"
+
 using namespace std;
 
 typedef pair<Vertex*, Vertex*> VPair;
@@ -44,6 +46,8 @@ void Mesh::connectTri()
         h0->from = t.v[0];
         h0->to = t.v[1];
         h0->_midPnt = (t.v[1]->p + t.v[0]->p) * 0.5f;
+        h0->lengthSq = Vec2::distSq(h0->from->p, h0->to->p);
+        h0->passToNextSq = distSqToProjectOrMax(h0->to->p, t.v[0]->p, t.v[2]->p);
         t.h[0] = h0;
 
         HalfEdge* h1 = addHe();
@@ -51,6 +55,8 @@ void Mesh::connectTri()
         h1->from = t.v[1];
         h1->to = t.v[2];
         h1->_midPnt = (t.v[2]->p + t.v[1]->p) * 0.5f;
+        h1->lengthSq = Vec2::distSq(h1->from->p, h1->to->p);
+        h1->passToNextSq = distSqToProjectOrMax(h1->to->p, t.v[1]->p, t.v[0]->p);
         t.h[1] = h1;
 
         HalfEdge* h2 = addHe();
@@ -58,6 +64,8 @@ void Mesh::connectTri()
         h2->from = t.v[2];
         h2->to = t.v[0];
         h2->_midPnt = (t.v[0]->p + t.v[2]->p) * 0.5f;
+        h2->lengthSq = Vec2::distSq(h2->from->p, h2->to->p);
+        h2->passToNextSq = distSqToProjectOrMax(h2->to->p, t.v[2]->p, t.v[1]->p);
         t.h[2] = h2;
 
         h0->next = h1;
@@ -161,7 +169,7 @@ float distm(const Vec2& a, const Vec2& b) {
     return std::sqrt(distSq(a, b));
 }
 
-bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor)
+bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* start, Triangle* end, vector<Triangle*>& corridor, float agetnRadius)
 {
     if (start == end)
         return false;
@@ -206,7 +214,17 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
         }
     }
 
+    // main loop
     int destReached = 0;
+
+    // passing an edge case the diameter to check needs to be multiplied by SQRT_2 since that's the worst case for the edge points of a segment
+    // this means the narrowest passage an agent can pass through is larger than its diameter
+    // this limitation stems from the fact that the VOs we make for a polyline does not have round corners (which will be hard to simulate) see narrow_worst_cast.txt
+    float edgeLenCheck = sqr(agetnRadius * SQRT_2 * 2);
+    // in the point-to-segment case the distance to check is one half radius*SQRT_2 - the half near the point
+    // and the other half is radius*nei_dist since that's the distance where an agent find it going to bump into a wall and stop
+    // (the simulation of a "chopped" VO)
+    float triMidCheck = sqr(agetnRadius * SQRT_2 + agetnRadius * NEI_DIST_RADIUS_FACTOR);
     while (!tq.empty() ) 
     {
         PrioNode curn = tq.top();
@@ -228,14 +246,22 @@ bool Mesh::edgesAstarSearch(const Vec2& startPos, const Vec2& endPos, Triangle* 
 
         // two ways to go from this triangle
         HalfEdge* next[2] = { cur->next->opposite, cur->next->next->opposite }; 
+        float widthSqToNext[2] = { cur->passToNextSq, cur->next->next->passToNextSq };
+
         for(int i = 0; i < 2; ++i) 
         {
             HalfEdge* n = next[i];
             if (!n)
                 continue;
+            if (n->lengthSq < edgeLenCheck) // edge is too narrow to pass through 
+                continue;
+            if (widthSqToNext[i] < triMidCheck) // or width of triangle to narrow (opposite since we want the dist inside the triangle we're in)
+                continue;
+
             float costToThis = cur->costSoFar + distm(*cur->curMidPntPtr, *n->curMidPntPtr);
             if (costToThis >= n->costSoFar) // need to update an edge that was already reached? 
                 continue;                   // Equals avoid endless loop in degenerate triangulation
+
            /* if (n->costSoFar == FLT_MAX)
                 cout << "  NewCost " << n->index << " =" << costToThis << endl;
             else

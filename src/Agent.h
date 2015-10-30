@@ -13,7 +13,9 @@
 
 class BihTree;
 
-#define NEI_DIST_RADIUS_FACTOR (3.0f)
+#define NEI_DIST_RADIUS_FACTOR (2.0f)
+// changing this factor also changes how narrow a tri-to-segment corridor the agent can pass
+// since the neighbors check determines when the agent detects the segment
 
 struct Candidate
 {
@@ -29,8 +31,9 @@ struct VelocityObstacle
     Vec2 m_side2;
     Vec2 p1 = INVALID_VEC2;
     Vec2 p2 = INVALID_VEC2; // the points that originated the sides, for unification of VOs
-    bool isBig = false; // is the angle more than 180, us
     Vec2 m_sideMid = INVALID_VEC2;
+    bool isBig = false; // is the angle more than 180, use the sideMid point as well
+    bool fromObstacle = false; // is this VO made by an obstacle (should never be entered into)
 };
 
 struct VODump
@@ -224,7 +227,7 @@ class Agent : public Circle
 public:
     Agent(int index, const Vec2& position, const GoalDef& goalPos, float neighborDist, int maxNeighbors, float radius, float prefSpeed, float maxSpeed)
         : Circle(position, radius, index, TypeAgent)
-        , m_endGoalPos(goalPos)
+        , m_endGoalPos(goalPos), m_endGoalId(nullptr)
         , m_maxNeighbors(maxNeighbors)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
         , m_prefSpeed(prefSpeed), m_radius(radius)
@@ -246,9 +249,11 @@ public:
         size = Vec2(r * 2, r * 2);
         m_neighborDist = r * NEI_DIST_RADIUS_FACTOR;
     }
-    void setEndGoal(const GoalDef& g) {
+    void setEndGoal(const GoalDef& g, void* gid) {
         m_endGoalPos = g;
+        m_endGoalId = gid;
         m_reached = false;
+        m_goalIsReachable = false;
     }
 
 
@@ -259,9 +264,9 @@ private:
 public:
     // configs
     float m_radius = 0.0f;
-    bool m_isMobile = true;
 
     GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal
+    void* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)
 
     int m_maxNeighbors = 0;
     float m_neighborDist = 0.0f;
@@ -276,6 +281,7 @@ public:
     int m_indexInPlan = -1;
     ISubGoal* m_curGoalPos = nullptr; // in the plan
     bool m_reached = false;
+    bool m_goalIsReachable = false; //determined in updatePlan
 
     Vec2 m_velocity;
     Vec2 m_newVelocity;
@@ -284,6 +290,7 @@ public:
 
 
     MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
+    //std::set<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
 	
     Plan m_plan;
 };

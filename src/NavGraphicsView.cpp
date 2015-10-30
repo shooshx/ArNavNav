@@ -5,6 +5,8 @@
 
 namespace qui {
 
+
+
 BaseItem::BaseItem(NavDialog* ctrl, Object* obj) 
     : m_ctrl(ctrl), m_obj(obj) 
 {
@@ -12,6 +14,7 @@ BaseItem::BaseItem(NavDialog* ctrl, Object* obj)
     setFlag(ItemIsSelectable);
     setCacheMode(NoCache);
     setPos(m_obj->m_position.x, m_obj->m_position.y);
+
 }
 
 void BaseItem::preparePainter(QPainter* painter, const QStyleOptionGraphicsItem* option)
@@ -221,14 +224,14 @@ void TriItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, Q
     }
     trimid /= 3.0f;
 
-  /*  for(int i = 0; i < 3; ++i) { // HalfEdge number
+    for(int i = 0; i < 3; ++i) { // HalfEdge number
         const HalfEdge* he = m_t->h[i];
         Vec2 mid = (0.4 * he->to->p + 0.6 * he->from->p);
         float d = length(mid - trimid);
         Vec2 towardsMid = ((mid - trimid)*((d-10)/d)) + trimid;
 
         painter->drawText(towardsMid.x - 20, towardsMid.y - 20, 40, 40, Qt::AlignCenter, QString("%1").arg(he->index));
-    }*/
+    }
 }
 QRectF TriItem::boundingRect() const {
     Vec2 mx = m_t->v[0]->p, mn = m_t->v[0]->p;
@@ -275,8 +278,9 @@ void GoalItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event) {
     QGraphicsItem::mouseMoveEvent(event);
     auto p = pos();
     m_g->def.p = Vec2(p.x(), p.y()); 
-    for(auto* agent: m_g->agents)
-        agent->m_endGoalPos.p = m_g->def.p;
+    for(auto* agent: m_g->agents) {
+        agent->setEndGoal(m_g->def, (void*)m_g);
+    }
     m_ctrl->update();
 }
 
@@ -311,7 +315,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
     if (m_pos.size() == 0)
         return;
     QPen pen(QColor(0,0,0));
-    pen.setWidth(2);
+    pen.setWidth(0.5); // 2
     painter->setPen(pen);
     QVector<QPointF> lp;
     for(auto v: m_pos) {
@@ -322,7 +326,7 @@ void PathItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
     if (m_atframe != -1) // ghost
     {
         CHECK(m_atframe < m_pos.size(), "unexpected atframe");
-        pen.setWidth(1);
+        pen.setWidth(0.5);
         painter->setPen(pen);
         painter->setBrush(QBrush(QColor(255, 200, 200, 180)));
         int radius = m_agent->size.x / 2;
@@ -362,6 +366,7 @@ QRectF PathItem::boundingRect() const {
 NavGraphicsView::NavGraphicsView(QWidget *parent)
     : QGraphicsView(parent)
 {
+    //scale(2,2);
 }
 
 void NavGraphicsView::mousePressEvent(QMouseEvent *event)

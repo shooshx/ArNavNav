@@ -13,6 +13,12 @@ Current features
 
 TBD
 - replan when stuck
+   avoid when
+   - tryed a few times from the same place (many agents attack small target)
+- add buildings, unify buildings meshes
+
+- string-pull on radius-specific mesh
+- narrow passage - with chopped VO - not dependent on neighbor dist
 - UI
   - show path, future path
   - define speed
@@ -22,10 +28,11 @@ TBD
   - single step
   - rewind button
   - performance - read all movements
-  - load from address
-  - cookies
+
   - url
-- remesh should do replan for all
+- don't mutate mesh in Astar  
+  
+- remesh should do replan for all ?
 
 
 Maybe

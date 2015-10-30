@@ -4,16 +4,12 @@
 #include <iostream>
 #include <sstream>
 
+#define SHOW_MARKERS
 
 Document::Document()
 {
-    //init_preset();
     init_test();
-
-    //init_tri();
-
     //init_circle();
-    //init_grid();
 
     for(int i = 0;i < 100; ++i)
         m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
@@ -22,13 +18,32 @@ Document::Document()
 
 void Document::init_test()
 {
-    auto gend = addGoal(Vec2(-200, 0), 20, GOAL_POINT);
-    for(int i = 0; i < 1 ; ++i)
+    auto gend = addGoal(Vec2(-200, 0), 50, GOAL_POINT);
+    for(int i = 0; i < 5 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
-
 }
+
+#define COUNT 20 //40
+#define RADIUS 6.0
+#define ANG_OFFST 1
+const float TWO_PI = 6.283185307179586f;
+
+void Document::init_circle()
+{
+    float d = 1.0/COUNT;
+
+    for (int i = 0; i < COUNT; ++i) 
+    {
+        Vec2 pos = 100.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
+        Goal g(-pos, 1.5, GOAL_POINT);
+
+        auto* a = addAgent(pos, &g, RADIUS, 1.0, 2.0);
+        a->m_neighborDist = 15.0;
+    }
+}
+
 
 static ostream& operator<<(ostream& os, const Vec2& p) {
     os << p.x << "," << p.y;
@@ -101,7 +116,6 @@ public:
 };
 
 
-#define SQRT_2 (1.4142135623730950488016887242097f)
 
 #define ANTI_OVERLAP_FACTOR 0.0 //0.1
 
@@ -218,15 +232,6 @@ bool checkSelfIntersect(vector<Vec3>& vtx, vector<int>& pl);
 
 void Document::runTriangulate()
 {
-   /* {
-        vector<Vec3> vtx;
-        for(auto& v: m_mapdef.m_vtx) 
-            vtx.push_back(Vec3(v->p.x, 0, v->p.y));
-        checkSelfIntersect(vtx, m_mapdef.m_pl[0].m_di);
-        return;
-    }*/
-    
-
     vector<Vec2> gt;
     m_mesh.clear();
     runTri(&m_mapdef, m_mesh);
@@ -266,13 +271,13 @@ void Document::runTriangulate()
         Vec2 p1, p2;
         seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
 
-        /*if (cnt < 97) {
+#ifdef SHOW_MARKERS
+        if (cnt < 97) {
             m_markers[cnt++]->p = p1;
             m_markers[cnt++]->p = p2;
-        }*/
+        }
+#endif
     }
-
-
 
     //------------------------------------
 
@@ -283,6 +288,7 @@ void Document::runTriangulate()
 }
 
 
+// assumnes Agent::setEndGoal was called for this agent
 void Document::updatePlan(Agent* agent)
 {
     if (m_mesh.m_vtx.empty())
@@ -300,17 +306,19 @@ void Document::updatePlan(Agent* agent)
     Triangle* endTri = m_mesh.findContaining(endp, posReference);
 
     agent->m_plan.clear();
+    agent->m_goalIsReachable = false;
     if (!endTri || !startTri || startTri == endTri) 
     {
         agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[0];
+        agent->m_goalIsReachable = (startTri == endTri);
         return;
     }
 
     // find corridor
     vector<Triangle*> corridor;
-    if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor))
+    if (m_mesh.edgesAstarSearch(startp, endp, startTri, endTri, corridor, agent->m_radius))
     {
         //for(auto* t: corridor)
         //    if (t->highlight == 0)
@@ -375,9 +383,10 @@ void Document::updatePlan(Agent* agent)
         //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
+        agent->m_goalIsReachable = true;
     }
     else 
-    { // go in the direction but never reach it
+    { // go in the direction but never reach it (agent->m_goalIsReachable remains false)
         agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
         agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
@@ -467,6 +476,32 @@ void Document::clearSegMinDist()
         ms.clear();
 }*/
 
+bool Document::shouldReplan(Agent* agent)
+{
+    if (!agent->m_goalIsReachable)
+        return false; // if its not reachable, you're bound to get stuck sooner or later
+
+    bool hasAgentsNei = false;
+    bool allSameGoal = true;
+    for(auto& ra: agent->m_neighbors.c) 
+    {
+        if (ra.second->m_type == Object::TypeAgent) {
+            hasAgentsNei = true;
+            auto* a = static_cast<Agent*>(ra.second);
+            if (a->m_endGoalId != agent->m_endGoalId)
+                allSameGoal = false;
+        }
+    }
+
+    // If I'm alone here
+    // If all around me are agents going the same way
+    if (!hasAgentsNei || allSameGoal) {
+        return true;
+    }
+    return false;
+}
+
+#define REPLAN_VEL_THRESH (0.1)
 
 bool Document::doStep(float deltaTime, bool doUpdate)
 {
@@ -481,7 +516,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
 
     for(auto* agent: m_agents)
     {
-        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
+        if (agent->m_curGoalPos == nullptr)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
@@ -500,11 +535,21 @@ bool Document::doStep(float deltaTime, bool doUpdate)
     bool reachedGoals = true;
     for (auto* agent: m_agents) 
     {
-        if (!agent->m_isMobile || agent->m_curGoalPos == nullptr)
+        if (agent->m_curGoalPos == nullptr)
             continue;
 
         agent->m_reached = agent->update(deltaTime);
         reachedGoals &= agent->m_reached;
+
+        // detect need to replay
+        auto velSq = absSq(agent->m_velocity);
+        if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH) 
+        {
+            if (shouldReplan(agent)) {
+                OUT("Agent " << agent->index << " replan");
+                updatePlan(agent);
+            }
+        }
     }
 
     //m_globalTime += deltaTime;
@@ -550,6 +595,7 @@ void Document::serialize(ostream& os)
 
     //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
+
 
 void Document::readStream(istream& is, map<string, string>& imported, const string& module)
 {
