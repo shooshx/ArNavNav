@@ -21,10 +21,8 @@ TBD
 - narrow passage - with chopped VO - not dependent on neighbor dist
 - UI
   - show path, future path
-  - define speed
-
   - clear scene
-  - BUG: backtrack, play: not doing the same thing
+  - BUG? backtrack, play: not doing the same thing
   - single step
   - rewind button
   - performance - read all movements
