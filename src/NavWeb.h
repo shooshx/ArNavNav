@@ -51,8 +51,8 @@ public slots:
     Q_INVOKABLE void go_to_frame(int f) {
         ::go_to_frame(f);
     }
-    Q_INVOKABLE void change_size(PTR_T ptr, float size) { // of agent
-        ::change_size(ptr, size);
+    Q_INVOKABLE void update_agent(PTR_T ptr, float size, float speed) { // of agent
+        ::update_agent(ptr, size, speed);
     }
     Q_INVOKABLE void update_goal(PTR_T ptr, float radius, int type) {
         ::update_goal(ptr, radius, type);

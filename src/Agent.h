@@ -230,7 +230,7 @@ public:
         , m_endGoalPos(goalPos), m_endGoalId(nullptr)
         , m_maxNeighbors(maxNeighbors)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
-        , m_prefSpeed(prefSpeed), m_radius(radius)
+        , m_prefSpeed(prefSpeed)
     {
     }
 
@@ -255,7 +255,10 @@ public:
         m_reached = false;
         m_goalIsReachable = false;
     }
-
+    void setSpeed(float speed) {
+        m_prefSpeed = speed;
+        m_maxSpeed = speed * 2;
+    }
 
 private:
     // rangeSq changing according to the furthest added neibor to trim neigbors early
@@ -263,7 +266,7 @@ private:
 
 public:
     // configs
-    float m_radius = 0.0f;
+    // radius is in Circle object
 
     GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal
     void* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)

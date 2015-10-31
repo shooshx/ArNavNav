@@ -198,10 +198,15 @@ public:
 
 
 
-    void setAgentSize(AgentItem* a, float sz) {
-        a->m_a->setRadius(sz);
-        a->updateSize();
-        m_doc.addAgentRadius(sz);
+    void updateAgent(AgentItem* a, float sz, float speed) {
+        if (sz > 0) {
+            a->m_a->setRadius(sz);
+            a->updateSize();
+            m_doc.addAgentRadius(sz);
+        }
+        if (speed > 0) {
+            a->m_a->setSpeed(speed);
+        }
         m_quiteCount = 0;
     }
 
@@ -392,11 +397,12 @@ const char* serialize() {
 // read to doc
 void deserialize(const char* sp) {
     string a(sp);
+    //OUT("----------\n" << a);
     istringstream ss(a);
-    //OUT("DESER " << a);
     g_ctrl->m_doc.deserialize(ss, g_ctrl->m_importedTexts);
     g_ctrl->readDoc();
     g_ctrl->updateMesh();
+    //OUT("----" << g_ctrl->m_doc.m_mapdef.m_vtx.size() << "  " << g_ctrl->m_doc.m_mapdef.m_objModules.size());
     if (g_ctrl->m_doc.m_mapdef.m_objModules.size() > 0) // there were imported modules, need to emit scene externts
     {
         Vec2 mn(FLT_MAX, FLT_MAX), mx(-FLT_MAX, -FLT_MAX);
@@ -412,11 +418,11 @@ void go_to_frame(int f) {
     g_ctrl->goToFrame(f);
 }
 
-void change_size(ptr_t ptr, float sz) {
+void update_agent(ptr_t ptr, float sz, float speed) {
     AgentItem* a = dynamic_cast<AgentItem*>((Item*)ptr);
     if (a == nullptr)
         return;
-    g_ctrl->setAgentSize(a, sz);
+    g_ctrl->updateAgent(a, sz, speed);
 }
 
 void update_goal(ptr_t ptr, float radius, int type) {
@@ -427,6 +433,7 @@ void update_goal(ptr_t ptr, float radius, int type) {
 }
 
 void add_imported(const char* name, const char* text) {
+    //OUT("IIIIIIII" << name << "\n" << text  );
     g_ctrl->m_importedTexts.clear();
     g_ctrl->m_importedTexts[name] = text;
 }
