@@ -464,4 +464,136 @@ void PathMaker::makePath(const vector<Triangle*>& tripath, const Vec2& start, co
 
 }
 
+void iminmax(float a, float b, float* mn, float* mx) {
+    if (a < b) {
+        *mn = a;
+        *mx = b;
+    }
+    else {
+        *mn = b;
+        *mx = a;
+    }
+}
 
+void MapDef::makeBoxPoly()
+{
+    // remove polylines added previously by boxes
+    auto it = m_pl.begin();
+    while (it != m_pl.end()) {
+        if ((*it)->m_fromBox)
+            it = m_pl.erase(it);
+        else
+            ++it;
+    }
+
+    vector<vector<Vertex*>> bpl;
+    bpl.reserve(m_bx.size());
+    for(int i = 0; i < m_bx.size(); ++i) {
+        auto& box = m_bx[i];
+        Vec2 d = box.v[0]->p - box.v[2]->p;
+        if (d.x == 0 || d.y == 0)
+            continue; // empty box
+
+        bpl.resize(bpl.size() + 1);
+        auto& p = bpl.back();
+
+      //  p->m_fromBox = true;
+        p.push_back(box.v[0]);
+        p.push_back(box.v[1]);
+        p.push_back(box.v[2]);
+        p.push_back(box.v[3]);
+    }
+
+    // find intersections http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+    for(int curbi = 0; curbi < bpl.size(); )
+    {
+        auto& curb = bpl[curbi];
+        bool unified = false, separated = false;
+        // search who to unify it with
+        for(int checki = 0; checki < bpl.size() && !unified && !separated; ++checki)
+        {
+            //if (checki == curbi)
+            //    continue;
+            unified = false;
+            separated = false;
+
+            auto& chb = bpl[checki];
+            for(int csi = 0; csi < curb.size() && !unified && !separated; ++csi) 
+            {
+                int ecsi = (csi + 1) % curb.size();
+                Vec2 p = curb[csi]->p;
+                Vec2 ep = curb[ecsi]->p;
+
+                float mnpx, mxpx, mnpy, mxpy;
+                iminmax(p.x, ep.x, &mnpx, &mxpx);
+                iminmax(p.y, ep.y, &mnpy, &mxpy);
+
+                for(int chi = 0; chi < chb.size() && !unified && !separated; ++chi)
+                {
+                    int echi = (chi + 1) % chb.size();
+                    if (checki == curbi && (chi == csi || chi == ecsi || echi == csi || echi == ecsi))
+                        continue;
+                    Vec2 q = chb[chi]->p;
+                    Vec2 eq = chb[echi]->p;
+
+                    float mnqx, mxqx, mnqy, mxqy;
+                    iminmax(q.x, eq.x, &mnqx, &mxqx);
+                    iminmax(q.y, eq.y, &mnqy, &mxqy);
+
+                    // need to unify?
+                    bool uniy = (p.y == ep.y && q.y == eq.y && p.y == q.y && // same y and intersecting x (not disjoin)
+                        !(mxpx < mnqx || mnpx > mxqx));
+                    bool unix = (p.x == ep.x && q.x == eq.x && p.x == q.x && // same x and intersecting y (not disjoin)
+                        !(mxpy < mnqy || mnpy > mxqy));
+
+                    if  (uniy || unix) 
+                    {
+                        if (checki != curbi) // two different polylines
+                        {
+                            // start inserting echi since the checki poly is reversed order so need to start from the end
+                            for(int insi = 0; insi < chb.size(); ++insi) {
+                                curb.insert(curb.begin() + ecsi + insi, chb[(echi + insi) % chb.size()]);
+                            }
+                            unified = true;
+                        }
+                        else // same polyline, self intersecting
+                        {
+                            vector<Vertex*> hole; // from ep to q
+                            for(int hi = ecsi; hi <= chi; hi = (hi + 1) % chb.size()) {
+                                hole.push_back(curb[hi]);
+                                curb[hi] = nullptr;
+                            }
+                            std::remove(curb.begin(), curb.end(), nullptr);
+                            curb.resize(curb.size() - hole.size());
+                            bpl.push_back(hole);
+                            separated = true;
+                        }
+                    }
+
+                } // chi
+            } // csi
+            if (unified) {
+                bpl.erase(bpl.begin() + checki);
+            }
+
+        } // checki
+
+        if (!unified && !separated) // did not find who to unify it with, go to next
+            ++curbi;
+    }
+
+    stringstream ss;
+    for(auto& p: bpl) {
+        ss << p.size() << ", ";
+    }
+    string xx = ss.str();
+    OUT("unified " << bpl.size() << " polylines sz=" << xx);
+    for(auto& bp: bpl) {
+        auto p = add();
+        p->m_fromBox = true;
+        for(auto* v: bp) {
+            addToLast(v);
+        }
+    }
+
+}

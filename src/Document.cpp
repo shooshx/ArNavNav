@@ -574,12 +574,16 @@ void Document::serialize(ostream& os)
             continue;
         if (m_mapdef.m_objModules.find(pl.get()) != m_mapdef.m_objModules.end())
             continue; // this polyline was included in a file
-
+        if (pl->m_fromBox)
+            continue;
         os << "p,\n";
         for(const auto& pv : pl->m_d) {
             os << "v," << pv->p.x << "," << pv->p.y << ",\n";
             ++count;
         }
+    }
+    for(const auto& b: m_mapdef.m_bx) {
+        os << "b," << b.v[0]->p.x << "," << b.v[0]->p.y << "," << b.v[2]->p.x << "," << b.v[2]->p.y << ",\n";
     }
 
     map<Agent*, int> agentToGoal;
@@ -641,6 +645,13 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
                 break;
             auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
             a->m_velocity = vel;
+        }
+        else if (h[0] == 'b') {
+            Vec2 p1, p2;
+            is >> p1.x >> p1.y >> p2.x >> p2.y;
+            if (is.fail())
+                break;
+            m_mapdef.addBox(p1, p2);
         }
         else if (h[0] == 'e') {
             return;

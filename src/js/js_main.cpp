@@ -106,6 +106,19 @@ public:
     Goal* m_g;
 };
 
+class BuildingPointItem : public Item
+{
+public:
+    BuildingPointItem(NavCtrl* ctrl, Vertex* v, Vertex* onlyx, Vertex* onlyy)
+        :Item(ctrl), m_v(v), m_onlyx(onlyx), m_onlyy(onlyy)
+    {
+        EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(50,50,50)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y);
+    }
+    virtual void setPos(const Vec2& p);
+
+    Vertex *m_v, *m_onlyx, *m_onlyy;
+};
+
 struct AgentData {
     Vec2 pos;
     Vec2 vel;
@@ -145,6 +158,25 @@ public:
         auto i = new GoalItem(this, pg);
         m_goalitems.push_back(shared_ptr<GoalItem>(i)); 
         return i;
+    }
+    void addBuilding(const Vec2& p)
+    {
+        AABox& box = m_doc.m_mapdef.addBox(p, p + Vec2(1,1));
+
+/*        m_doc.m_mapdef.add();
+        auto pv1 = m_doc.m_mapdef.addToLast(p); // press down point
+        auto pv2 = m_doc.m_mapdef.addToLast(p + Vec2(0,1)); // x of down, y of up
+        auto pv3 = m_doc.m_mapdef.addToLast(p + Vec2(1,1)); // up point
+        auto pv4 = m_doc.m_mapdef.addToLast(p + Vec2(1,0)); // x of up, y of down
+        */
+        auto i1 = new BuildingPointItem(this, box.v[0], box.v[1], box.v[3]);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(i1));
+        auto i2 = new BuildingPointItem(this, box.v[2], box.v[3], box.v[1]);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(i2));
+        EM_ASM_( setPressedObj($0), i2);
+
+        m_doc.m_mapdef.makeBoxPoly();
+        updateMesh();
     }
 
     void removeGoal(GoalItem* g) 
@@ -195,8 +227,6 @@ public:
             oldg->m_g->agents.erase(it);
         }
     }
-
-
 
     void updateAgent(AgentItem* a, float sz, float speed) {
         if (sz > 0) {
@@ -267,6 +297,7 @@ public:
     vector<shared_ptr<TriItem>> m_meshitems;
     vector<shared_ptr<AgentItem>> m_agentitems;
     vector<shared_ptr<GoalItem>> m_goalitems;
+    vector<shared_ptr<BuildingPointItem>> m_buildingitems;
     Document m_doc;
     vector<Frame> m_frames;
     int m_atFrame = 0; // the index of the last frame that was recorded
@@ -284,9 +315,18 @@ void GoalItem::setPos(const Vec2& p) {
 }
 
 void PolyPointItem::setPos(const Vec2& p) {
-    OUT("setPos " << m_v->index << " " << m_v->p.x << " " << m_v->p.y);
+    //OUT("setPos " << m_v->index << " " << m_v->p.x << " " << m_v->p.y);
     m_v->p = p;
     EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
+    m_ctrl->updateMesh();
+}
+
+void BuildingPointItem::setPos(const Vec2& p) {
+    m_v->p = p;
+    m_onlyx->p.x = p.x;
+    m_onlyy->p.y = p.y;
+    EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
+    m_ctrl->m_doc.m_mapdef.makeBoxPoly();
     m_ctrl->updateMesh();
 }
 
@@ -300,7 +340,7 @@ void NavCtrl::updateMesh()
         return;
     }
     m_meshitems.clear();
-    OUT("Triangles " << m_doc.m_mesh.m_tri.size());
+    //OUT("Triangles " << m_doc.m_mesh.m_tri.size());
     for(auto& tri : m_doc.m_mesh.m_tri) {
         auto i = new TriItem(this, &tri);
         m_meshitems.push_back(shared_ptr<TriItem>(i));
@@ -313,6 +353,7 @@ void NavCtrl::readDoc()
     m_agentitems.clear();
     m_goalitems.clear();
     m_polypointitems.clear();
+    m_buildingitems.clear();
     //OUT("AItems " << m_doc.m_agents.size());
     for(auto* agent: m_doc.m_agents) {
         m_agentitems.push_back(shared_ptr<AgentItem>(new AgentItem(this, agent)));
@@ -322,8 +363,16 @@ void NavCtrl::readDoc()
         m_goalitems.push_back(shared_ptr<GoalItem>(new GoalItem(this, goal.get()))); 
     }
     //OUT("PPItems " << m_doc.m_mapdef.m_vtx.size());
-    for(const auto& pv: m_doc.m_mapdef.m_vtx) {
-        m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, pv.get())));
+    for(auto& pl: m_doc.m_mapdef.m_pl) {
+        if (pl->m_fromBox)
+            continue;
+        for(auto* v: pl->m_d) {
+            m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, v)));
+        }
+    }
+    for(const auto& bx: m_doc.m_mapdef.m_bx) {
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(new BuildingPointItem(this, bx.v[0], bx.v[1], bx.v[3])));
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(new BuildingPointItem(this, bx.v[2], bx.v[3], bx.v[1])));
     }
 }
 
@@ -401,6 +450,7 @@ void deserialize(const char* sp) {
     istringstream ss(a);
     g_ctrl->m_doc.deserialize(ss, g_ctrl->m_importedTexts);
     g_ctrl->readDoc();
+    g_ctrl->m_doc.m_mapdef.makeBoxPoly();
     g_ctrl->updateMesh();
     //OUT("----" << g_ctrl->m_doc.m_mapdef.m_vtx.size() << "  " << g_ctrl->m_doc.m_mapdef.m_objModules.size());
     if (g_ctrl->m_doc.m_mapdef.m_objModules.size() > 0) // there were imported modules, need to emit scene externts
@@ -436,6 +486,10 @@ void add_imported(const char* name, const char* text) {
     //OUT("IIIIIIII" << name << "\n" << text  );
     g_ctrl->m_importedTexts.clear();
     g_ctrl->m_importedTexts[name] = text;
+}
+
+void added_building(int x, int y) {
+    g_ctrl->addBuilding(Vec2(x, y));
 }
 
 

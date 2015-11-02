@@ -71,9 +71,14 @@ public:
 
 struct Polyline
 {
-    // never owns
-    vector<Vertex*> m_d;
+    vector<Vertex*> m_d; // never owns
     vector<int> m_di;
+    bool m_fromBox = false; // should be removed when redoing the boxes
+};
+
+struct AABox
+{
+    Vertex *v[4];
 };
 
 class MapDef
@@ -92,8 +97,10 @@ public:
     Vertex* addToLast(const Vec2& p, const string& module = string()) {
         if (m_pl.empty())
             add(module);
-        auto v = new Vertex(m_vtx.size(), p);
-        m_vtx.push_back(unique_ptr<Vertex>(v));
+        auto v = addVtx(p);
+        return addToLast(v, module);
+    }
+    Vertex* addToLast(Vertex* v, const string& module = string()) {
         Polyline* pl = m_pl.back().get();
         pl->m_d.push_back(v);
         pl->m_di.push_back(m_vtx.size() - 1);
@@ -108,11 +115,31 @@ public:
         m_vtx.clear();
         m_pl.clear();
         m_objModules.clear();
+        m_bx.clear();
     }
+
+    Vertex* addVtx(const Vec2& p) {
+        auto v = new Vertex(m_vtx.size(), p);
+        m_vtx.push_back(unique_ptr<Vertex>(v));
+        return v;
+    }
+
+    AABox& addBox(const Vec2& pa, const Vec2& pb) {
+        AABox b;
+        b.v[0] = addVtx(pa);
+        b.v[1] = addVtx(Vec2(pa.x, pb.y));
+        b.v[2] = addVtx(pb);
+        b.v[3] = addVtx(Vec2(pb.x, pa.y));
+        m_bx.push_back(b);
+        return m_bx.back();
+    }
+
+    void makeBoxPoly();
 
     vector<unique_ptr<Vertex>> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
                            // needs to be pointers since display items reference them
     vector<unique_ptr<Polyline>> m_pl;
+    vector<AABox> m_bx;
     
     map<void*, string> m_objModules; // defined objects can have optional string modules where they came from
 };

@@ -28,5 +28,6 @@ void go_to_frame(int f);
 void update_agent(ptr_t ptr, float sz, float speed);
 void update_goal(ptr_t ptr, float radius, int type);
 void add_imported(const char* name, const char* text);
+void added_building(int x, int y);
 
 }

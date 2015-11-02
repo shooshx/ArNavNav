@@ -62,6 +62,9 @@ public slots:
         auto text = fromq(qtext);
         ::add_imported(name.c_str(), text.c_str());
     }
+    Q_INVOKABLE void added_building(int x, int y) {
+        ::added_building(x, y);
+    }
 };
 
 class NavWeb : public QDialog
