@@ -11,7 +11,7 @@ using namespace std;
 typedef pair<Vertex*, Vertex*> VPair;
 
 // map (from,to) -> halfedge
-map<VPair, HalfEdge*> unpaired;
+map<VPair, HalfEdge*> unpaired; // TBD - global
 
 void seekPair(Vertex* v1, Vertex* v2, HalfEdge* add) {
     VPair ko(v2, v1);
@@ -475,6 +475,12 @@ void iminmax(float a, float b, float* mn, float* mx) {
     }
 }
 
+struct BHalfEdge
+{
+    Vertex *from, *to;
+};
+
+
 void MapDef::makeBoxPoly()
 {
     // remove polylines added previously by boxes
@@ -486,114 +492,108 @@ void MapDef::makeBoxPoly()
             ++it;
     }
 
-    vector<vector<Vertex*>> bpl;
-    bpl.reserve(m_bx.size());
+    vector<BHalfEdge> bh;
+    bh.reserve(m_bx.size() * 4);
+    vector<Vertex*> vtx;
+    vtx.reserve(m_bx.size() * 4);
+
+    map<pair<float, float>, Vertex*> uniqvtx;
+    auto checkUniq = [&](Vertex* v)->Vertex* {
+        auto pr = make_pair(v->p.x, v->p.y);
+        auto it = uniqvtx.find(pr);
+        if (it != uniqvtx.end()) 
+            return it->second;    
+        uniqvtx[pr] = v;
+        return v;
+    };
+
+    // create half edges for all boxes
     for(int i = 0; i < m_bx.size(); ++i) {
         auto& box = m_bx[i];
         Vec2 d = box.v[0]->p - box.v[2]->p;
         if (d.x == 0 || d.y == 0)
             continue; // empty box
 
-        bpl.resize(bpl.size() + 1);
-        auto& p = bpl.back();
-
-      //  p->m_fromBox = true;
-        p.push_back(box.v[0]);
-        p.push_back(box.v[1]);
-        p.push_back(box.v[2]);
-        p.push_back(box.v[3]);
+        Vertex* av[4];
+        for(int i = 0; i < 4; ++i) {
+            av[i] = checkUniq(box.v[i]);
+            vtx.push_back(av[i]);
+        }
+        for(int i = 0; i < 4; ++i) 
+            bh.push_back(BHalfEdge{av[i], av[(i+1)%4]});
     }
 
-    // find intersections http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
-    for(int curbi = 0; curbi < bpl.size(); )
+    // go over half edges, find if there is a vertex that divites a subedge, if there is, divide it
+    for(int curhi = 0; curhi < bh.size(); )
     {
-        auto& curb = bpl[curbi];
-        bool unified = false, separated = false;
-        // search who to unify it with
-        for(int checki = 0; checki < bpl.size() && !unified && !separated; ++checki)
+        auto curh = bh[curhi]; // need to copy the BHalfEdge since the vector might be reallocating
+        Vec2 fp = curh.from->p, tp = curh.to->p;
+        float mnx, mxx, mny, mxy;
+        iminmax(fp.x, tp.x, &mnx, &mxx);
+        iminmax(fp.y, tp.y, &mny, &mxy);
+        bool removeCur = false;
+        for(int vi = 0; vi < vtx.size(); ++vi)
         {
-            //if (checki == curbi)
-            //    continue;
-            unified = false;
-            separated = false;
-
-            auto& chb = bpl[checki];
-            for(int csi = 0; csi < curb.size() && !unified && !separated; ++csi) 
+            Vec2 p = vtx[vi]->p;
+            bool divx = (p.y == fp.y && p.y == tp.y && p.x > mnx && p.x < mxx);
+            bool divy = (p.x == fp.x && p.x == tp.x && p.y > mny && p.y < mxy);
+            if (divx || divy) 
             {
-                int ecsi = (csi + 1) % curb.size();
-                Vec2 p = curb[csi]->p;
-                Vec2 ep = curb[ecsi]->p;
-
-                float mnpx, mxpx, mnpy, mxpy;
-                iminmax(p.x, ep.x, &mnpx, &mxpx);
-                iminmax(p.y, ep.y, &mnpy, &mxpy);
-
-                for(int chi = 0; chi < chb.size() && !unified && !separated; ++chi)
-                {
-                    int echi = (chi + 1) % chb.size();
-                    if (checki == curbi && (chi == csi || chi == ecsi || echi == csi || echi == ecsi))
-                        continue;
-                    Vec2 q = chb[chi]->p;
-                    Vec2 eq = chb[echi]->p;
-
-                    float mnqx, mxqx, mnqy, mxqy;
-                    iminmax(q.x, eq.x, &mnqx, &mxqx);
-                    iminmax(q.y, eq.y, &mnqy, &mxqy);
-
-                    // need to unify?
-                    bool uniy = (p.y == ep.y && q.y == eq.y && p.y == q.y && // same y and intersecting x (not disjoin)
-                        !(mxpx < mnqx || mnpx > mxqx));
-                    bool unix = (p.x == ep.x && q.x == eq.x && p.x == q.x && // same x and intersecting y (not disjoin)
-                        !(mxpy < mnqy || mnpy > mxqy));
-
-                    if  (uniy || unix) 
-                    {
-                        if (checki != curbi) // two different polylines
-                        {
-                            // start inserting echi since the checki poly is reversed order so need to start from the end
-                            for(int insi = 0; insi < chb.size(); ++insi) {
-                                curb.insert(curb.begin() + ecsi + insi, chb[(echi + insi) % chb.size()]);
-                            }
-                            unified = true;
-                        }
-                        else // same polyline, self intersecting
-                        {
-                            vector<Vertex*> hole; // from ep to q
-                            for(int hi = ecsi; hi <= chi; hi = (hi + 1) % chb.size()) {
-                                hole.push_back(curb[hi]);
-                                curb[hi] = nullptr;
-                            }
-                            std::remove(curb.begin(), curb.end(), nullptr);
-                            curb.resize(curb.size() - hole.size());
-                            bpl.push_back(hole);
-                            separated = true;
-                        }
-                    }
-
-                } // chi
-            } // csi
-            if (unified) {
-                bpl.erase(bpl.begin() + checki);
+                bh.push_back(BHalfEdge{curh.from, vtx[vi]});
+                bh.push_back(BHalfEdge{vtx[vi], curh.to});
+                removeCur = true;
+                break;
             }
+        }
 
-        } // checki
-
-        if (!unified && !separated) // did not find who to unify it with, go to next
-            ++curbi;
+        if (removeCur)
+            bh.erase(bh.begin() + curhi);
+        else
+            ++curhi;
     }
 
-    stringstream ss;
-    for(auto& p: bpl) {
-        ss << p.size() << ", ";
+    // now find all the unpaired half edges
+    set<VPair> unpaired; // pair from,to
+    for(auto& h: bh) {
+        VPair rv(h.to, h.from); // find h's opposite
+        auto it = unpaired.find(rv);
+        if (it != unpaired.end()) {
+            unpaired.erase(it);
+            continue;
+        }
+        VPair ks(h.from, h.to);
+        if (unpaired.find(ks) != unpaired.end())
+            throw Exception("unpexpected unpaired");
+        unpaired.insert(ks);
     }
-    string xx = ss.str();
-    OUT("unified " << bpl.size() << " polylines sz=" << xx);
-    for(auto& bp: bpl) {
+
+    // now order the unpaired edges to a polyline
+    map<Vertex*, Vertex*> vindex; // fromVtx->toVtx
+    for(auto& up: unpaired) {
+        if (vindex.find(up.first) != vindex.end())
+            throw Exception("junction vertex TBD");
+        vindex[up.first] = up.second;
+    }
+    // extract polylines
+    stringstream szds;
+    int pcount = 0;
+    while (!vindex.empty())
+    {
         auto p = add();
         p->m_fromBox = true;
-        for(auto* v: bp) {
-            addToLast(v);
-        }
+        Vertex* start = vindex.begin()->first;
+        Vertex* cur = start;
+        do {
+            addToLast(cur);
+            auto it = vindex.find(cur);
+            cur = it->second;;
+            vindex.erase(it);
+        } while(cur != start);
+        ++pcount;
+        szds << m_pl.back()->m_d.size() << ", ";
     }
+
+    string xx = szds.str();
+    OUT("unified " << pcount << " polylines sz=" << xx);
 
 }
