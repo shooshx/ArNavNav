@@ -106,17 +106,47 @@ public:
     Goal* m_g;
 };
 
+class BuildingMoveItem;
 class BuildingPointItem : public Item
 {
 public:
-    BuildingPointItem(NavCtrl* ctrl, Vertex* v, Vertex* onlyx, Vertex* onlyy)
-        :Item(ctrl), m_v(v), m_onlyx(onlyx), m_onlyy(onlyy)
+    BuildingPointItem(NavCtrl* ctrl, Vertex* v, Vertex* onlyx, Vertex* onlyy, BuildingMoveItem* centerItem)
+        :Item(ctrl), m_v(v), m_onlyx(onlyx), m_onlyy(onlyy), m_centerItem(centerItem)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(50,50,50)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y);
     }
     virtual void setPos(const Vec2& p);
+    void update() {
+        EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
+    }
 
     Vertex *m_v, *m_onlyx, *m_onlyy;
+    BuildingMoveItem* m_centerItem;
+};
+// center circle that moves the building
+class BuildingMoveItem : public Item 
+{
+public:
+    BuildingMoveItem(NavCtrl* ctrl, const AABox& b)
+        :Item(ctrl), m_boxCp(b)
+    {
+        calcCenter();
+        EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(180,100,100)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_center.x, m_center.y);
+    }
+    virtual void setPos(const Vec2& p);
+    void calcCenter() {
+        m_center = Vec2();
+        for(int i = 0; i < 4; ++i)
+            m_center += m_boxCp.v[i]->p;
+        m_center /= 4;
+    }
+    void update() {
+        calcCenter();
+        EM_ASM_( move_circle($0, $1, $2), this, m_center.x, m_center.y);
+    }
+    AABox m_boxCp;
+    Vec2 m_center;
+    BuildingPointItem *m_pItem1 = nullptr, *m_pItem2 = nullptr; 
 };
 
 struct AgentData {
@@ -169,11 +199,14 @@ public:
         auto pv3 = m_doc.m_mapdef.addToLast(p + Vec2(1,1)); // up point
         auto pv4 = m_doc.m_mapdef.addToLast(p + Vec2(1,0)); // x of up, y of down
         */
-        auto i1 = new BuildingPointItem(this, box.v[0], box.v[1], box.v[3]);
-        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(i1));
-        auto i2 = new BuildingPointItem(this, box.v[2], box.v[3], box.v[1]);
-        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(i2));
-        EM_ASM_( setPressedObj($0), i2);
+        auto im = new BuildingMoveItem(this, box);
+        m_buildingCenterItems.push_back(shared_ptr<BuildingMoveItem>(im));
+        im->m_pItem1 = new BuildingPointItem(this, box.v[0], box.v[1], box.v[3], im);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(im->m_pItem1));
+        im->m_pItem2 = new BuildingPointItem(this, box.v[2], box.v[3], box.v[1], im);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(im->m_pItem2));
+
+        EM_ASM_( setPressedObj($0), im->m_pItem2);
 
         m_doc.m_mapdef.makeBoxPoly();
         updateMesh();
@@ -298,6 +331,7 @@ public:
     vector<shared_ptr<AgentItem>> m_agentitems;
     vector<shared_ptr<GoalItem>> m_goalitems;
     vector<shared_ptr<BuildingPointItem>> m_buildingitems;
+    vector<shared_ptr<BuildingMoveItem>> m_buildingCenterItems;
     Document m_doc;
     vector<Frame> m_frames;
     int m_atFrame = 0; // the index of the last frame that was recorded
@@ -325,8 +359,42 @@ void BuildingPointItem::setPos(const Vec2& p) {
     m_v->p = p;
     m_onlyx->p.x = p.x;
     m_onlyy->p.y = p.y;
+    m_centerItem->update();
     EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
-    m_ctrl->m_doc.m_mapdef.makeBoxPoly();
+    try {
+        m_ctrl->m_doc.m_mapdef.makeBoxPoly();
+    }
+    catch(const Exception& e) {
+        OUT("EXCEPTION makeBoxPoly");
+    }
+    m_ctrl->updateMesh();
+}
+
+// see https://github.com/kripken/emscripten/issues/3876
+float iround(float f) {
+#ifdef EMSCRIPTEN
+    return EM_ASM_DOUBLE( return Math.round($0), f);
+#else
+    return std::round(f);
+#endif
+}
+
+void BuildingMoveItem::setPos(const Vec2& p) {
+    Vec2 d = p - m_center;
+    d.x = iround(d.x); // round to integer so it would stay on the integer grid
+    d.y = iround(d.y); 
+    for(int i = 0; i < 4; ++i)
+        m_boxCp.v[i]->p += d;
+    m_center = p;
+    EM_ASM_( move_circle($0, $1, $2), this, m_center.x, m_center.y);
+    m_pItem1->update();
+    m_pItem2->update();
+    try {
+        m_ctrl->m_doc.m_mapdef.makeBoxPoly();
+    }
+    catch(const Exception& e) {
+        OUT("EXCEPTION makeBoxPoly");
+    }
     m_ctrl->updateMesh();
 }
 
@@ -371,8 +439,12 @@ void NavCtrl::readDoc()
         }
     }
     for(const auto& bx: m_doc.m_mapdef.m_bx) {
-        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(new BuildingPointItem(this, bx.v[0], bx.v[1], bx.v[3])));
-        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(new BuildingPointItem(this, bx.v[2], bx.v[3], bx.v[1])));
+        auto im = new BuildingMoveItem(this, bx);
+        m_buildingCenterItems.push_back(shared_ptr<BuildingMoveItem>(im));
+        im->m_pItem1 = new BuildingPointItem(this, bx.v[0], bx.v[1], bx.v[3], im);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(im->m_pItem1));
+        im->m_pItem2 = new BuildingPointItem(this, bx.v[2], bx.v[3], bx.v[1], im);
+        m_buildingitems.push_back(shared_ptr<BuildingPointItem>(im->m_pItem2));
     }
 }
 
@@ -450,7 +522,12 @@ void deserialize(const char* sp) {
     istringstream ss(a);
     g_ctrl->m_doc.deserialize(ss, g_ctrl->m_importedTexts);
     g_ctrl->readDoc();
-    g_ctrl->m_doc.m_mapdef.makeBoxPoly();
+    try {
+        g_ctrl->m_doc.m_mapdef.makeBoxPoly();
+    }
+    catch(const Exception& e) {
+        OUT("EXCEPTION makeBoxPoly");
+    }
     g_ctrl->updateMesh();
     //OUT("----" << g_ctrl->m_doc.m_mapdef.m_vtx.size() << "  " << g_ctrl->m_doc.m_mapdef.m_objModules.size());
     if (g_ctrl->m_doc.m_mapdef.m_objModules.size() > 0) // there were imported modules, need to emit scene externts

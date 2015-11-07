@@ -480,6 +480,34 @@ struct BHalfEdge
     Vertex *from, *to;
 };
 
+// if two consecutively added points are on the same axis aligned line, we can dispose of the previous one in favor of the next one
+void MapDef::popIfLinear(Vertex* nextv) {
+    Polyline* pl = m_pl.back().get();
+    int sz = pl->m_d.size();
+    if (sz < 2) 
+        return;
+    Vec2& beflast = pl->m_d[sz - 2]->p;
+    Vec2& last = pl->m_d[sz - 1]->p;
+    Vec2& next = nextv->p;
+    if ((beflast.x == last.x && last.x == next.x) || (beflast.y == last.y && last.y == next.y)) {
+        pl->m_d.pop_back();
+        pl->m_di.pop_back();
+    }
+}
+
+void MapDef::delFirstIfLinear() {
+    Polyline* pl = m_pl.back().get();
+    int sz = pl->m_d.size();
+    if (sz < 2) 
+        return;
+    Vec2& beflast = pl->m_d[sz - 1]->p;
+    Vec2& last = pl->m_d[0]->p;
+    Vec2& next = pl->m_d[1]->p;
+    if ((beflast.x == last.x && last.x == next.x) || (beflast.y == last.y && last.y == next.y)) {
+        pl->m_d.erase(pl->m_d.begin());
+        pl->m_di.erase(pl->m_di.begin());
+    }
+}
 
 void MapDef::makeBoxPoly()
 {
@@ -491,6 +519,7 @@ void MapDef::makeBoxPoly()
         else
             ++it;
     }
+    m_boxAddedVtx.clear();
 
     vector<BHalfEdge> bh;
     bh.reserve(m_bx.size() * 4);
@@ -513,6 +542,7 @@ void MapDef::makeBoxPoly()
         Vec2 d = box.v[0]->p - box.v[2]->p;
         if (d.x == 0 || d.y == 0)
             continue; // empty box
+        int sign = (d.x * d.y < 0) ? -1 : 1;  // means its ordered in the reverse order, need to reverse it
 
         Vertex* av[4];
         for(int i = 0; i < 4; ++i) {
@@ -520,7 +550,7 @@ void MapDef::makeBoxPoly()
             vtx.push_back(av[i]);
         }
         for(int i = 0; i < 4; ++i) 
-            bh.push_back(BHalfEdge{av[i], av[(i+1)%4]});
+            bh.push_back(BHalfEdge{av[i], av[(4 + i + sign)%4]});
     }
 
     // go over half edges, find if there is a vertex that divites a subedge, if there is, divide it
@@ -568,11 +598,15 @@ void MapDef::makeBoxPoly()
     }
 
     // now order the unpaired edges to a polyline
-    map<Vertex*, Vertex*> vindex; // fromVtx->toVtx
+    map<Vertex*, pair<Vertex*, Vertex*>> vindex; // fromVtx->toVtx, second is nullptr unless its a junction point
     for(auto& up: unpaired) {
-        if (vindex.find(up.first) != vindex.end())
-            throw Exception("junction vertex TBD");
-        vindex[up.first] = up.second;
+        auto it = vindex.find(up.first);
+        if (it != vindex.end()) {
+            CHECK(it->second.second == nullptr, "unexpected junction with more than two items");
+            it->second.second = up.second;  
+            continue;
+        }
+        vindex[up.first] = make_pair(up.second, nullptr);
     }
     // extract polylines
     stringstream szds;
@@ -581,19 +615,72 @@ void MapDef::makeBoxPoly()
     {
         auto p = add();
         p->m_fromBox = true;
-        Vertex* start = vindex.begin()->first;
+        auto itStart = vindex.begin();
+        // need to start from somewhere that is not a junction since junctions need to be visited between vertices
+        while(itStart->second.second != nullptr) {
+            ++itStart;
+            CHECK(itStart != vindex.end(), "did not find non junction"); // somewhere we must find one
+        }
+        Vertex* start = itStart->first;
+        
         Vertex* cur = start;
+        Vertex* prev = nullptr;
         do {
-            addToLast(cur);
+            
             auto it = vindex.find(cur);
-            cur = it->second;;
-            vindex.erase(it);
+            CHECK(it != vindex.end(), "Unexpected end of polyline");
+            auto& to = it->second;
+
+            popIfLinear(cur);
+            addToLast(cur);
+
+            if (to.second == nullptr) { // normal case
+                prev = cur;
+                cur = to.first;
+                vindex.erase(it);
+            }
+            else { // junction case
+                Vertex* selectedTo = to.second;
+                Vertex* otherTo = to.first;
+
+                CHECK(prev != nullptr, "first iteration junction?");
+ 
+                // need to find the correct next one according to the direction we're going to
+                auto a = cur->p - prev->p;
+                auto b = selectedTo->p - cur->p;
+                if (det(a, b) < 0) {
+                    swap(selectedTo, otherTo);
+                }
+
+                // need new vertex, redirect the old vertex with the new
+                Vec2 dirTo = normalize(otherTo->p - cur->p);
+                Vertex* newv = addBoxVtx(cur->p + dirTo * 0.1);
+
+                vindex.erase(it);
+                vindex[newv] = make_pair(otherTo, nullptr);
+                // rewrite the remaining reference to the old to point to the new
+                for(auto& kv: vindex) {
+                    if (kv.second.first == cur) {
+                        kv.second.first = newv;
+                    }
+                    if (kv.second.second == cur) {
+                        kv.second.second = newv; // probably can't happen
+                    }
+                }
+
+                prev = cur;
+                cur = selectedTo;
+
+            }
+            
         } while(cur != start);
+        popIfLinear(start); // if the last two segments are linear (first point is the past point)
+        delFirstIfLinear(); // if the first segment is linear with the last segment
         ++pcount;
         szds << m_pl.back()->m_d.size() << ", ";
     }
 
     string xx = szds.str();
-    OUT("unified " << pcount << " polylines sz=" << xx);
+    //OUT("unified " << pcount << " polylines sz=" << xx);
 
 }

@@ -16,6 +16,7 @@ TBD
    avoid when
    - tryed a few times from the same place (many agents attack small target)
 - add buildings, unify buildings meshes
+- show orientation, rotate
 
 - string-pull on radius-specific mesh
 - narrow passage - with chopped VO - not dependent on neighbor dist

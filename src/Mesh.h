@@ -108,6 +108,10 @@ public:
             m_objModules[v] = module;
         return v;
     }
+
+    void popIfLinear(Vertex* nextv);
+    void delFirstIfLinear();
+
     bool isLastEmpty() {
         return m_pl.empty() || m_pl.back()->m_d.empty();
     }
@@ -116,11 +120,17 @@ public:
         m_pl.clear();
         m_objModules.clear();
         m_bx.clear();
+        m_boxAddedVtx.clear();
     }
 
     Vertex* addVtx(const Vec2& p) {
         auto v = new Vertex(m_vtx.size(), p);
         m_vtx.push_back(unique_ptr<Vertex>(v));
+        return v;
+    }
+    Vertex* addBoxVtx(const Vec2& p) {
+        auto v = new Vertex(m_vtx.size() + m_boxAddedVtx.size(), p);
+        m_boxAddedVtx.push_back(unique_ptr<Vertex>(v));
         return v;
     }
 
@@ -140,6 +150,7 @@ public:
                            // needs to be pointers since display items reference them
     vector<unique_ptr<Polyline>> m_pl;
     vector<AABox> m_bx;
+    vector<unique_ptr<Vertex>> m_boxAddedVtx; // vertices added when parsing the boxes, should be discarded when boxes are reparsed
     
     map<void*, string> m_objModules; // defined objects can have optional string modules where they came from
 };

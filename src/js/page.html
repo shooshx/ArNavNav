@@ -417,6 +417,8 @@ function handleMouseMove(event) {
     return true;
 }
 
+
+
 function out(s) {
     //output.innerHTML += s + "<br>"
     console.log(s);
@@ -428,6 +430,8 @@ function clear_circles() {
     needDraw = true
 }
 */
+
+
 
 function remove_circle(ptr) {
     //out("remove " + ptr.toString(16));
@@ -593,7 +597,8 @@ function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
     needDraw = true
 }
 
-// feedback from c++
+// feedback from c++, agents moving
+// called for building center items that are moved automatically from C++
 function move_circle(ptr, x, y) {
     var o = circles[ptr];
     if (o.x == x && o.y == y)
