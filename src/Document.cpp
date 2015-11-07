@@ -583,7 +583,7 @@ void Document::serialize(ostream& os)
         }
     }
     for(const auto& b: m_mapdef.m_bx) {
-        os << "b," << b.v[0]->p.x << "," << b.v[0]->p.y << "," << b.v[2]->p.x << "," << b.v[2]->p.y << ",\n";
+        os << "b," << b->v[0]->p.x << "," << b->v[0]->p.y << "," << b->v[2]->p.x << "," << b->v[2]->p.y << ",\n";
     }
 
     map<Agent*, int> agentToGoal;

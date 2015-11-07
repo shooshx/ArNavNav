@@ -37,6 +37,7 @@ public:
     float lengthSq = 0;
     float passToNextSq = FLT_MAX; // distance squared between the 'to' point to the segment of the other two points in the tri, or FLT_MAX if projection is outside the segment
                                   // used for detecting if an agent can pass through this trignagle to the HalfEdge in 'next'
+    Vec2 _midPnt; // not referenced directly, pointed to by curMidPntPtr
 
     void clearData() {
         //midPnt = Vec2();
@@ -48,7 +49,6 @@ public:
 
     // mutable data in Astar 
     Vec2* curMidPntPtr = nullptr; // points to midPnt or to an override in astar
-    Vec2 _midPnt; // not referenced directly
     HalfEdge* cameFrom = nullptr; 
     float costSoFar = FLT_MAX;
 };
@@ -79,6 +79,7 @@ struct Polyline
 struct AABox
 {
     Vertex *v[4];
+    bool intersectError = false;
 };
 
 class MapDef
@@ -134,14 +135,14 @@ public:
         return v;
     }
 
-    AABox& addBox(const Vec2& pa, const Vec2& pb) {
-        AABox b;
-        b.v[0] = addVtx(pa);
-        b.v[1] = addVtx(Vec2(pa.x, pb.y));
-        b.v[2] = addVtx(pb);
-        b.v[3] = addVtx(Vec2(pb.x, pa.y));
-        m_bx.push_back(b);
-        return m_bx.back();
+    AABox* addBox(const Vec2& pa, const Vec2& pb) {
+        AABox* b = new AABox;
+        b->v[0] = addVtx(pa);
+        b->v[1] = addVtx(Vec2(pa.x, pb.y));
+        b->v[2] = addVtx(pb);
+        b->v[3] = addVtx(Vec2(pb.x, pa.y));
+        m_bx.push_back(unique_ptr<AABox>(b));
+        return b;
     }
 
     void makeBoxPoly();
@@ -149,7 +150,7 @@ public:
     vector<unique_ptr<Vertex>> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
                            // needs to be pointers since display items reference them
     vector<unique_ptr<Polyline>> m_pl;
-    vector<AABox> m_bx;
+    vector<unique_ptr<AABox>> m_bx;
     vector<unique_ptr<Vertex>> m_boxAddedVtx; // vertices added when parsing the boxes, should be discarded when boxes are reparsed
     
     map<void*, string> m_objModules; // defined objects can have optional string modules where they came from

@@ -2,7 +2,7 @@
 var canvas, ctx, output, scroll;
 var added_poly_point, moved_object, started_new_poly, added_agent, add_goal, remove_goal, cpp_progress, set_goal;
 var serialize, deserialize, go_to_frame, update_agent, update_goal, add_imported, added_building
-var grass_pattern, rock_pattern
+var grass_pattern, rock_pattern, errrect_pattern
 var world_width, world_height
 var needDraw = true
 var inq = (typeof qactions !== 'undefined')
@@ -31,7 +31,7 @@ var ObjSelType = {
     MULTI: 2
 }
 var ObjType = {
-    POLYPOINT: 0, AGENT: 1, GOAL: 2
+    POLYPOINT: 0, AGENT: 1, GOAL: 2, BUILDING_PNT: 3
 }
 
 var INIT_SQUARE_SIZE = 300
@@ -116,6 +116,14 @@ function init() {
     }
     rock_img.src = "data:image/svg+xml;base64," + btoa(rock_cont.innerHTML)
     rock_img.onload()
+    
+    errrect_img.onload = function () {
+        if (!errrect_pattern)
+            errrect_pattern = ctx.createPattern(errrect_img, "repeat")
+        needDraw = true
+    }
+    errrect_img.src = "data:image/svg+xml;base64," + btoa(errrect_cont.innerHTML)
+    errrect_img.onload()
 
     parseUrl()
 
@@ -254,6 +262,7 @@ function handleMouseDown(event) {
     var x = c.x, y = c.y;
     needDraw = true
 
+    pressedStart = { x: x, y: y }
     var reversedZ = Object.keys(drawCircles).reverse()
     for (var zi in reversedZ) {
         var z = reversedZ[zi]
@@ -275,7 +284,7 @@ function handleMouseDown(event) {
         return true
     }
     if (addingBuilding.checked) {
-        added_building(x, y);
+        added_building(x, y); // pressedObject will be set by c++
         return true
     }
     if (addingAgent.checked) {
@@ -356,6 +365,7 @@ function handleMouseUp(event) {
         if (pressedObject.objType == ObjType.AGENT) {
             multiSelected = [pressedObject]
             readAgentRadiusFrom(pressedObject);
+            pressedObject.isSelected = true
         }
         if (pressedObject.objType == ObjType.GOAL) {
             goalRadius.value = pressedObject.secondRadius
@@ -363,8 +373,13 @@ function handleMouseUp(event) {
             goalPoint.checked = isPoint
             goalAttack.checked = !isPoint
             selectedGoal = pressedObject
+            pressedObject.isSelected = true
         }
-        pressedObject.isSelected = true
+        if (pressedObject.objType == ObjType.BUILDING_PNT) {
+            moved_object(pressedObject.ptr, pressedObject.x + 5, pressedObject.y + 5)
+            readScene()
+        }
+        
     }
     
     pressedObject = null
@@ -576,24 +591,55 @@ Triangle.prototype.draw1 = function() {
     ctx.lineWidth = showTri.checked ? 0.5 : 2;
     ctx.strokeStyle = showTri.checked ? '#428549' : ctx.fillStyle;
     ctx.stroke()
-
 }
 
-Triangle.prototype.isInside = function(x, y) {
-    return false;
+function Rectangle(ax, ay, bx, by) {
+    this.ax = ax; this.ay = ay;
+    this.bx = bx; this.by = by;
+    this.makeDCoord()
 }
-Triangle.prototype.isInRect = function(rect) {
-    return false;
+Rectangle.prototype.makeDCoord = function () {
+    this.dax = this.ax * S2H_SCALE + S2H_XOFFSET; this.day = this.ay * S2H_SCALE + S2H_YOFFSET;
+    this.dbx = this.bx * S2H_SCALE + S2H_XOFFSET; this.dby = this.by * S2H_SCALE + S2H_YOFFSET;
+}
+Rectangle.prototype.draw1 = function () {
+    var w = this.dbx - this.dax
+    var h = this.dby - this.day
+        
+    ctx.lineWidth = 1
+    ctx.strokeStyle = "#ff5555"
+    ctx.strokeRect(this.dax, this.day, w, h)
+    ctx.save()
+    ctx.translate(this.dax, this.day); // I want the fill texture to move with me
+    ctx.fillStyle = errrect_pattern 
+    ctx.fillRect(0, 0, w, h)
+    ctx.restore()
 }
 
-function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
-    var obj = new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf")
+
+function register_tri(obj, ptr, zOrder) {
     obj.ptr = ptr;
     obj.zOrder = zOrder;
     triangles[ptr] = obj;
     if (!(zOrder in drawTriangles))
         drawTriangles[zOrder] = []
     drawTriangles[zOrder][ptr] = obj;
+    needDraw = true
+}
+
+function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
+    register_tri(new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf"),  ptr, zOrder)
+}
+
+function add_rect(ptr, zOrder, ax, ay, bx, by) {
+    register_tri(new Rectangle(ax, ay, bx, by), ptr, zOrder)
+}
+
+function change_rect(ptr, ax, ay, bx, by) {
+    var r = triangles[ptr];
+    r.ax = ax; r.ay = ay;
+    r.bx = bx; r.by = by;
+    r.makeDCoord()
     needDraw = true
 }
 
@@ -1531,7 +1577,17 @@ body { /* disable selection so the double click will not select */
       <rect style="fill:#72300d;filter:url(#filter_grass3)" width="400" height="400" x="0" y="0"/> <!--512006-->
     </svg></div>
     <img id="rock_img" style="display:none;"/>
-
+    
+    <div id="errrect_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" version="1.1">
+        <defs><filter id="lineblur"><feGaussianBlur stdDeviation="1.4" /></filter></defs>
+        <path style="stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-opacity:1;filter:url(#lineblur)"
+           d="m -1,11 12,-12"/>
+        <path style="stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-opacity:1;filter:url(#lineblur)"
+           d="m 9,21 12,-12"/>
+        <rect style="fill:#ff6666;fill-opacity:0.4;stroke:none"
+           width="20" height="20" x="0" y="0" />
+    </svg></div>
+    <img id="errrect_img" style="display:none;"/>
 </body>
 
 </html>

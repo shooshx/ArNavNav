@@ -537,11 +537,37 @@ void MapDef::makeBoxPoly()
     };
 
     // create half edges for all boxes
-    for(int i = 0; i < m_bx.size(); ++i) {
-        auto& box = m_bx[i];
-        Vec2 d = box.v[0]->p - box.v[2]->p;
+    for(int i = 0; i < m_bx.size(); ++i) 
+    {
+        auto& box = *m_bx[i];
+        const Vec2& a1 = box.v[0]->p;
+        const Vec2& a2 = box.v[2]->p;
+        Vec2 d = a1 - a2;
+        // check empty box
         if (d.x == 0 || d.y == 0)
             continue; // empty box
+        // check its not intersecting with other boxes
+        float amnx, amxx, amny, amxy;
+        iminmax(a1.x, a2.x, &amnx, &amxx);
+        iminmax(a1.y, a2.y, &amny, &amxy);
+        box.intersectError = false;
+        for(int j = 0; j < m_bx.size() && !box.intersectError; ++j) {
+            if (i == j)
+                continue;
+            auto& checkBox = *m_bx[j];
+            if (checkBox.intersectError)
+                continue;
+            const Vec2& b1 = checkBox.v[0]->p;
+            const Vec2& b2 = checkBox.v[2]->p;
+            float bmnx, bmxx, bmny, bmxy;
+            iminmax(b1.x, b2.x, &bmnx, &bmxx);
+            iminmax(b1.y, b2.y, &bmny, &bmxy);
+
+            box.intersectError = (!(bmxx <= amnx || bmnx >= amxx || bmxy <= amny || bmny >= amxy));
+        }
+        if (box.intersectError)
+            continue;
+
         int sign = (d.x * d.y < 0) ? -1 : 1;  // means its ordered in the reverse order, need to reverse it
 
         Vertex* av[4];
@@ -553,7 +579,7 @@ void MapDef::makeBoxPoly()
             bh.push_back(BHalfEdge{av[i], av[(4 + i + sign)%4]});
     }
 
-    // go over half edges, find if there is a vertex that divites a subedge, if there is, divide it
+    // go over half edges, find if there is a vertex that divides a subedge, if there is, divide it
     for(int curhi = 0; curhi < bh.size(); )
     {
         auto curh = bh[curhi]; // need to copy the BHalfEdge since the vector might be reallocating
@@ -569,6 +595,7 @@ void MapDef::makeBoxPoly()
             bool divy = (p.x == fp.x && p.x == tp.x && p.y > mny && p.y < mxy);
             if (divx || divy) 
             {
+                // add two half edges instead of the one we're removing
                 bh.push_back(BHalfEdge{curh.from, vtx[vi]});
                 bh.push_back(BHalfEdge{vtx[vi], curh.to});
                 removeCur = true;
@@ -643,7 +670,7 @@ void MapDef::makeBoxPoly()
                 Vertex* selectedTo = to.second;
                 Vertex* otherTo = to.first;
 
-                CHECK(prev != nullptr, "first iteration junction?");
+                CHECK(prev != nullptr, "first iteration junction?"); // should not happen since we jumped to start from a non junction
  
                 // need to find the correct next one according to the direction we're going to
                 auto a = cur->p - prev->p;
@@ -670,7 +697,6 @@ void MapDef::makeBoxPoly()
 
                 prev = cur;
                 cur = selectedTo;
-
             }
             
         } while(cur != start);
