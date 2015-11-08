@@ -272,7 +272,6 @@ function handleMouseDown(event) {
                 pressedObject = o;
                 mouseDownOffset.x = pressedObject.x - x
                 mouseDownOffset.y = pressedObject.y - y
-                pressedStart = {x:x, y:y}
                 return true;
             }            
         }
@@ -285,6 +284,7 @@ function handleMouseDown(event) {
     }
     if (addingBuilding.checked) {
         added_building(x, y); // pressedObject will be set by c++
+        pressedStart.justAdded = true
         return true
     }
     if (addingAgent.checked) {
@@ -376,8 +376,10 @@ function handleMouseUp(event) {
             pressedObject.isSelected = true
         }
         if (pressedObject.objType == ObjType.BUILDING_PNT) {
-            moved_object(pressedObject.ptr, pressedObject.x + 5, pressedObject.y + 5)
-            readScene()
+            if (pressedStart.justAdded) {
+                moved_object(pressedObject.ptr, pressedObject.x + 5, pressedObject.y + 5) // simulate creating a 6x6 building
+                readScene()
+            }
         }
         
     }
