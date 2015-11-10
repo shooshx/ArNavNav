@@ -13,7 +13,7 @@ Current features
 
 BUG
 - attack formation does not allow passing of other agents through
-
+- don't replan too many times
 
 TBD
 - replan when stuck

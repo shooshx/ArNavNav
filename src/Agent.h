@@ -50,7 +50,7 @@ public:
     virtual ~ISubGoal() {}
     virtual Vec2 getDest(const Vec2& comingFrom) const = 0;
     virtual bool isPassed(const Vec2& amAt) const = 0;
-    virtual bool shouldTaper() const = 0;
+    virtual bool isPoint() const = 0;
     virtual Vec2 representPoint() const = 0; // point required for knowing the direction we're coming from
 };
 
@@ -78,7 +78,7 @@ public:
     virtual bool isPassed(const Vec2& amAt) const {
         return (passCheckSign * det(ab, amAt - a)) < 0; // did we pass the line
     }
-    virtual bool shouldTaper() const {
+    virtual bool isPoint() const {
         return false;
     }
     virtual Vec2 representPoint() const {
@@ -102,7 +102,7 @@ public:
     virtual bool isPassed(const Vec2& amAt) const {
         return (distSq(amAt, p) < radiusSq);
     }
-    virtual bool shouldTaper() const {
+    virtual bool isPoint() const {
         return true;
     }
     virtual Vec2 representPoint() const { // not really needed since this is the end but for consistancy
