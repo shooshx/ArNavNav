@@ -289,7 +289,7 @@ public:
     Vec2 m_velocity;
     Vec2 m_newVelocity;
     std::vector<VelocityObstacle> m_voStore; // used in computeNewVelocity, should not be reallocated every time
-    //float m_orientation = 0.0;
+    float m_orientation = 0.0;
 
 
     MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range

@@ -478,6 +478,10 @@ namespace qui {
 extern int g_curFrame;
 }
 
+#define MAX_ANGULAR_SPEED 0.5  // rad/sec
+#define I_PI (3.1415926535897932384626433832795)
+
+
 bool Agent::update(float deltaTime)
 {
 	const float dv = length(m_newVelocity - m_velocity);
@@ -508,9 +512,27 @@ bool Agent::update(float deltaTime)
         }
     }
 
-	/*if (!reachedEnd) {
-		m_orientation = atan(m_prefVelocity);
-	}*/
+    float prevo = m_orientation;
+	float nexto = mtrig::atan2(m_prefVelocity.y, m_prefVelocity.x);
+    float d = prevo - nexto;
+    float maxd = MAX_ANGULAR_SPEED * deltaTime;
+    float absd = iabs(d);
+    if (absd > maxd) {
+        //OUT("orientDelta=" << d << " o=" << m_orientation)
+        if ((d > 0) != (absd > I_PI))
+            m_orientation = prevo - maxd;
+        else 
+            m_orientation = prevo + maxd;
+
+        // the range of atan2
+        if (m_orientation < -I_PI)
+            m_orientation += 2 * I_PI;
+        if (m_orientation > I_PI)
+            m_orientation -= 2 * I_PI;
+    }
+    else {
+        m_orientation = nexto;
+    }
     return reachedEnd;
 }
 

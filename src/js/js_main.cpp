@@ -81,7 +81,7 @@ public:
     virtual ~AgentItem() {}
     virtual void setPos(const Vec2& p);
     void updatePos() {
-        EM_ASM_( move_circle($0, $1, $2), this, m_a->m_position.x, m_a->m_position.y);
+        EM_ASM_( move_orient_circle($0, $1, $2, $3), this, m_a->m_position.x, m_a->m_position.y, m_a->m_orientation);
     }
     void updateSize() {
         EM_ASM_( changed_size($0, $1), this, m_a->m_radius);

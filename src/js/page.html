@@ -124,6 +124,12 @@ function init() {
     }
     errrect_img.src = "data:image/svg+xml;base64," + btoa(errrect_cont.innerHTML)
     errrect_img.onload()
+    
+    agent_img.onload = function () {
+        needDraw = true
+    }
+    agent_img.src = "data:image/svg+xml;base64," + btoa(agent_cont.innerHTML)
+    agent_img.onload()
 
     parseUrl()
 
@@ -488,6 +494,7 @@ function setGoal(x, y, selAgents) {
 function Circle(x, y, radius, color, selType, objType, secondRadius) {
     this.x = x;
     this.y = y;
+    this.rot = null; // agent orientation
     this.radius = radius;
     this.color = color;
     this.selType = selType //multiSel = multiSel;
@@ -523,11 +530,20 @@ Circle.prototype.draw2 = function() {
 Circle.prototype.draw3 = function() {
     ctx.beginPath();
     ctx.arc(this.dx, this.dy, this.dradius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = this.color;
+    ctx.fillStyle = this.color
     ctx.fill();
     ctx.lineWidth = 0.5;
     ctx.strokeStyle = '#000000';
     ctx.stroke();
+    if (this.color == COLOR_AGENT) {
+        ctx.save()
+        ctx.translate(this.dx, this.dy)
+        ctx.rotate(this.rot - Math.PI*0.5)
+        ctx.scale(this.dradius * (1/60*2), this.dradius * (1/70*2))
+        ctx.translate(-60/2, -70/2)
+        ctx.drawImage(agent_img, 0, 0)
+        ctx.restore()
+    }
 
     if (this.dsecondRadius != null && showGoalRadius.checked) {
         ctx.beginPath();
@@ -656,6 +672,18 @@ function move_circle(ptr, x, y) {
     o.makeDCoord()
     needDraw = true
 }
+
+function move_orient_circle(ptr, x, y, rot) {
+    var o = circles[ptr];
+    if (o.x == x && o.y == y && o.rot == rot)
+        return
+    o.x = x;
+    o.y = y;
+    o.rot = rot
+    o.makeDCoord()
+    needDraw = true        
+}
+
 function changed_size(ptr, r) {
     var o = circles[ptr]
     if (o.radius == r)
@@ -1590,6 +1618,13 @@ body { /* disable selection so the double click will not select */
            width="20" height="20" x="0" y="0" />
     </svg></div>
     <img id="errrect_img" style="display:none;"/>
+    
+    <div id="agent_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="60" height="70" version="1.1">
+       <path style="fill:#a33232;"
+       d="m 8.2840707,13.005171 c -0.458262,0.03398 -0.799553,0.235728 -0.997276,0.64167 C 5.199302,17.932673 15.155264,40.912215 16.247903,43.570177 17.340543,46.228137 27.85558,69 30.04086,69 32.226138,69 42.861566,46.904537 43.954208,44.246483 45.046847,41.588522 54.499737,17.794016 52.794925,13.646841 51.059983,9.426388 32.226138,28.113583 30.04086,28.113583 c -1.980412,0 -17.326922,-15.43693 -21.7567893,-15.108412 z"/>
+    </svg></div>
+    <img id="agent_img" style="display:none;"/>
+
 </body>
 
 </html>
