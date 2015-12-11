@@ -165,7 +165,7 @@ public:
             Vec2 nbc = normalize(bc);
             Vec2 dp1 = Vec2(-nab.y, nab.x); // perp to ab
             Vec2 dp2 = Vec2(-nbc.y, nbc.x); // perp to bc
-            if (dot(ab, bc) < 0) // sharp angle - use the 45 points and add a segment between
+            if (dot(ab, bc) < 0) // sharp angle - use the 45 points and add a point segment between
             {
                 Vec2 dpa = dp1 - nab;
                 Vec2 dpb1 = dp1 + nab;
@@ -177,22 +177,28 @@ public:
                 Vec2 dpc = dp2 + nbc;
 
                 prevSeg->dpb = dpb1_m;
-             //   addSegment(a, b, dpa, dpb1_m);
+
                 addPSegment(b, dpb1, dpb2, m_v[i]->index);
                 prevSeg = addSegment(b, c, dpb2_m, dpc, -1); // PointSegment takes precedence for representing this vertex in m_seggoals
             }
             else
             {
-                Vec2 near_b1 = b + dp1; // near b with distanct perpendicular to ab
-                Vec2 near_b2 = b + dp2; // near b with distanct perpendicular to bc
-                Vec2 mid = lineIntersect(near_b1, nab, near_b2, nbc);
-                mid = mid - b;
+                Vec2 mid;
+                if (det(ab, bc) != 0) {
+                    Vec2 near_b1 = b + dp1; // near b with distanct perpendicular to ab
+                    Vec2 near_b2 = b + dp2; // near b with distanct perpendicular to bc
+                    mid = lineIntersect(near_b1, nab, near_b2, nbc);
+                    mid = mid - b;
+                }
+                else { // collinear
+                    mid = dp2;
+                }
 
-                Vec2 amid = normalize(nab - nbc) * SQRT_2;
+                //Vec2 amid = normalize(nab - nbc) * SQRT_2;
                 prevSeg->dpb = mid + nab * ANTI_OVERLAP_FACTOR; // avoid overlap
                 prevSeg = addSegment(b, c, mid, mid, m_v[i]->index);
             }
-            // TBD exactly 0
+            
 
         }
         prevSeg->dpb = beforeFirst.dpb;
@@ -574,7 +580,7 @@ void Document::serialize(ostream& os)
             continue;
         if (m_mapdef.m_objModules.find(pl.get()) != m_mapdef.m_objModules.end())
             continue; // this polyline was included in a file
-        if (pl->m_fromBox)
+        if (pl->m_fromBox) // boxes are defined below
             continue;
         os << "p,\n";
         for(const auto& pv : pl->m_d) {
@@ -601,6 +607,8 @@ void Document::serialize(ostream& os)
 }
 
 
+#define MULT_FACTOR 1
+
 void Document::readStream(istream& is, map<string, string>& imported, const string& module)
 {
     // see http://stackoverflow.com/questions/7302996/changing-the-delimiter-for-cin-c
@@ -620,6 +628,7 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
         else if (h[0] == 'v') {
             Vec2 v;
             is >> v.x >> v.y;
+            v *= MULT_FACTOR;
             if (is.fail())
                 break;
             m_mapdef.addToLast(v, module);
@@ -630,6 +639,7 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
             float radius;
             int type;
             is >> v.x >> v.y >> radius >> type;
+            v *= MULT_FACTOR;
             if (is.fail())
                 break;
             addGoal(v, radius, (EGoalType)type);
@@ -639,6 +649,9 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
             int goali = 0;
             float radius = 0.0f, ps = 0.0f, ms = 0.0f;
             is >> pos.x >> pos.y >> goali >> vel.x >> vel.y >> radius >> ps >> ms;
+            pos *= MULT_FACTOR;
+            radius *= MULT_FACTOR;
+            vel *= MULT_FACTOR;
             if (is.fail())
                 break;
             if (goali >= (int)m_goals.size() || radius <= 0.0f)

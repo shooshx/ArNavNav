@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <limits>
 #include "../Vec2.h"
 #include "../Document.h"
 #include "../Except.h"
@@ -46,13 +47,15 @@ public:
 class PolyPointItem : public Item
 {
 public:
-    PolyPointItem(NavCtrl* ctrl, Vertex* v) :Item(ctrl), m_v(v)
+    PolyPointItem(NavCtrl* ctrl, Vertex* v, int pli, int vi) :Item(ctrl), m_v(v), m_plindex(pli), m_vindex(vi)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(50,50,50)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y);
     }
     virtual void setPos(const Vec2& p);
     
     Vertex* m_v;
+    bool m_moved = false;
+    int m_plindex, m_vindex; //polyline index, vertex index in the polyline
 };
 
 class TriItem  : public Item
@@ -195,7 +198,7 @@ public:
     void addPolyPoint(const Vec2& p) 
     {
         auto pv = m_doc.m_mapdef.addToLast(p);
-        auto i = new PolyPointItem(this, pv);
+        auto i = new PolyPointItem(this, pv, -1, -1);
         m_polypointitems.push_back(shared_ptr<PolyPointItem>(i));
         updateMesh();
         m_quiteCount = 0;
@@ -349,11 +352,29 @@ public:
     void updateMesh(); // when plylines change
     void updateBoxesAndMesh(); // when there's a chance boxes changed
     void readDoc();
+    void sendPerminiters();
 
     void resetFrames() {
         m_frames.clear();
         m_atFrame = 0;
         EM_ASM_( set_max_frame($0), 0);
+    }
+
+    const char* serialize() {
+        resetFrames(); // new script so we start the play from the start
+        ostringstream ss;
+        m_doc.serialize(ss);
+        if (!m_doc.m_mapdef.m_objModules.empty()) // only if there are modules
+        {
+            for(auto& pp: m_polypointitems) {
+                if (pp->m_moved) {
+                    ss << "# v:" << pp->m_plindex << ":" << pp->m_vindex << "," << pp->m_v->p.x << "," << pp->m_v->p.y << ",\n";
+                }
+            }
+        }
+        static string s;
+        s = ss.str();
+        return s.c_str();
     }
     
     vector<shared_ptr<PolyPointItem>> m_polypointitems;
@@ -389,6 +410,8 @@ void PolyPointItem::setPos(const Vec2& p) {
     m_v->p = p;
     EM_ASM_( move_circle($0, $1, $2), this, m_v->p.x, m_v->p.y);
     m_ctrl->updateMesh();
+    m_moved = true;
+
 }
 
 void BuildingPointItem::setPos(const Vec2& p) {
@@ -426,6 +449,43 @@ void BuildingMoveItem::setPos(const Vec2& p) {
     m_ctrl->updateBoxesAndMesh();
 }
 
+static float isign(float v) {
+    return (v < 0)?-1.0:1.0;
+}
+
+void orderPerimiters(vector<Polyline>& p, vector<Polyline*>& o); 
+
+void NavCtrl::sendPerminiters()
+{
+    static vector<float> v;
+    v.clear();
+    vector<Polyline*> polyorder;
+    orderPerimiters(m_doc.m_mesh.m_perimiters, polyorder);
+    for(const auto* pr: polyorder)
+    {
+        // CW or CCW? http://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
+        float sum = 0;
+        int sz = pr->m_d.size();
+        for(int i = 0; i < sz; ++i) {
+            auto* v0 = pr->m_d[i];
+            auto* v1 = pr->m_d[(i+1) % sz ];
+            float segmentArea = (v0->p.x - v1->p.x)*(v0->p.y + v1->p.y);
+            sum += segmentArea;
+        }
+        for(const auto* vtx: pr->m_d) {
+            v.push_back(vtx->p.x);
+            v.push_back(vtx->p.y);
+        }
+        // end of polygon marker
+        v.push_back(isign(sum) * numeric_limits<float>::infinity());
+    }
+    float* p = nullptr;
+    if (v.size() > 0)
+        p = &v[0];
+    EM_ASM_( take_perimiters($0, $1), p, v.size());
+}
+
+
 void NavCtrl::updateMesh()
 {
     try {
@@ -435,6 +495,9 @@ void NavCtrl::updateMesh()
         OUT("failed triangulation");
         return;
     }
+
+    sendPerminiters();
+
     m_meshitems.clear();
     //OUT("Triangles " << m_doc.m_mesh.m_tri.size());
     for(auto& tri : m_doc.m_mesh.m_tri) {
@@ -473,12 +536,15 @@ void NavCtrl::readDoc()
         m_goalitems.push_back(shared_ptr<GoalItem>(new GoalItem(this, goal.get()))); 
     }
     //OUT("PPItems " << m_doc.m_mapdef.m_vtx.size());
+    int pli = 0;
     for(auto& pl: m_doc.m_mapdef.m_pl) {
         if (pl->m_fromBox)
             continue;
+        int vi = 0;
         for(auto* v: pl->m_d) {
-            m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, v)));
+            m_polypointitems.push_back(shared_ptr<PolyPointItem>(new PolyPointItem(this, v, pli, vi++)));
         }
+        pli++;
     }
     for(const auto& bx: m_doc.m_mapdef.m_bx) {
         auto im = new BuildingMoveItem(this, bx.get());
@@ -550,12 +616,7 @@ bool cpp_progress(float deltaSec) {
 }
 // write doc
 const char* serialize() {
-    g_ctrl->resetFrames(); // new script so we start the play from the start
-    ostringstream ss;
-    g_ctrl->m_doc.serialize(ss);
-    static string s;
-    s = ss.str();
-    return s.c_str();
+    return g_ctrl->serialize();
 }
 // read to doc
 void deserialize(const char* sp) {

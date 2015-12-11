@@ -47,7 +47,7 @@ struct FTri { // for flood fill
 class TMesh
 {
 public:
-    void readAndUnify(const string& filename);
+    bool readAndUnify(const string& filename);
     void deTeeVtx();
     template<typename T>
     void save(const string& outname, vector<T>* faces = &m_tri);
@@ -73,12 +73,12 @@ public:
 
 };
 
-void TMesh::readAndUnify(const string& filename)
+bool TMesh::readAndUnify(const string& filename)
 {
     ifstream ifs(filename);
     if (!ifs.good()) {
         cout << "failed opening " << filename << endl;
-        return;
+        return false;
     }
 
     map<Key3, int> univtx; // vec3->new index
@@ -128,7 +128,7 @@ void TMesh::readAndUnify(const string& filename)
     };
 
     cout << "Unify before=" << vtxi << " after=" << ncount << endl;
-
+    return true;
 }
 
 
@@ -529,22 +529,39 @@ void TMesh::getPoly(const string& outname)
     }
 }
 
-
-void terrainExtract()
+void runExtract(const string& filename, const string& outname)
 {
-    //string filename = "C:\\projects\\nav\\terrain\\MyCity_all_terrain.obj";
-    string filename = "C:\\projects\\nav\\terrain\\Mission_10_all_terrain.obj";
-    //string outname = "C:\\projects\\nav\\terrain\\MyCity_navmesh.obj";
-    string outname = "C:\\projects\\nav\\terrain\\Mission_10_navmesh.obj";
-
+    cout << "******* " << filename << endl;
     TMesh m;
-    m.readAndUnify(filename);
+    if (!m.readAndUnify(filename))
+        return;
     m.deTeeVtx();
 
     m.makeFlatPlaneSedgeIndex();
     //m.save(outname + "_flat.obj", &m.m_facePlane);
 
     m.getPoly(outname);
+}
+
+void terrainExtract()
+{
+
+    //string filename = "C:\\projects\\nav\\terrain\\MyCity_all_terrain.obj";
+    string filename = "C:\\projects\\nav\\terrain\\Mission_3.GOWScene.zip_all_terrain.obj";
+    //string outname = "C:\\projects\\nav\\terrain\\MyCity_navmesh.obj";
+    string outname = "C:\\projects\\nav\\terrain\\Mission_3.txt";
+
+    //runExtract("C:\\projects\\nav\\terrain\\Mission_20.GOWScene.zip_all_terrain.obj", "C:\\projects\\nav\\terrain\\Mission_20.txt");
+
+    runExtract("C:\\projects\\nav\\terrain\\MyCity.GOWScene.zip_all_terrain.obj", "C:\\projects\\nav\\terrain\\MyCity.txt");
+
+
+/*    for(int i = 4; i < 20; ++i) {
+        stringstream sf, so;
+        sf << "C:\\projects\\nav\\terrain\\Mission_" << i << ".GOWScene.zip_all_terrain.obj";
+        so << "C:\\projects\\nav\\terrain\\Mission_" << i << ".txt";
+        runExtract(sf.str(), so.str());
+    }*/
 
 }
 

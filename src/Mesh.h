@@ -153,6 +153,7 @@ public:
     vector<unique_ptr<AABox>> m_bx;
     vector<unique_ptr<Vertex>> m_boxAddedVtx; // vertices added when parsing the boxes, should be discarded when boxes are reparsed
     
+    // pointer of Polyline or Vertex to module it came from
     map<void*, string> m_objModules; // defined objects can have optional string modules where they came from
 };
 

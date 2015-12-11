@@ -7,6 +7,9 @@ var world_width, world_height
 var needDraw = true
 var inq = (typeof qactions !== 'undefined')
 var thecookie = {}
+var ROTATIONS_RESOLUTION = 5
+var agent_imgs = [] // for every agent-radius, [for every degree 0..359 an Image() with skips by the resolution]
+var editPolyPnt = false // used for showing the points while editing
 if (inq) {
     var Pointer_stringify = function (a) { return a }
 }
@@ -39,6 +42,8 @@ var INIT_SQUARE = "p,\nv,-X,-X,\nv,X,-X,\nv,X,X,\nv,-X,X,".replace(/X/g, INIT_SQ
 
 // file:///C:/projects/nav/src/js/page.html?loadFrom=localhost:8000
 
+var mgetValue = null
+
 function init() {
     canvas = document.getElementById("canvas")
     ctx = canvas.getContext("2d")
@@ -52,6 +57,7 @@ function init() {
         for (var k in qactions) {
             window[k.substring(0, k.indexOf('('))] = qactions[k]
         }
+        mgetValue = qactions["getValue(qlonglong,QString)"]
         SHOW_TRI_DEFAULT = "true"
         SHOW_TEX_DEFAULT = "false"
     }
@@ -72,6 +78,7 @@ function init() {
         update_goal = Module.cwrap('update_goal', null, ['number', 'number', 'number'])
         add_imported = Module.cwrap('add_imported', null, ['string', 'string'])
         added_building = Module.cwrap('added_building', null, ['number', 'number'])
+        mgetValue = Module.getValue
     }
     
     canvas_place.onmousedown = canvas.onmousedown = handleMouseDown;
@@ -125,11 +132,7 @@ function init() {
     errrect_img.src = "data:image/svg+xml;base64," + btoa(errrect_cont.innerHTML)
     errrect_img.onload()
     
-    agent_img.onload = function () {
-        needDraw = true
-    }
-    agent_img.src = "data:image/svg+xml;base64," + btoa(agent_cont.innerHTML)
-    agent_img.onload()
+    //makeAgentImages(3)
 
     parseUrl()
 
@@ -138,6 +141,7 @@ function init() {
     showTri.checked = (readCookie("showTri", SHOW_TRI_DEFAULT) == "true")
     showTex.checked = (readCookie("showTex", SHOW_TEX_DEFAULT) == "true")
     showGoalRadius.checked = (readCookie("showGoalRadius", "true") == "true")
+    showPolyPoint.checked = (readCookie("showPolyPoiny", "true") == "true")
     agentSize.value = parseFloat(readCookie("agentSize", "3"))
     agentSpeed.value = parseFloat(readCookie("agentSpeed", "1"))
     goalRadius.value = parseFloat(readCookie("goalRadius", "20"))
@@ -151,6 +155,29 @@ function init() {
     initDemos()
 
     progress();
+}
+
+function makeAgentImages(agentRadius) {
+    if (agentRadius in agent_imgs)
+        return;
+    var newImgs = []
+
+    var doneCount = 0
+    for (var i = 0; i < 360; i += ROTATIONS_RESOLUTION) {
+        var img = new Image()
+        newImgs[i] = img
+        img.onload = function () {
+            doneCount++;
+        }
+        var scale = agentRadius * (1 / 70 * 2)
+        var svgsrc = agent_cont.innerHTML.replace("0.00", i - 90)
+                                         .replace("1.0 1.0", "" + scale + " " + scale)
+                                         .replace(/\"70\"/g, '"' + (70*scale) + '"')
+        img.src = "data:image/svg+xml;base64," + btoa(svgsrc)
+        img.onload()
+    }
+
+    agent_imgs[agentRadius] = newImgs
 }
 
 var urlArgs = {}
@@ -220,7 +247,9 @@ Transform.prototype.transformPoint = function(px, py) {
   return {x:px, y:py};
 };
 
+var mouseTargets = {} // zOrder -> {ptr -> objects}
 var drawCircles = {} // zOrder -> {ptr -> objects}
+var drawAgents = {} // zOrder -> {ptr -> objects}
 var drawTriangles = {}
 var circles = {} // ptr -> object
 var triangles = {}
@@ -269,11 +298,13 @@ function handleMouseDown(event) {
     needDraw = true
 
     pressedStart = { x: x, y: y }
-    var reversedZ = Object.keys(drawCircles).reverse()
+    var reversedZ = Object.keys(mouseTargets).reverse()
     for (var zi in reversedZ) {
         var z = reversedZ[zi]
-        for (var p in drawCircles[z]) {
-            var o = drawCircles[z][p];
+        for (var p in mouseTargets[z]) {
+            var o = mouseTargets[z][p];
+            if (!showPolyPoint.checked && !editPolyPnt && (o.objType == ObjType.POLYPOINT || o.objType == ObjType.BUILDING_PNT))
+                continue;
             if (o.isInside(x, y)) {
                 pressedObject = o;
                 mouseDownOffset.x = pressedObject.x - x
@@ -458,7 +489,13 @@ function clear_circles() {
 
 function remove_circle(ptr) {
     //out("remove " + ptr.toString(16));
-    delete drawCircles[circles[ptr].zOrder][ptr]
+    var o = circles[ptr]
+    var z = o.zOrder
+    // may be in one or the other
+    var cont = (o.objType == ObjType.AGENT || o.objType == ObjType.GOAL) ? drawAgents : drawCircles;
+    delete cont[z][ptr]
+
+    delete mouseTargets[z][ptr]
     delete circles[ptr];
     needDraw = true
 }
@@ -494,7 +531,8 @@ function setGoal(x, y, selAgents) {
 function Circle(x, y, radius, color, selType, objType, secondRadius) {
     this.x = x;
     this.y = y;
-    this.rot = null; // agent orientation
+    this.rot = 0 // agent orientation
+    this.degrot = 0
     this.radius = radius;
     this.color = color;
     this.selType = selType //multiSel = multiSel;
@@ -509,6 +547,8 @@ Circle.prototype.makeDCoord = function () {
     this.dy = this.y * S2H_SCALE + S2H_YOFFSET;
     this.dradius = this.radius * S2H_SCALE
     this.dsecondRadius = (this.secondRadius != null) ? (this.secondRadius * S2H_SCALE) : null
+    if (this.objType == ObjType.AGENT)
+        makeAgentImages(this.dradius)
 }
 Circle.prototype.draw1 = function() {
     if (this.isSelected) {
@@ -536,13 +576,8 @@ Circle.prototype.draw3 = function() {
     ctx.strokeStyle = '#000000';
     ctx.stroke();
     if (this.color == COLOR_AGENT) {
-        ctx.save()
-        ctx.translate(this.dx, this.dy)
-        ctx.rotate(this.rot - Math.PI*0.5)
-        ctx.scale(this.dradius * (1/60*2), this.dradius * (1/70*2))
-        ctx.translate(-60/2, -70/2)
-        ctx.drawImage(agent_img, 0, 0)
-        ctx.restore()
+        var img = agent_imgs[this.dradius][this.degrot]
+        ctx.drawImage(img, this.dx - (img.width / 2), this.dy - (img.height / 2))
     }
 
     if (this.dsecondRadius != null && showGoalRadius.checked) {
@@ -568,14 +603,23 @@ Circle.prototype.isInRect = function(rect) {
             this.y >= rect.ymin && this.y <= rect.ymin + rect.height) 
 }
 
+function insertZorder(cont, obj) {
+    if (!(obj.zOrder in cont))
+        cont[obj.zOrder] = {}
+    cont[obj.zOrder][obj.ptr] = obj
+}
+
 function add_circle(ptr, zOrder, x, y, radius, color, objSelType, objType, secondRadius) {
     var obj = new Circle(x, y, radius, color, objSelType, objType, secondRadius)
     obj.ptr = ptr;
     obj.zOrder = zOrder;
     circles[ptr] = obj;
-    if (!(zOrder in drawCircles))
-        drawCircles[zOrder] = []
-    drawCircles[zOrder][ptr] = obj;
+    if (objType == ObjType.AGENT || objType == ObjType.GOAL) 
+        insertZorder(drawAgents, obj)
+    else 
+        insertZorder(drawCircles, obj)
+    
+    insertZorder(mouseTargets, obj)
     needDraw = true
 }
 
@@ -587,29 +631,75 @@ function Triangle(ax, ay, bx, by, cx, cy, color) {
     this.color = color
     this.makeDCoord()
 }
+
+
 Triangle.prototype.makeDCoord = function () {
     // the drawing coordinates
     this.dax = this.ax * S2H_SCALE + S2H_XOFFSET; this.day = this.ay * S2H_SCALE + S2H_YOFFSET;
     this.dbx = this.bx * S2H_SCALE + S2H_XOFFSET; this.dby = this.by * S2H_SCALE + S2H_YOFFSET;
     this.dcx = this.cx * S2H_SCALE + S2H_XOFFSET; this.dcy = this.cy * S2H_SCALE + S2H_YOFFSET;
+
 }
-Triangle.prototype.draw1 = function() {
+Triangle.prototype.draw1 = function () {
     ctx.beginPath();
     ctx.moveTo(this.dax, this.day);
     ctx.lineTo(this.dbx, this.dby);
     ctx.lineTo(this.dcx, this.dcy);
     ctx.lineTo(this.dax, this.day);
-    ctx.fillStyle = showTex.checked ? grass_pattern : "#71fe7b";  // this.color;
 
-    ctx.lineWidth = 0;
-    ctx.strokeStyle = 'white'
-    ctx.fill()
-
-    // if we don't erase the line the underlying fill shows between triangles
-    ctx.lineWidth = showTri.checked ? 0.5 : 2;
-    ctx.strokeStyle = showTri.checked ? '#428549' : ctx.fillStyle;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#428549';
     ctx.stroke()
 }
+
+
+var perimiters = { ptr: null, sz: 0 }
+
+function take_perimiters(ptr, sz) {
+    perimiters.ptr = ptr
+    perimiters.sz = sz
+    //out("perimiter " + ptr + "  " + sz);
+}
+
+function drawPerimiters() {
+    ctx.beginPath();
+    var start = true
+    var i = 0
+    while (i < perimiters.sz) {
+        var x = mgetValue(perimiters.ptr + i * 4, 'float')
+        i++;
+        if (x == Infinity) {
+            ctx.fillStyle = showTex.checked ? grass_pattern : "#71fe7b";
+            ctx.fill()
+            if (i < perimiters.sz - 1)
+                ctx.beginPath();
+            start = true
+            continue
+        }
+        if (x == -Infinity) {
+            ctx.fillStyle = showTex.checked ? rock_pattern : "#983600";
+            ctx.fill()
+            if (i < perimiters.sz - 1)
+                ctx.beginPath();
+            start = true
+            continue
+        }
+
+        var y = mgetValue(perimiters.ptr + i * 4, 'float')
+        i++;
+        var dax = x * S2H_SCALE + S2H_XOFFSET;
+        var day = y * S2H_SCALE + S2H_YOFFSET;
+        if (start) {
+            ctx.moveTo(dax, day);
+            start = false
+        }
+        else {
+            ctx.lineTo(dax, day);
+        }
+    }
+
+}
+
 
 function Rectangle(ax, ay, bx, by) {
     this.ax = ax; this.ay = ay;
@@ -633,6 +723,7 @@ Rectangle.prototype.draw1 = function () {
     ctx.fillRect(0, 0, w, h)
     ctx.restore()
 }
+
 
 
 function register_tri(obj, ptr, zOrder) {
@@ -680,6 +771,7 @@ function move_orient_circle(ptr, x, y, rot) {
     o.x = x;
     o.y = y;
     o.rot = rot
+    o.degrot = (Math.round(rot * 180 / Math.PI / ROTATIONS_RESOLUTION) * ROTATIONS_RESOLUTION + 360) % 360  // make it not negative
     o.makeDCoord()
     needDraw = true        
 }
@@ -727,20 +819,31 @@ function draw() {
     //ctx.translate(S2H_XOFFSET, S2H_YOFFSET)
     //ctx.scale(S2H_SCALE, S2H_SCALE);
 
-    for (var z in drawTriangles) {
-        for (var p in drawTriangles[z]) {
-            drawTriangles[z][p].draw1();
+    drawPerimiters()
+
+    if (showTri.checked) {
+        for (var z in drawTriangles) {
+            for (var p in drawTriangles[z]) {
+                drawTriangles[z][p].draw1();
+            }
         }
     }
-    for (var z in drawCircles) {
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw1();
+    if (showPolyPoint.checked || editPolyPnt) {
+        for (var z in drawCircles) {
+            for (var p in drawCircles[z]) {
+                drawCircles[z][p].draw3();
+            }
         }
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw2();
+    }
+    for (var z in drawAgents) {
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw1();
         }
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw3();
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw2();
+        }
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw3();
         }        
     }
     
@@ -764,6 +867,10 @@ function draw() {
     ctx.stroke();*/
 }
 
+var framesThisSecond = 0
+var doFps = true
+var lastFpsPrintTime = new Date().getTime();
+
 function progress() {
     if (isPlaying) {
         cpp_progress(0.4)
@@ -772,6 +879,16 @@ function progress() {
     if (needDraw)
         draw();
     needDraw = false
+
+    if (doFps) {
+        framesThisSecond++;
+        var nowTime = new Date().getTime()
+        if (nowTime - lastFpsPrintTime > 1000) {
+            lastFpsPrintTime = nowTime
+            fpsDisp.innerHTML = "" + framesThisSecond + " FPS"
+            framesThisSecond = 0
+        }
+    }
 
     window.requestAnimationFrame(progress)
 }
@@ -799,7 +916,8 @@ function triggerPolyline() {
     }
     
     var label = document.getElementById("polyLabel")
-    started_new_poly();    
+    started_new_poly();
+    editPolyPnt = addingPoly.checked
 }
 
 function triggerAgent() {
@@ -819,6 +937,7 @@ function triggerBuilding() {
             triggerPolyline();
         }
     }
+    editPolyPnt = addingBuilding.checked
 }
 
 function adjustPlaceSize(s) {
@@ -989,6 +1108,10 @@ function triggerShowTex() {
 function triggerShowGoalRadius() {
     setCookie("showGoalRadius", showGoalRadius.checked);
 }
+function triggerShowPolyPoint() {
+    setCookie("showPolyPoint", showPolyPoint.checked);
+}
+
 function canvasScroll() {
     needDraw = true
 }
@@ -1120,8 +1243,8 @@ function initDemos() {
                 fhtml += demos[n][nm] // add as <hr> html
         }
         loadFrame.innerHTML = fhtml;
-        var h = parseInt(window.getComputedStyle(loadFrame).fontSize) * demos.length + 12
-        loadFrame.style.height = h + "px"
+        //var h = parseInt(window.getComputedStyle(loadFrame).fontSize) * demos.length + 12 not needed
+        //loadFrame.style.height = h + "px"
     }
     dispDemos();
 
@@ -1139,6 +1262,8 @@ function initDemos() {
             for (var i in names) {
                 var d = {}
                 var on = names[i]
+                if (on.length == 0)
+                    continue
                 d[on] = makeFunc(on)
                 addDemos.push(d)
             }
@@ -1168,6 +1293,11 @@ body { /* disable selection so the double click will not select */
 #canvas {
     position: absolute;
     background: #fff;
+    left: 8px;
+    top: 8px;
+}
+#fpsDisp {
+    position: absolute;
     left: 8px;
     top: 8px;
 }
@@ -1430,36 +1560,48 @@ body { /* disable selection so the double click will not select */
     top: 220px;
     left: 31px;
 }
+#showPolyPoint {
+    position: absolute;
+    top: 239px;
+    left: 8px;
+    width: 15px;
+    height: 15px;
+}
+#showPPLabel {
+    position: absolute;
+    top: 239px;
+    left: 31px;
+}
 #goalFrame {
-    top: 250px;
+    top: 269px;
     height: 80px;
 }
 #goalFrameText {
     position: absolute;
-    top: 242px;
+    top: 261px;
     left: 20px;
     background: #cbcfff;
 }
 #goalRadius {
     position: absolute;
-    top: 263px;
+    top: 282px;
     left: 85px;
     width: 50px;
 }
 #goalRadiusLabel {
     position: absolute;
-    top: 265px;
+    top: 284px;
     left: 33px;
 }
 #showGoalRadius {
     position: absolute;
-    top: 263px;
+    top: 282px;
     left: 10px;
     width: 15px;
     height: 15px;
 }
 #goalPoint {
-    top: 290px;
+    top: 309px;
     left: 12px;
     width: 55px;
 }
@@ -1467,7 +1609,7 @@ body { /* disable selection so the double click will not select */
   content: "Point";
 }
 #goalAttack {
-    top: 290px;
+    top: 309px;
     left: 75px;
     width: 55px;
 }
@@ -1479,16 +1621,16 @@ body { /* disable selection so the double click will not select */
     content: "Load...";
 }
 #loadBut {
-    top: 340px;
+    top: 359px;
     left: 8px;
     width: 63px;
 }
 #loadFrame {
     position: absolute;
-    top: 335px;
+    top: 384px;
     left: 8px;
     width: 120px;
-    height: 100px;
+    /*height: 100px;*/
     border: 3px outset #A9A7A7;
     padding: 4px;
     background: linear-gradient(to bottom, #fff 0%,#ddd 100%);
@@ -1520,6 +1662,7 @@ body { /* disable selection so the double click will not select */
   <div id="canvas_cont" onscroll="canvasScroll()">
     <div id="canvas_place"></div>
   </div>
+  <div id="fpsDisp"></div>
 
   <div id="but_ctrl"><div id="but_rel" style="position:relative; width:100%; height:100%">
       <input id="addingPoly" class="sc-btn" type="checkbox" onclick="triggerPolyline()"/>
@@ -1532,6 +1675,7 @@ body { /* disable selection so the double click will not select */
       <input id="zoom_scroll" type="range" name="zoom" min="-75" max="200" value="0" oninput="zoomChanged()" onmousedown="zoomStart()"/> 
       <input id="showTri" type="checkbox" onclick="triggerShowTri()" /><label id="showTriLabel" for="showTri">Triangulation</label>
       <input id="showTex" type="checkbox" onclick="triggerShowTex()" /><label id="showTexLabel" for="showTex">Textures</label>
+      <input id="showPolyPoint" type="checkbox" onclick="triggerShowPolyPoint()" /><label id="showPPLabel" for="showPolyPoint">Poly Markers</label>
 
       <div id="goalFrame" class="frame"></div><div id="goalFrameText">&nbsp;Goal&nbsp;</div>
       <input id="goalRadius" type="number" value="20" min="1" max="100" oninput="goalRadiusChange()">
@@ -1619,12 +1763,10 @@ body { /* disable selection so the double click will not select */
     </svg></div>
     <img id="errrect_img" style="display:none;"/>
     
-    <div id="agent_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="60" height="70" version="1.1">
-       <path style="fill:#a33232;"
-       d="m 8.2840707,13.005171 c -0.458262,0.03398 -0.799553,0.235728 -0.997276,0.64167 C 5.199302,17.932673 15.155264,40.912215 16.247903,43.570177 17.340543,46.228137 27.85558,69 30.04086,69 32.226138,69 42.861566,46.904537 43.954208,44.246483 45.046847,41.588522 54.499737,17.794016 52.794925,13.646841 51.059983,9.426388 32.226138,28.113583 30.04086,28.113583 c -1.980412,0 -17.326922,-15.43693 -21.7567893,-15.108412 z"/>
+    <div id="agent_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" version="1.1">
+       <path style="fill:#a33232;" transform="scale(1.0 1.0) rotate(0.00 35 35)"
+       d="m 13.284071,11.005171 c -0.458262,0.03398 -0.799553,0.235728 -0.997276,0.64167 -2.087493,4.285832 7.868469,27.265374 8.961108,29.923336 C 22.340543,44.228137 32.85558,67 35.04086,67 37.226138,67 47.861566,44.904537 48.954208,42.246483 50.046847,39.588522 59.499737,15.794016 57.794925,11.646841 56.059983,7.426388 37.226138,26.113583 35.04086,26.113583 c -1.980412,0 -17.326922,-15.43693 -21.756789,-15.108412 z"/>
     </svg></div>
-    <img id="agent_img" style="display:none;"/>
-
 </body>
 
 </html>

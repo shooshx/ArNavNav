@@ -65,6 +65,10 @@ public slots:
     Q_INVOKABLE void added_building(int x, int y) {
         ::added_building(x, y);
     }
+
+    Q_INVOKABLE float getValue(PTR_T ptr, QString type) {
+        return *(float*)ptr;
+    }
 };
 
 class NavWeb : public QDialog
