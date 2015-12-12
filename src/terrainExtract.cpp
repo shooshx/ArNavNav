@@ -514,7 +514,8 @@ void TMesh::getPoly(const string& outname)
             cout << "  reduced=" << dwp.size() << endl;
             removeSelfIntersections(dwp);
             cout << "  no-intersec=" << dwp.size() << endl;
-
+            if (dwp.size() < 4)
+                continue;
     //        polySave(outname + "_" + to_string(polyi) + ".obj", dwp);
 
             ofsp << "p:" << tpi << ":" << vpi << "\n";  
@@ -547,21 +548,21 @@ void terrainExtract()
 {
 
     //string filename = "C:\\projects\\nav\\terrain\\MyCity_all_terrain.obj";
-    string filename = "C:\\projects\\nav\\terrain\\Mission_3.GOWScene.zip_all_terrain.obj";
+    //string filename = "C:\\projects\\nav\\terrain\\Mission_3.GOWScene.zip_all_terrain.obj";
     //string outname = "C:\\projects\\nav\\terrain\\MyCity_navmesh.obj";
-    string outname = "C:\\projects\\nav\\terrain\\Mission_3.txt";
+    //string outname = "C:\\projects\\nav\\terrain\\Mission_3.txt";
 
     //runExtract("C:\\projects\\nav\\terrain\\Mission_20.GOWScene.zip_all_terrain.obj", "C:\\projects\\nav\\terrain\\Mission_20.txt");
 
     runExtract("C:\\projects\\nav\\terrain\\MyCity.GOWScene.zip_all_terrain.obj", "C:\\projects\\nav\\terrain\\MyCity.txt");
 
 
-/*    for(int i = 4; i < 20; ++i) {
+    for(int i = 20; i <= 20; ++i) {
         stringstream sf, so;
         sf << "C:\\projects\\nav\\terrain\\Mission_" << i << ".GOWScene.zip_all_terrain.obj";
         so << "C:\\projects\\nav\\terrain\\Mission_" << i << ".txt";
         runExtract(sf.str(), so.str());
-    }*/
+    }
 
 }
 

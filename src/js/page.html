@@ -1212,7 +1212,7 @@ function demoGrid(n, d) {
 
 
 function sceneLoadFromServer(name) {
-    var url = "http://" + urlArgs["loadFrom"] + "/" + name + ".txt";
+    var url = "http://" + urlArgs["loadFrom"] + "/" + name + ".txt+" + new Date().getTime(); // anyt cache
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function () {
         if (xhttp.readyState != 4)

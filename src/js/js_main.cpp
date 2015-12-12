@@ -12,6 +12,7 @@
 #include "../Vec2.h"
 #include "../Document.h"
 #include "../Except.h"
+#include "../mtrig.h"
 
 using namespace std;
 
@@ -432,6 +433,26 @@ float iround(float f) {
     return std::round(f);
 #endif
 }
+
+#ifdef EMSCRIPTEN
+
+namespace jsMath {
+float atan2(float y, float x) {
+    return EM_ASM_DOUBLE(return Math.atan2($0, $1), y, x);
+}
+float asin(float a) {
+    return EM_ASM_DOUBLE(return Math.asin($0), a);
+}
+float sin(float a) {
+    return EM_ASM_DOUBLE(return Math.sin($0), a);
+}
+float cos(float a) {
+    return EM_ASM_DOUBLE(return Math.cos($0), a);
+}
+}
+
+#endif
+
 
 void BuildingMoveItem::setPos(const Vec2& p) {
     Vec2 d = p - m_center;
