@@ -38,14 +38,15 @@ function progress()
     visited.push({x:position.x, y:position.y})
     position.x = position.x + direction.x
     position.y = position.y + direction.y
-    var f = visited.find(function(a) { return a.x == position.x && a.y == position.y })
-    if (f != undefined)
-    {
-        alert("Game Over!")
-        visited = []
-        ctx.fillStyle = "yellow"
-        ctx.fillRect(0, 0, 800, 800)
-    }
+
+    var f = visited.forEach(function(a) {
+        if (a.x == position.x && a.y == position.y) {
+            alert("Game Over!")
+            visited = []
+            ctx.fillStyle = "yellow"
+            ctx.fillRect(0, 0, 800, 800)
+        }
+    })
 
     window.requestAnimationFrame(progress)
 }
