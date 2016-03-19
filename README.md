@@ -13,13 +13,13 @@ Current features
 
 BUG
 - attack formation does not allow passing of other agents through
-- don't replan too many times
+- don't replan too many times - replan in circle
 
 TBD
 - replan when stuck
    avoid when
    - tryed a few times from the same place (many agents attack small target)
-- show orientation, rotate
+
 
 
 - string-pull on radius-specific mesh
