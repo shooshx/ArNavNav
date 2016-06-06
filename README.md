@@ -13,6 +13,12 @@ Current features
 - Fast collision detection of multiple agents that move in the scene
 - Web GUI using Qt QWebView or Emscripten
 
+urgent
+- replan bug
+- reached dest - dont want to move
+- better reached dest point
+- better attack
+
 TBD
 - replan when stuck
    avoid when
