@@ -19,20 +19,23 @@ urgent
 - better reached dest point
 - better attack
 
+BUG
+- attack formation does not allow passing of other agents through
+- don't replan too many times - replan in circle
+
 TBD
 - replan when stuck
    avoid when
    - tryed a few times from the same place (many agents attack small target)
-- add buildings, unify buildings meshes
+
+
 
 - string-pull on radius-specific mesh
 - narrow passage - with chopped VO - not dependent on neighbor dist
 - UI
   - show path, future path
-  - define speed
-
   - clear scene
-  - BUG: backtrack, play: not doing the same thing
+  - BUG? backtrack, play: not doing the same thing
   - single step
   - rewind button
   - performance - read all movements

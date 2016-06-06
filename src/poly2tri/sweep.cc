@@ -588,6 +588,8 @@ void Sweep::FillRightAboveEdgeEvent(SweepContext& tcx, Edge* edge, Node* node)
 void Sweep::FillRightBelowEdgeEvent(SweepContext& tcx, Edge* edge, Node& node)
 {
   if (node.point->x < edge->p->x) {
+    if (node.next->next == nullptr)
+        throw std::runtime_error("missing next");
     if (Orient2d(*node.point, *node.next->point, *node.next->next->point) == CCW) {
       // Concave
       FillRightConcaveEdgeEvent(tcx, edge, node);
@@ -607,6 +609,8 @@ void Sweep::FillRightConcaveEdgeEvent(SweepContext& tcx, Edge* edge, Node& node)
     // Next above or below edge?
     if (Orient2d(*edge->q, *node.next->point, *edge->p) == CCW) {
       // Below
+      if (node.next->next == nullptr)
+          throw std::runtime_error("missing next next");
       if (Orient2d(*node.point, *node.next->point, *node.next->next->point) == CCW) {
         // Next is concave
         FillRightConcaveEdgeEvent(tcx, edge, node);

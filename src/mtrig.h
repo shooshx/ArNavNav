@@ -1,17 +1,26 @@
 #pragma once
-//#define USE_MY_TRIG 
+#define USE_MY_TRIG 
 
 #ifndef USE_MY_TRIG
 #include <cmath>
 #endif
+
+namespace jsMath {
+    float atan2(float y, float x);
+    float asin(float a);
+    float sin(float a);
+    float cos(float a);
+}
 
 namespace mtrig 
 {
 
 #ifdef USE_MY_TRIG
 // from http://http.developer.nvidia.com/Cg/atan2.html
-float atan2(float y, float x)
+inline float atan2(float y, float x)
 {
+    if (x == 0.0f && y == 0.0f)
+        return 0.0f;
     float t0, t1, t2, t3, t4;
 
     t3 = iabs(x);
@@ -30,14 +39,14 @@ float atan2(float y, float x)
     t0 = t0 * t4 + float(0.999995630);
     t3 = t0 * t3;
 
-    t3 = (abs(y) > abs(x)) ? float(1.570796327) - t3 : t3;
+    t3 = (iabs(y) > iabs(x)) ? float(1.570796327) - t3 : t3;
     t3 = (x < 0) ?  float(3.141592654) - t3 : t3;
     t3 = (y < 0) ? -t3 : t3;
 
     return t3;
 }
 
-float asin(float x) {
+inline float asin(float x) {
     float negate = float(x < 0);
     x = iabs(x);
     float ret = -0.0187293;
@@ -62,7 +71,7 @@ float asin(float x) {
 static bool g_wasInited = false;
 static float fast_cossin_table[MAX_CIRCLE_ANGLE];
 
-void build_table() {
+inline void build_table() {
     // Build cossin table
     for (int i = 0 ; i < MAX_CIRCLE_ANGLE ; i++)
     {
@@ -99,11 +108,18 @@ inline float sin(float n)
 }
 #else
 
+#ifdef EMSCRIPTEN
+using jsMath::atan2;
+using jsMath::asin;
+using jsMath::cos;
+using jsMath::sin;
+#else
 using std::atan2;
 using std::asin;
 using std::cos;
 using std::sin;
+#endif //EMSCRIPTEN
 
-#endif
+#endif //USE_MY_TRIG
 
 }

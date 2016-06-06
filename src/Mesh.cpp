@@ -11,7 +11,7 @@ using namespace std;
 typedef pair<Vertex*, Vertex*> VPair;
 
 // map (from,to) -> halfedge
-map<VPair, HalfEdge*> unpaired;
+map<VPair, HalfEdge*> unpaired; // TBD - global
 
 void seekPair(Vertex* v1, Vertex* v2, HalfEdge* add) {
     VPair ko(v2, v1);
@@ -464,4 +464,249 @@ void PathMaker::makePath(const vector<Triangle*>& tripath, const Vec2& start, co
 
 }
 
+void iminmax(float a, float b, float* mn, float* mx) {
+    if (a < b) {
+        *mn = a;
+        *mx = b;
+    }
+    else {
+        *mn = b;
+        *mx = a;
+    }
+}
 
+struct BHalfEdge
+{
+    Vertex *from, *to;
+};
+
+// if two consecutively added points are on the same axis aligned line, we can dispose of the previous one in favor of the next one
+void MapDef::popIfLinear(Vertex* nextv) {
+    Polyline* pl = m_pl.back().get();
+    int sz = pl->m_d.size();
+    if (sz < 2) 
+        return;
+    Vec2& beflast = pl->m_d[sz - 2]->p;
+    Vec2& last = pl->m_d[sz - 1]->p;
+    Vec2& next = nextv->p;
+    if ((beflast.x == last.x && last.x == next.x) || (beflast.y == last.y && last.y == next.y)) {
+        pl->m_d.pop_back();
+        pl->m_di.pop_back();
+    }
+}
+
+void MapDef::delFirstIfLinear() {
+    Polyline* pl = m_pl.back().get();
+    int sz = pl->m_d.size();
+    if (sz < 2) 
+        return;
+    Vec2& beflast = pl->m_d[sz - 1]->p;
+    Vec2& last = pl->m_d[0]->p;
+    Vec2& next = pl->m_d[1]->p;
+    if ((beflast.x == last.x && last.x == next.x) || (beflast.y == last.y && last.y == next.y)) {
+        pl->m_d.erase(pl->m_d.begin());
+        pl->m_di.erase(pl->m_di.begin());
+    }
+}
+
+void MapDef::makeBoxPoly()
+{
+    // remove polylines added previously by boxes
+    auto it = m_pl.begin();
+    while (it != m_pl.end()) {
+        if ((*it)->m_fromBox)
+            it = m_pl.erase(it);
+        else
+            ++it;
+    }
+    m_boxAddedVtx.clear();
+
+    vector<BHalfEdge> bh;
+    bh.reserve(m_bx.size() * 4);
+    vector<Vertex*> vtx;
+    vtx.reserve(m_bx.size() * 4);
+
+    map<pair<float, float>, Vertex*> uniqvtx;
+    auto checkUniq = [&](Vertex* v)->Vertex* {
+        auto pr = make_pair(v->p.x, v->p.y);
+        auto it = uniqvtx.find(pr);
+        if (it != uniqvtx.end()) 
+            return it->second;    
+        uniqvtx[pr] = v;
+        return v;
+    };
+
+    // create half edges for all boxes
+    for(int i = 0; i < m_bx.size(); ++i) 
+    {
+        auto& box = *m_bx[i];
+        const Vec2& a1 = box.v[0]->p;
+        const Vec2& a2 = box.v[2]->p;
+        Vec2 d = a1 - a2;
+        // check empty box
+        if (d.x == 0 || d.y == 0)
+            continue; // empty box
+        // check its not intersecting with other boxes
+        float amnx, amxx, amny, amxy;
+        iminmax(a1.x, a2.x, &amnx, &amxx);
+        iminmax(a1.y, a2.y, &amny, &amxy);
+        box.intersectError = false;
+        for(int j = 0; j < m_bx.size() && !box.intersectError; ++j) {
+            if (i == j)
+                continue;
+            auto& checkBox = *m_bx[j];
+            if (checkBox.intersectError)
+                continue;
+            const Vec2& b1 = checkBox.v[0]->p;
+            const Vec2& b2 = checkBox.v[2]->p;
+            float bmnx, bmxx, bmny, bmxy;
+            iminmax(b1.x, b2.x, &bmnx, &bmxx);
+            iminmax(b1.y, b2.y, &bmny, &bmxy);
+
+            box.intersectError = (!(bmxx <= amnx || bmnx >= amxx || bmxy <= amny || bmny >= amxy));
+        }
+        if (box.intersectError)
+            continue;
+
+        int sign = (d.x * d.y < 0) ? -1 : 1;  // means its ordered in the reverse order, need to reverse it
+
+        Vertex* av[4];
+        for(int i = 0; i < 4; ++i) {
+            av[i] = checkUniq(box.v[i]);
+            vtx.push_back(av[i]);
+        }
+        for(int i = 0; i < 4; ++i) 
+            bh.push_back(BHalfEdge{av[i], av[(4 + i + sign)%4]});
+    }
+
+    // go over half edges, find if there is a vertex that divides a subedge, if there is, divide it
+    for(int curhi = 0; curhi < bh.size(); )
+    {
+        auto curh = bh[curhi]; // need to copy the BHalfEdge since the vector might be reallocating
+        Vec2 fp = curh.from->p, tp = curh.to->p;
+        float mnx, mxx, mny, mxy;
+        iminmax(fp.x, tp.x, &mnx, &mxx);
+        iminmax(fp.y, tp.y, &mny, &mxy);
+        bool removeCur = false;
+        for(int vi = 0; vi < vtx.size(); ++vi)
+        {
+            Vec2 p = vtx[vi]->p;
+            bool divx = (p.y == fp.y && p.y == tp.y && p.x > mnx && p.x < mxx);
+            bool divy = (p.x == fp.x && p.x == tp.x && p.y > mny && p.y < mxy);
+            if (divx || divy) 
+            {
+                // add two half edges instead of the one we're removing
+                bh.push_back(BHalfEdge{curh.from, vtx[vi]});
+                bh.push_back(BHalfEdge{vtx[vi], curh.to});
+                removeCur = true;
+                break;
+            }
+        }
+
+        if (removeCur)
+            bh.erase(bh.begin() + curhi);
+        else
+            ++curhi;
+    }
+
+    // now find all the unpaired half edges
+    set<VPair> unpaired; // pair from,to
+    for(auto& h: bh) {
+        VPair rv(h.to, h.from); // find h's opposite
+        auto it = unpaired.find(rv);
+        if (it != unpaired.end()) {
+            unpaired.erase(it);
+            continue;
+        }
+        VPair ks(h.from, h.to);
+        if (unpaired.find(ks) != unpaired.end())
+            throw Exception("unpexpected unpaired");
+        unpaired.insert(ks);
+    }
+
+    // now order the unpaired edges to a polyline
+    map<Vertex*, pair<Vertex*, Vertex*>> vindex; // fromVtx->toVtx, second is nullptr unless its a junction point
+    for(auto& up: unpaired) {
+        auto it = vindex.find(up.first);
+        if (it != vindex.end()) {
+            CHECK(it->second.second == nullptr, "unexpected junction with more than two items");
+            it->second.second = up.second;  
+            continue;
+        }
+        vindex[up.first] = make_pair(up.second, nullptr);
+    }
+    // extract polylines
+    stringstream szds;
+    int pcount = 0;
+    while (!vindex.empty())
+    {
+        auto p = add();
+        p->m_fromBox = true;
+        auto itStart = vindex.begin();
+        // need to start from somewhere that is not a junction since junctions need to be visited between vertices
+        while(itStart->second.second != nullptr) {
+            ++itStart;
+            CHECK(itStart != vindex.end(), "did not find non junction"); // somewhere we must find one
+        }
+        Vertex* start = itStart->first;
+        
+        Vertex* cur = start;
+        Vertex* prev = nullptr;
+        do {
+            
+            auto it = vindex.find(cur);
+            CHECK(it != vindex.end(), "Unexpected end of polyline");
+            auto& to = it->second;
+
+            popIfLinear(cur);
+            addToLast(cur);
+
+            if (to.second == nullptr) { // normal case
+                prev = cur;
+                cur = to.first;
+                vindex.erase(it);
+            }
+            else { // junction case
+                Vertex* selectedTo = to.second;
+                Vertex* otherTo = to.first;
+
+                CHECK(prev != nullptr, "first iteration junction?"); // should not happen since we jumped to start from a non junction
+ 
+                // need to find the correct next one according to the direction we're going to
+                auto a = cur->p - prev->p;
+                auto b = selectedTo->p - cur->p;
+                if (det(a, b) < 0) {
+                    swap(selectedTo, otherTo);
+                }
+
+                // need new vertex, redirect the old vertex with the new
+                Vec2 dirTo = normalize(otherTo->p - cur->p);
+                Vertex* newv = addBoxVtx(cur->p + dirTo * 0.1);
+
+                vindex.erase(it);
+                vindex[newv] = make_pair(otherTo, nullptr);
+                // rewrite the remaining reference to the old to point to the new
+                for(auto& kv: vindex) {
+                    if (kv.second.first == cur) {
+                        kv.second.first = newv;
+                    }
+                    if (kv.second.second == cur) {
+                        kv.second.second = newv; // probably can't happen
+                    }
+                }
+
+                prev = cur;
+                cur = selectedTo;
+            }
+            
+        } while(cur != start);
+        popIfLinear(start); // if the last two segments are linear (first point is the past point)
+        delFirstIfLinear(); // if the first segment is linear with the last segment
+        ++pcount;
+        szds << m_pl.back()->m_d.size() << ", ";
+    }
+
+    string xx = szds.str();
+    //OUT("unified " << pcount << " polylines sz=" << xx);
+
+}

@@ -33,7 +33,7 @@ public:
     EType m_type;  // used for avoiding dynamic_cast
     int index = 0;
     Vec2 m_position;
-    Vec2 size;
+    Vec2 size; // used in BihTree
 
     //bool highlight = false;
 };

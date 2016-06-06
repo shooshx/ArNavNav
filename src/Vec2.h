@@ -173,6 +173,8 @@ inline float distSqToProjectOrMax(const Vec2& p, const Vec2& a, const Vec2& b) {
 }
 
 
+
+
 class Vec3 {
 public:
     Vec3() : x(0), y(0), z(0) {}

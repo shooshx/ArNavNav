@@ -51,7 +51,7 @@ public:
     {}
 
     virtual QString strDim() const {
-        return QString("%1").arg(m_obj->size.x / 2);
+        return QString("%1").arg(m_cobj->m_radius);
     }
     virtual void setDim(const QString& s) {
         auto v = s.toFloat() * 2;

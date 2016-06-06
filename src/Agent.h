@@ -50,7 +50,7 @@ public:
     virtual ~ISubGoal() {}
     virtual Vec2 getDest(const Vec2& comingFrom) const = 0;
     virtual bool isPassed(const Vec2& amAt) const = 0;
-    virtual bool shouldTaper() const = 0;
+    virtual bool isPoint() const = 0;
     virtual Vec2 representPoint() const = 0; // point required for knowing the direction we're coming from
 };
 
@@ -78,7 +78,7 @@ public:
     virtual bool isPassed(const Vec2& amAt) const {
         return (passCheckSign * det(ab, amAt - a)) < 0; // did we pass the line
     }
-    virtual bool shouldTaper() const {
+    virtual bool isPoint() const {
         return false;
     }
     virtual Vec2 representPoint() const {
@@ -102,7 +102,7 @@ public:
     virtual bool isPassed(const Vec2& amAt) const {
         return (distSq(amAt, p) < radiusSq);
     }
-    virtual bool shouldTaper() const {
+    virtual bool isPoint() const {
         return true;
     }
     virtual Vec2 representPoint() const { // not really needed since this is the end but for consistancy
@@ -230,7 +230,7 @@ public:
         , m_endGoalPos(goalPos), m_endGoalId(nullptr)
         , m_maxNeighbors(maxNeighbors)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
-        , m_prefSpeed(prefSpeed), m_radius(radius)
+        , m_prefSpeed(prefSpeed)
     {
     }
 
@@ -255,7 +255,10 @@ public:
         m_reached = false;
         m_goalIsReachable = false;
     }
-
+    void setSpeed(float speed) {
+        m_prefSpeed = speed;
+        m_maxSpeed = speed * 2;
+    }
 
 private:
     // rangeSq changing according to the furthest added neibor to trim neigbors early
@@ -263,7 +266,7 @@ private:
 
 public:
     // configs
-    float m_radius = 0.0f;
+    // radius is in Circle object
 
     GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal
     void* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)
@@ -286,7 +289,7 @@ public:
     Vec2 m_velocity;
     Vec2 m_newVelocity;
     std::vector<VelocityObstacle> m_voStore; // used in computeNewVelocity, should not be reallocated every time
-    //float m_orientation = 0.0;
+    float m_orientation = 0.0;
 
 
     MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range
