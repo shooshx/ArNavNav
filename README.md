@@ -1,6 +1,8 @@
 ArNavNav is a simple and yet powerful 2D navigation library for games
 Live demo at: http://shooshx.github.io/ArNavNav
 
+http://shooshx.github.io/ArNavNav/src/js/page.html?loadFrom=192.168.0.123:8000
+
 Current features
 - Define polylines that make the circumference of the map and obstacles in it
 - Restricted Delaunay triangluation of the enclosed area
