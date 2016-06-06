@@ -15,9 +15,13 @@ Current features
 
 urgent
 - replan bug
+  - no replans in web
+  - too many replans on test_web.txt ??
 - reached dest - dont want to move
 - better reached dest point
 - better attack
+
+
 
 BUG
 - attack formation does not allow passing of other agents through

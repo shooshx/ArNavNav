@@ -277,7 +277,7 @@ void NavDialog::update()
             //-----
 #endif
 
-            if (m_doc->doStep(0.25, true))
+            if (m_doc->doStep(0.25, true, frame))
                 break;
 
             for(int i = 0; i < m_doc->m_agents.size(); ++i) {

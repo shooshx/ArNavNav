@@ -325,7 +325,7 @@ public:
         if (m_quiteCount >= 100 || m_goalitems.empty())
             return true;
         recordFrame();
-        if (m_doc.doStep(deltaSec, true))  //0.25
+        if (m_doc.doStep(deltaSec, true, m_frames.size() - 1))  //0.25
             ++m_quiteCount;
 
         return false;

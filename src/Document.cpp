@@ -19,7 +19,7 @@ Document::Document()
 void Document::init_test()
 {
     auto gend = addGoal(Vec2(-200, 0), 50, GOAL_POINT);
-    for(int i = 0; i < 5 ; ++i)
+    for(int i = 0; i < 10 ; ++i)
     {
         addAgent(Vec2(0, -140 + 50*i), gend);
     }    
@@ -509,7 +509,7 @@ bool Document::shouldReplan(Agent* agent)
 
 #define REPLAN_VEL_THRESH (0.1)
 
-bool Document::doStep(float deltaTime, bool doUpdate)
+bool Document::doStep(float deltaTime, bool doUpdate, int dbg_frameNum)
 {
     if (deltaTime <= 0.0f)
         return false;
@@ -552,7 +552,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
         if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH) 
         {
             if (shouldReplan(agent)) {
-                OUT("Agent " << agent->index << " replan");
+                OUT("f" << dbg_frameNum << " Agent " << agent->index << " replan");
                 updatePlan(agent);
             }
         }
