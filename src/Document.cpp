@@ -6,13 +6,15 @@
 
 #define SHOW_MARKERS
 
-Document::Document()
+Document::Document() : m_agents(m_sim.agents_)
 {
-    init_test();
+    //init_test();
     //init_circle();
 
     for(int i = 0;i < 100; ++i)
         m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
+
+   // m_sim.setupBlocks();
 
 }
 
@@ -21,7 +23,7 @@ void Document::init_test()
     auto gend = addGoal(Vec2(-200, 0), 50, GOAL_POINT);
     for(int i = 0; i < 5 ; ++i)
     {
-        addAgent(Vec2(0, -140 + 50*i), gend);
+        addAgent(Vec2(0, -140 + 50*i), gend, 15.0, 1.0);
     }    
 }
 
@@ -39,16 +41,13 @@ void Document::init_circle()
         Vec2 pos = 100.0f * Vec2(std::cos(d * i * TWO_PI + ANG_OFFST), std::sin(d * i * TWO_PI + ANG_OFFST));
         Goal g(-pos, 1.5, GOAL_POINT);
 
-        auto* a = addAgent(pos, &g, RADIUS, 1.0, 2.0);
-        a->m_neighborDist = 15.0;
+        auto* a = addAgent(pos, &g, RADIUS, 1.0);
+        a->neighborDist_ = 15.0;
     }
 }
 
 
-static ostream& operator<<(ostream& os, const Vec2& p) {
-    os << p.x << "," << p.y;
-    return os;
-}
+
 
 int runTriC(const string& cmd, vector<Vec2>& out);
 
@@ -283,13 +282,13 @@ void Document::runTriangulate()
 
     for(auto agent: m_agents)
     {
-        updatePlan(agent);
+        updatePlan(agent); 
     }
 }
 
 
 // assumnes Agent::setEndGoal was called for this agent
-void Document::updatePlan(Agent* agent)
+void Document::updatePlan(RVO::Agent* agent)
 {
     if (m_mesh.m_vtx.empty())
         return;
@@ -309,10 +308,7 @@ void Document::updatePlan(Agent* agent)
     agent->m_goalIsReachable = false;
     if (!endTri || !startTri || startTri == endTri) 
     {
-        agent->m_plan.setEnd(endp, agent->m_endGoalPos.radius);
-        agent->m_indexInPlan = 0;
-        agent->m_curGoalPos = agent->m_plan.m_d[0];
-        agent->m_goalIsReachable = (startTri == endTri);
+        agent->setTrivialPlan(startTri == endTri);
         return;
     }
 
@@ -380,8 +376,8 @@ void Document::updatePlan(Agent* agent)
         //    cout << sg.p << "  ";
 
         // set agent to the start of the plan
-        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // end of the plan, disables plan
-        agent->m_indexInPlan = 0;
+        agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // DEBUG end of the plan, disables plan
+        //agent->m_indexInPlan = 0;
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
         agent->m_goalIsReachable = true;
     }
@@ -400,7 +396,9 @@ void Document::clearAllObj()
     for(auto* obj: m_objs)
         delete obj;
     m_objs.clear();
-    m_agents.clear();
+    //m_agents.clear();
+    m_sim.clearAgents();
+    m_sim.clearObstacles();
     m_prob = nullptr;
 }
 
@@ -436,25 +434,24 @@ void Document::removeGoal(Goal* g) {
     }
 }
 
-Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float prefSpeed, float maxSpeed)
+RVO::Agent* Document::addAgent(const Vec2& pos, Goal* g, float radius, float maxSpeed)
 {
-    if (prefSpeed < 0)
-        prefSpeed = 1.0f;
-    if (maxSpeed < 0)
-        maxSpeed = prefSpeed * 2;
+    CHECK(maxSpeed > 0, "unexpected negative maxSpeed");
     //OUT("addAgent " << pos << " " << g << " " << radius << " " << prefSpeed << " " << maxSpeed);
-    Agent* a = new Agent(m_agents.size(), pos,
+    RVO::Agent* a = new RVO::Agent(m_agents.size(), pos,
         (g != nullptr)?g->def : GoalDef(), // goal 
         radius * NEI_DIST_RADIUS_FACTOR, //30 for r=15, 15 for r=6, // 400 nei dist
         10, // max nei
+        5.0f, // timeHorizon
+        5.0f, // timeHorizonObst
         radius, // 15 radius
-        prefSpeed, // pref speed
         maxSpeed); // max speed
                //a->m_velocity = Vec2(0, 1);
-    m_objs.push_back(a);
+    //m_objs.push_back(a);
     m_agents.push_back(a);
-    if (m_agents.size() == 1)
-        m_prob = a;
+ //   if (m_agents.size() == 1)
+ //       m_prob = a;
+
     if (g != nullptr) {
         g->agents.push_back(a);
     }
@@ -476,21 +473,20 @@ void Document::clearSegMinDist()
         ms.clear();
 }*/
 
-bool Document::shouldReplan(Agent* agent)
+bool Document::shouldReplan(RVO::Agent* agent)
 {
     if (!agent->m_goalIsReachable)
         return false; // if its not reachable, you're bound to get stuck sooner or later
 
     bool hasAgentsNei = false;
     bool allSameGoal = true;
-    for(auto& ra: agent->m_neighbors.c) 
+    for(auto& ra: agent->agentNeighbors_) 
     {
-        if (ra.second->m_type == Object::TypeAgent) {
-            hasAgentsNei = true;
-            auto* a = static_cast<Agent*>(ra.second);
-            if (a->m_endGoalId != agent->m_endGoalId)
-                allSameGoal = false;
-        }
+        hasAgentsNei = true;
+        auto* a = ra.second;
+        if (a->m_endGoalId != agent->m_endGoalId)
+            allSameGoal = false;
+
     }
 
     // If I'm alone here
@@ -503,16 +499,18 @@ bool Document::shouldReplan(Agent* agent)
 
 #define REPLAN_VEL_THRESH (0.1)
 
+// returns true if nothing changed
 bool Document::doStep(float deltaTime, bool doUpdate)
 {
     if (deltaTime <= 0.0f)
         return false;
-    if (m_objs.size() == 0)
+    if (m_agents.size() == 0)
         return true;
 
    // BihTree m_bihTree(m_objs);
-    m_bihTree.build(m_objs);
+ //   m_bihTree.build(m_objs);
 
+    m_sim.kdTree_.buildAgentTree();
 
     for(auto* agent: m_agents)
     {
@@ -520,14 +518,19 @@ bool Document::doStep(float deltaTime, bool doUpdate)
             continue;
         agent->computePreferredVelocity(deltaTime);
 
-        agent->computeNeighbors(m_bihTree);
+        agent->computeNeighbors(m_sim.kdTree_);
 
-        VODump* vod = nullptr;
+      /*  VODump* vod = nullptr;
         if (m_debugVoDump != nullptr && agent == m_prob)
             vod = m_debugVoDump;
-
-        agent->computeNewVelocity(vod);
+*/
+        agent->computeNewVelocity(deltaTime);
     }
+
+
+
+    //m_sim.doStep(deltaTime);
+    //return false;
 
     if (!doUpdate)
         return false;
@@ -546,7 +549,7 @@ bool Document::doStep(float deltaTime, bool doUpdate)
         if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH) 
         {
             if (shouldReplan(agent)) {
-                OUT("Agent " << agent->index << " replan");
+                OUT("Agent " << agent->id_ << " replan");
                 updatePlan(agent);
             }
         }
@@ -582,7 +585,7 @@ void Document::serialize(ostream& os)
         }
     }
 
-    map<Agent*, int> agentToGoal;
+    map<RVO::Agent*, int> agentToGoal;
     for(int i = 0; i < m_goals.size(); ++i) {
         auto& g = m_goals[i];
         for(auto* ag: g->agents)
@@ -591,7 +594,7 @@ void Document::serialize(ostream& os)
     }
     for(auto* agent: m_agents)
         os << "a," << agent->m_position.x << "," << agent->m_position.y << "," << ((agentToGoal.find(agent) != agentToGoal.end())?agentToGoal[agent]:-1)
-           << "," << agent->m_velocity.x << "," << agent->m_velocity.y << "," << agent->m_radius << "," << agent->m_prefSpeed << "," << agent->m_maxSpeed << ",\n";
+           << "," << agent->m_velocity.x << "," << agent->m_velocity.y << "," << agent->m_radius << "," << "," << agent->maxSpeed_ << ",\n";
 
     //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
@@ -634,12 +637,12 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
             Vec2 pos, vel;
             int goali = 0;
             float radius = 0.0f, ps = 0.0f, ms = 0.0f;
-            is >> pos.x >> pos.y >> goali >> vel.x >> vel.y >> radius >> ps >> ms;
+            is >> pos.x >> pos.y >> goali >> vel.x >> vel.y >> radius >> ms;
             if (is.fail())
                 break;
             if (goali >= (int)m_goals.size() || radius <= 0.0f)
                 break;
-            auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ps, ms);
+            auto* a = addAgent(pos, (goali >= 0)?(m_goals[goali].get()):nullptr, radius, ms);
             a->m_velocity = vel;
         }
         else if (h[0] == 'e') {

@@ -8,9 +8,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <assert.h>
+
 #include "../Vec2.h"
 #include "../Document.h"
 #include "../Except.h"
+
+#include "../rvo2/Agent.h"
 
 using namespace std;
 
@@ -73,7 +77,7 @@ public:
 class AgentItem : public Item
 {
 public:
-    AgentItem(NavCtrl* ctrl, Agent* a) :Item(ctrl), m_a(a)
+    AgentItem(NavCtrl* ctrl, RVO::Agent* a) :Item(ctrl), m_a(a)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, $4, COLOR_AGENT, ObjSelType.MULTI, ObjType.AGENT, null), this, Z_AGENT, m_a->m_position.x, m_a->m_position.y, m_a->m_radius);
     }
@@ -88,7 +92,8 @@ public:
     void updateSize() {
         EM_ASM_( changed_size($0, $1), this, m_a->m_radius);
     }
-    Agent* m_a;
+    //Agent* m_a;
+    RVO::Agent* m_a;
 };
 
 class GoalItem : public Item
@@ -176,7 +181,7 @@ public:
     }
 
     // also called from GoalItem::setPos
-    void setAgentGoalPos(Agent* a, Goal* g) {
+    void setAgentGoalPos(RVO::Agent* a, Goal* g) {
         a->setEndGoal(g->def, (void*)g);
         m_doc.updatePlan(a);
         m_quiteCount = 0;
@@ -309,7 +314,7 @@ void NavCtrl::readDoc()
     m_goalitems.clear();
     m_polypointitems.clear();
     //OUT("AItems " << m_doc.m_agents.size());
-    for(auto* agent: m_doc.m_agents) {
+    for(auto* agent: m_doc.m_sim.agents_) {
         m_agentitems.push_back(shared_ptr<AgentItem>(new AgentItem(this, agent)));
     }
     //OUT("GItems " << m_doc.m_goals.size());

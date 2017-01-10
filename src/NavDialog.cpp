@@ -42,10 +42,6 @@ NavDialog::NavDialog(QWidget *parent)
 }
 
 
-static ostream& operator<<(ostream& os, const Vec2& p) {
-    os << p.x << "," << p.y;
-    return os;
-}
 
 void NavDialog::readMesh()
 {

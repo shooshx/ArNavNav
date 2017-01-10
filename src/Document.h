@@ -5,10 +5,12 @@
 #include <vector>
 #include <memory>
 
-#include "Agent.h"
+#include "rvo2/Agent.h"
 #include "Objects.h"
 #include "Mesh.h"
 #include "BihTree.h"
+
+#include "rvo2/RVOSimulator.h"
 
 using namespace std;
 class Agent;
@@ -42,7 +44,7 @@ public:
     void clearObst();
     void clearAllObj();
 
-    Agent* addAgent(const Vec2& pos, Goal* g, float radius = 15.0, float prefSpeed = -1.0f, float maxSpeed = -1.0f);
+    RVO::Agent* addAgent(const Vec2& pos, Goal* g, float radius/* = 15.0*/, float maxSpeed/* = -1.0f*/);
     void addAgentRadius(float radius);
     
     Goal* addGoal(const Vec2& p, float radius, EGoalType type);
@@ -51,8 +53,8 @@ public:
     void clearSegMinDist();
     bool doStep(float deltaTime, bool doUpdate);
 
-    void updatePlan(Agent* agent);
-    bool shouldReplan(Agent* agent);
+    void updatePlan(RVO::Agent* agent);
+    bool shouldReplan(RVO::Agent* agent);
 
     void serialize(ostream& os);
     void deserialize(istream& is, map<string, string>& imported);
@@ -60,7 +62,7 @@ public:
     void readStream(istream& is, map<string, string>& imported, const string& module);
 public:
     // input
-    vector<Agent*> m_agents; // not owning
+    vector<RVO::Agent*>& m_agents; // not owning
     MapDef m_mapdef;
 
     // state
@@ -78,6 +80,9 @@ public:
     Object *m_prob = nullptr;
 
     VODump* m_debugVoDump = nullptr; 
+
+
+    RVO::RVOSimulator m_sim;
 };
 
 

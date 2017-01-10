@@ -267,7 +267,7 @@ function handleMouseDown(event) {
         return true;
     }
     if (addingAgent) {
-        added_agent(x, y, parseInt(agentSize.value), -1)
+        added_agent(x, y, parseInt(agentSize.value), 2);
         readScene()
         return true;
     }
@@ -668,7 +668,7 @@ function draw() {
 
 function progress() {
     if (isPlaying) {
-        cpp_progress(0.4)
+        cpp_progress(0.25) // 0.4
         needDraw = true
     }
     if (needDraw)

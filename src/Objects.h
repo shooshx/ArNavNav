@@ -61,8 +61,8 @@ class AABB : public Object
 public:
     AABB(const Vec2& center, const Vec2& size, int _index) 
         : Object(center, size, _index)
-        , maxp(center.x + size.x * 0.5, center.y + size.y * 0.5)
-        , minp(center.x - size.x * 0.5, center.y - size.y * 0.5)
+        , maxp(center.x + size.x * 0.5f, center.y + size.y * 0.5f)
+        , minp(center.x - size.x * 0.5f, center.y - size.y * 0.5f)
     {}
 
     // return a bitmask of one of the 9 sectors fromp is in compared to this aabb

@@ -29,10 +29,6 @@ void BaseItem::preparePainter(QPainter* painter, const QStyleOptionGraphicsItem*
     painter->setBrush(QBrush(bc));
 }
 
-static ostream& operator<<(ostream& os, const Vec2& p) {
-    os << p.x << "," << p.y;
-    return os;
-}
 
 /*
 std::pair<Vec2, Vec2> testDet(AABB* otherAab, const Vec2& m_position)

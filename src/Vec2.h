@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <cfloat>
+#include <ostream>
 
 template<typename T>
 inline T imin(T a, T b) {
@@ -170,6 +171,11 @@ inline float distSqToProjectOrMax(const Vec2& p, const Vec2& a, const Vec2& b) {
     if (d < 0.0 || d > 1.0)
         return FLT_MAX;
     return absSq(a + d * ab - p);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Vec2& p) {
+    os << "(" << p.x << "," << p.y << ")";
+    return os;
 }
 
 

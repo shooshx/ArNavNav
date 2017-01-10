@@ -32,6 +32,9 @@
     <Filter Include="qUI">
       <UniqueIdentifier>{4d4a30e1-eebd-4ad2-8d08-7d02a6e796c6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rvo2">
+      <UniqueIdentifier>{61b09d44-b8ec-41a1-8669-3b73de91b869}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GeneratedFiles\qrc_nav.cpp">
@@ -94,10 +97,19 @@
     <ClCompile Include="src\Document.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="src\Agent.cpp">
+    <ClCompile Include="src\BihTree.cpp">
       <Filter>hrvo</Filter>
     </ClCompile>
-    <ClCompile Include="src\BihTree.cpp">
+    <ClCompile Include="src\rvo2\RAgent.cpp">
+      <Filter>rvo2</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rvo2\KdTree.cpp">
+      <Filter>rvo2</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rvo2\RVOSimulator.cpp">
+      <Filter>rvo2</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Agent.cpp">
       <Filter>hrvo</Filter>
     </ClCompile>
   </ItemGroup>
@@ -178,6 +190,24 @@
     </ClInclude>
     <ClInclude Include="src\mtrig.h">
       <Filter>hrvo</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rvo2\Agent.h">
+      <Filter>rvo2</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rvo2\Definitions.h">
+      <Filter>rvo2</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Goal.h">
+      <Filter>rvo2</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rvo2\KdTree.h">
+      <Filter>rvo2</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rvo2\Obstacle.h">
+      <Filter>rvo2</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rvo2\RVOSimulator.h">
+      <Filter>rvo2</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
