@@ -241,7 +241,7 @@ public:
 class PathItem : public QGraphicsItem
 {
 public:
-    PathItem(NavDialog* ctrl, Agent* agent) :m_ctrl(ctrl), m_agent(agent)
+    PathItem(NavDialog* ctrl, RVO::Agent* agent) :m_ctrl(ctrl), m_agent(agent)
     {
         setCacheMode(NoCache);
     }
@@ -252,7 +252,7 @@ public:
     NavDialog* m_ctrl;
     vector<Vec2> m_pos;
     vector<Vec2> m_vel;
-    Agent* m_agent;
+    RVO::Agent* m_agent;
     int m_atframe = -1; // -1 means no frame;
 };
 

@@ -261,22 +261,6 @@ void Document::runTriangulate()
         addAgentRadius(radius);
     }
 
-    // set segment markers
-    int cnt = 0;
-    for(auto* obj: m_objs) {
-        auto* seg = dynamic_cast<Segment*>(obj);
-        if (seg == nullptr)
-            continue;
-        Vec2 p1, p2;
-        seg->spanningPoints(m_prob->m_position, 15, &p1, &p2);
-
-#ifdef SHOW_MARKERS
-        if (cnt < 97) {
-            m_markers[cnt++]->p = p1;
-            m_markers[cnt++]->p = p2;
-        }
-#endif
-    }
 
     //------------------------------------
 
@@ -322,7 +306,7 @@ void Document::updatePlan(RVO::Agent* agent)
 
         agent->m_plan.reserve(corridor.size() * 2); // size of the corridor is the max it can get to, every triangle can add 2 point if the angle is sharp
 
-        // male path from corridor
+        // make path from corridor
         int prevVtxIndex = -2;
         vector<Vertex*> planSketch;
         PathMaker::TOutputCallback outf([&](Vertex* v) {
