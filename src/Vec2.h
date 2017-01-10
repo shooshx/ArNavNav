@@ -179,6 +179,8 @@ inline std::ostream& operator<<(std::ostream& os, const Vec2& p) {
 }
 
 
+
+
 class Vec3 {
 public:
     Vec3() : x(0), y(0), z(0) {}

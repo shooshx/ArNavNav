@@ -56,6 +56,12 @@ public:
         m_reached = false;
         m_goalIsReachable = false;
     }
+
+    void setSpeed(float speed) {
+        //m_prefSpeed = speed;
+        m_maxSpeed = speed;// * 2;
+    }
+
     void setTrivialPlan(bool goalIsReachable);
 
     void computePreferredVelocity(float deltaTime);
@@ -85,6 +91,8 @@ public:
 	std::vector<Line> orcaLines_;
 	std::vector<std::pair<float, const Agent *> > agentNeighbors_;
 	std::vector<std::pair<float, const Obstacle *> > obstacleNeighbors_;
+
+    float m_orientation = 0.0;
 
 	friend class KdTree;
 	friend class RVOSimulator;

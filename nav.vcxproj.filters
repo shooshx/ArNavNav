@@ -112,6 +112,9 @@
     <ClCompile Include="src\Agent.cpp">
       <Filter>hrvo</Filter>
     </ClCompile>
+    <ClCompile Include="src\js\order_perimiters.cpp">
+      <Filter>WebUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\NavWeb.h">

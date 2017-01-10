@@ -51,7 +51,7 @@ public:
         , m_endGoalPos(goalPos), m_endGoalId(nullptr)
         , m_maxNeighbors(maxNeighbors)
         , m_maxSpeed(maxSpeed), m_neighborDist(neighborDist)
-        , m_prefSpeed(prefSpeed), m_radius(radius)
+        , m_prefSpeed(prefSpeed)
     {
     }
 
@@ -76,7 +76,10 @@ public:
         m_reached = false;
         m_goalIsReachable = false;
     }
-
+    void setSpeed(float speed) {
+        m_prefSpeed = speed;
+        m_maxSpeed = speed * 2;
+    }
 
 private:
     // rangeSq changing according to the furthest added neibor to trim neigbors early
@@ -87,6 +90,7 @@ public:
     float m_radius = 0.0f;
 
     GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal, for knowing if we reached the end
+    // radius is in Circle object
     void* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)
 
     int m_maxNeighbors = 0;
@@ -107,7 +111,7 @@ public:
     Vec2 m_velocity;
     Vec2 m_newVelocity;
     std::vector<VelocityObstacle> m_voStore; // used in computeNewVelocity, should not be reallocated every time
-    //float m_orientation = 0.0;
+    float m_orientation = 0.0;
 
 
     MyPrioQueue<std::pair<float, Object*> > m_neighbors; // range,id - sorted by range

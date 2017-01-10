@@ -25,8 +25,9 @@ bool cpp_progress(float deltaSec);
 const char* serialize();
 void deserialize(const char* sp);
 void go_to_frame(int f);
-void change_size(ptr_t ptr, float sz);
+void update_agent(ptr_t ptr, float sz, float speed);
 void update_goal(ptr_t ptr, float radius, int type);
 void add_imported(const char* name, const char* text);
+void added_building(int x, int y);
 
 }

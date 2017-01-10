@@ -1,12 +1,15 @@
 <html><head><script>"use strict";
 var canvas, ctx, output, scroll;
 var added_poly_point, moved_object, started_new_poly, added_agent, add_goal, remove_goal, cpp_progress, set_goal;
-var serialize, deserialize, go_to_frame, change_size, update_goal, add_imported
-var grass_pattern, rock_pattern
+var serialize, deserialize, go_to_frame, update_agent, update_goal, add_imported, added_building
+var grass_pattern, rock_pattern, errrect_pattern
 var world_width, world_height
 var needDraw = true
 var inq = (typeof qactions !== 'undefined')
 var thecookie = {}
+var ROTATIONS_RESOLUTION = 5
+var agent_imgs = [] // for every agent-radius, [for every degree 0..359 an Image() with skips by the resolution]
+var editPolyPnt = false // used for showing the points while editing
 if (inq) {
     var Pointer_stringify = function (a) { return a }
 }
@@ -31,11 +34,15 @@ var ObjSelType = {
     MULTI: 2
 }
 var ObjType = {
-    POLYPOINT: 0, AGENT: 1, GOAL: 2
+    POLYPOINT: 0, AGENT: 1, GOAL: 2, BUILDING_PNT: 3
 }
-var INIT_SQUARE = "p,\nv,-200,-200,\nv,200,-200,\nv,200,200,\nv,-200,200,"
+
+var INIT_SQUARE_SIZE = 300
+var INIT_SQUARE = "p,\nv,-X,-X,\nv,X,-X,\nv,X,X,\nv,-X,X,".replace(/X/g, INIT_SQUARE_SIZE)
 
 // file:///C:/projects/nav/src/js/page.html?loadFrom=localhost:8000
+
+var mgetValue = null
 
 function init() {
     canvas = document.getElementById("canvas")
@@ -43,11 +50,16 @@ function init() {
     output = document.getElementById("output")
     scroll = document.getElementById("scroll")
 
+    var SHOW_TRI_DEFAULT = "false", SHOW_TEX_DEFAULT = "true"
+
     if (inq) {
         qactions.cpp_start()
         for (var k in qactions) {
             window[k.substring(0, k.indexOf('('))] = qactions[k]
         }
+        mgetValue = qactions["getValue(qlonglong,QString)"]
+        SHOW_TRI_DEFAULT = "true"
+        SHOW_TEX_DEFAULT = "false"
     }
     else { // emscripten
         Module.ccall('cpp_start', null);
@@ -62,9 +74,11 @@ function init() {
         serialize = Module.cwrap('serialize', 'string')
         deserialize = Module.cwrap('deserialize', null, ['string'])
         go_to_frame = Module.cwrap('go_to_frame', null, ['number'])
-        change_size = Module.cwrap('change_size', null, ['number', 'number'])
+        update_agent = Module.cwrap('update_agent', null, ['number', 'number', 'number'])
         update_goal = Module.cwrap('update_goal', null, ['number', 'number', 'number'])
         add_imported = Module.cwrap('add_imported', null, ['string', 'string'])
+        added_building = Module.cwrap('added_building', null, ['number', 'number'])
+        mgetValue = Module.getValue
     }
     
     canvas_place.onmousedown = canvas.onmousedown = handleMouseDown;
@@ -109,16 +123,28 @@ function init() {
     }
     rock_img.src = "data:image/svg+xml;base64," + btoa(rock_cont.innerHTML)
     rock_img.onload()
+    
+    errrect_img.onload = function () {
+        if (!errrect_pattern)
+            errrect_pattern = ctx.createPattern(errrect_img, "repeat")
+        needDraw = true
+    }
+    errrect_img.src = "data:image/svg+xml;base64," + btoa(errrect_cont.innerHTML)
+    errrect_img.onload()
+    
+    //makeAgentImages(3)
 
     parseUrl()
 
     if (!("resetCookie" in urlArgs))
         parseCookie()
-    showTri.checked = (readCookie("showTri", "false") == "true")
-    showTex.checked = (readCookie("showTex", "true") == "true")
+    showTri.checked = (readCookie("showTri", SHOW_TRI_DEFAULT) == "true")
+    showTex.checked = (readCookie("showTex", SHOW_TEX_DEFAULT) == "true")
     showGoalRadius.checked = (readCookie("showGoalRadius", "true") == "true")
-    agentSize.value = parseInt(readCookie("agentSize", "3"))
-    goalRadius.value = parseInt(readCookie("goalRadius", "20"))
+    showPolyPoint.checked = (readCookie("showPolyPoiny", "true") == "true")
+    agentSize.value = parseFloat(readCookie("agentSize", "3"))
+    agentSpeed.value = parseFloat(readCookie("agentSpeed", "1"))
+    goalRadius.value = parseFloat(readCookie("goalRadius", "20"))
     var goalType = parseInt(readCookie("goalType", "0"))
     goalPoint.checked = (goalType == 0)
     goalAttack.checked = (goalType == 1)
@@ -129,6 +155,29 @@ function init() {
     initDemos()
 
     progress();
+}
+
+function makeAgentImages(agentRadius) {
+    if (agentRadius in agent_imgs)
+        return;
+    var newImgs = []
+
+    var doneCount = 0
+    for (var i = 0; i < 360; i += ROTATIONS_RESOLUTION) {
+        var img = new Image()
+        newImgs[i] = img
+        img.onload = function () {
+            doneCount++;
+        }
+        var scale = agentRadius * (1 / 70 * 2)
+        var svgsrc = agent_cont.innerHTML.replace("0.00", i - 90)
+                                         .replace("1.0 1.0", "" + scale + " " + scale)
+                                         .replace(/\"70\"/g, '"' + (70*scale) + '"')
+        img.src = "data:image/svg+xml;base64," + btoa(svgsrc)
+        img.onload()
+    }
+
+    agent_imgs[agentRadius] = newImgs
 }
 
 var urlArgs = {}
@@ -198,7 +247,9 @@ Transform.prototype.transformPoint = function(px, py) {
   return {x:px, y:py};
 };
 
+var mouseTargets = {} // zOrder -> {ptr -> objects}
 var drawCircles = {} // zOrder -> {ptr -> objects}
+var drawAgents = {} // zOrder -> {ptr -> objects}
 var drawTriangles = {}
 var circles = {} // ptr -> object
 var triangles = {}
@@ -207,8 +258,8 @@ var pressedObject = null; // object that is currently pressed down
 var pressedStart = null; // offset x,y from the center of the selection
 // offset from the center of the object at the moment of mouse down so that the first move would not be jerky
 var mouseDownOffset = {x:0, y:0} ;
-var addingPoly = false;
-var addingAgent = false;
+//var addingPoly = false;
+//var addingAgent = false;
 var selectSquare = null; // x1, y1, x2, y2, isActive
 var multiSelected = []; // agents that were multi selected
 var activeGoals = {}; // ptr -> true  goals that have agents
@@ -246,37 +297,49 @@ function handleMouseDown(event) {
     var x = c.x, y = c.y;
     needDraw = true
 
-    var reversedZ = Object.keys(drawCircles).reverse()
+    pressedStart = { x: x, y: y }
+    var reversedZ = Object.keys(mouseTargets).reverse()
     for (var zi in reversedZ) {
         var z = reversedZ[zi]
-        for (var p in drawCircles[z]) {
-            var o = drawCircles[z][p];
+        for (var p in mouseTargets[z]) {
+            var o = mouseTargets[z][p];
+            if (!showPolyPoint.checked && !editPolyPnt && (o.objType == ObjType.POLYPOINT || o.objType == ObjType.BUILDING_PNT))
+                continue;
             if (o.isInside(x, y)) {
                 pressedObject = o;
                 mouseDownOffset.x = pressedObject.x - x
                 mouseDownOffset.y = pressedObject.y - y
-                pressedStart = {x:x, y:y}
                 return true;
             }            
         }
     }
 
-    if (addingPoly) {
+    if (addingPoly.checked) {
         added_poly_point(x, y)
         readScene()
-        return true;
+        return true
     }
-    if (addingAgent) {
-        added_agent(x, y, parseInt(agentSize.value), 2);
+    if (addingBuilding.checked) {
+        added_building(x, y); // pressedObject will be set by c++
+        pressedStart.justAdded = true
+        return true
+    }
+    if (addingAgent.checked) {
+        added_agent(x, y, parseFloat(agentSize.value), parseFloat(agentSpeed.value))
         readScene()
-        return true;
+        return true
     }
     if (!selectSquare) {
         selectSquare = {x1:x, y1:y, x2:x, y2:y}
-        return true;
+        return true
     }
     
     return true // prevent cursor change
+}
+
+// called from NavCtrl::addBuilding
+function setPressedObj(ptr) {
+    pressedObject = circles[ptr]
 }
 
 function handleWheel(event) {
@@ -339,6 +402,7 @@ function handleMouseUp(event) {
         if (pressedObject.objType == ObjType.AGENT) {
             multiSelected = [pressedObject]
             readAgentRadiusFrom(pressedObject);
+            pressedObject.isSelected = true
         }
         if (pressedObject.objType == ObjType.GOAL) {
             goalRadius.value = pressedObject.secondRadius
@@ -346,8 +410,15 @@ function handleMouseUp(event) {
             goalPoint.checked = isPoint
             goalAttack.checked = !isPoint
             selectedGoal = pressedObject
+            pressedObject.isSelected = true
         }
-        pressedObject.isSelected = true
+        if (pressedObject.objType == ObjType.BUILDING_PNT) {
+            if (pressedStart.justAdded) {
+                moved_object(pressedObject.ptr, pressedObject.x + 5, pressedObject.y + 5) // simulate creating a 6x6 building
+                readScene()
+            }
+        }
+        
     }
     
     pressedObject = null
@@ -400,6 +471,8 @@ function handleMouseMove(event) {
     return true;
 }
 
+
+
 function out(s) {
     //output.innerHTML += s + "<br>"
     console.log(s);
@@ -412,9 +485,17 @@ function clear_circles() {
 }
 */
 
+
+
 function remove_circle(ptr) {
     //out("remove " + ptr.toString(16));
-    delete drawCircles[circles[ptr].zOrder][ptr]
+    var o = circles[ptr]
+    var z = o.zOrder
+    // may be in one or the other
+    var cont = (o.objType == ObjType.AGENT || o.objType == ObjType.GOAL) ? drawAgents : drawCircles;
+    delete cont[z][ptr]
+
+    delete mouseTargets[z][ptr]
     delete circles[ptr];
     needDraw = true
 }
@@ -450,6 +531,8 @@ function setGoal(x, y, selAgents) {
 function Circle(x, y, radius, color, selType, objType, secondRadius) {
     this.x = x;
     this.y = y;
+    this.rot = 0 // agent orientation
+    this.degrot = 0
     this.radius = radius;
     this.color = color;
     this.selType = selType //multiSel = multiSel;
@@ -464,6 +547,8 @@ Circle.prototype.makeDCoord = function () {
     this.dy = this.y * S2H_SCALE + S2H_YOFFSET;
     this.dradius = this.radius * S2H_SCALE
     this.dsecondRadius = (this.secondRadius != null) ? (this.secondRadius * S2H_SCALE) : null
+    if (this.objType == ObjType.AGENT)
+        makeAgentImages(this.dradius)
 }
 Circle.prototype.draw1 = function() {
     if (this.isSelected) {
@@ -485,11 +570,15 @@ Circle.prototype.draw2 = function() {
 Circle.prototype.draw3 = function() {
     ctx.beginPath();
     ctx.arc(this.dx, this.dy, this.dradius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = this.color;
+    ctx.fillStyle = this.color
     ctx.fill();
     ctx.lineWidth = 0.5;
     ctx.strokeStyle = '#000000';
     ctx.stroke();
+    if (this.color == COLOR_AGENT) {
+        var img = agent_imgs[this.dradius][this.degrot]
+        ctx.drawImage(img, this.dx - (img.width / 2), this.dy - (img.height / 2))
+    }
 
     if (this.dsecondRadius != null && showGoalRadius.checked) {
         ctx.beginPath();
@@ -514,14 +603,23 @@ Circle.prototype.isInRect = function(rect) {
             this.y >= rect.ymin && this.y <= rect.ymin + rect.height) 
 }
 
+function insertZorder(cont, obj) {
+    if (!(obj.zOrder in cont))
+        cont[obj.zOrder] = {}
+    cont[obj.zOrder][obj.ptr] = obj
+}
+
 function add_circle(ptr, zOrder, x, y, radius, color, objSelType, objType, secondRadius) {
     var obj = new Circle(x, y, radius, color, objSelType, objType, secondRadius)
     obj.ptr = ptr;
     obj.zOrder = zOrder;
     circles[ptr] = obj;
-    if (!(zOrder in drawCircles))
-        drawCircles[zOrder] = []
-    drawCircles[zOrder][ptr] = obj;
+    if (objType == ObjType.AGENT || objType == ObjType.GOAL) 
+        insertZorder(drawAgents, obj)
+    else 
+        insertZorder(drawCircles, obj)
+    
+    insertZorder(mouseTargets, obj)
     needDraw = true
 }
 
@@ -533,40 +631,102 @@ function Triangle(ax, ay, bx, by, cx, cy, color) {
     this.color = color
     this.makeDCoord()
 }
+
+
 Triangle.prototype.makeDCoord = function () {
     // the drawing coordinates
     this.dax = this.ax * S2H_SCALE + S2H_XOFFSET; this.day = this.ay * S2H_SCALE + S2H_YOFFSET;
     this.dbx = this.bx * S2H_SCALE + S2H_XOFFSET; this.dby = this.by * S2H_SCALE + S2H_YOFFSET;
     this.dcx = this.cx * S2H_SCALE + S2H_XOFFSET; this.dcy = this.cy * S2H_SCALE + S2H_YOFFSET;
+
 }
-Triangle.prototype.draw1 = function() {
+Triangle.prototype.draw1 = function () {
     ctx.beginPath();
     ctx.moveTo(this.dax, this.day);
     ctx.lineTo(this.dbx, this.dby);
     ctx.lineTo(this.dcx, this.dcy);
     ctx.lineTo(this.dax, this.day);
-    ctx.fillStyle = showTex.checked ? grass_pattern : "#71fe7b";  // this.color;
 
-    ctx.lineWidth = 0;
-    ctx.strokeStyle = 'white'
-    ctx.fill()
-
-    // if we don't erase the line the underlying fill shows between triangles
-    ctx.lineWidth = showTri.checked ? 0.5 : 2;
-    ctx.strokeStyle = showTri.checked ? '#428549' : ctx.fillStyle;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#428549';
     ctx.stroke()
+}
+
+
+var perimiters = { ptr: null, sz: 0 }
+
+function take_perimiters(ptr, sz) {
+    perimiters.ptr = ptr
+    perimiters.sz = sz
+    //out("perimiter " + ptr + "  " + sz);
+}
+
+function drawPerimiters() {
+    ctx.beginPath();
+    var start = true
+    var i = 0
+    while (i < perimiters.sz) {
+        var x = mgetValue(perimiters.ptr + i * 4, 'float')
+        i++;
+        if (x == Infinity) {
+            ctx.fillStyle = showTex.checked ? grass_pattern : "#71fe7b";
+            ctx.fill()
+            if (i < perimiters.sz - 1)
+                ctx.beginPath();
+            start = true
+            continue
+        }
+        if (x == -Infinity) {
+            ctx.fillStyle = showTex.checked ? rock_pattern : "#983600";
+            ctx.fill()
+            if (i < perimiters.sz - 1)
+                ctx.beginPath();
+            start = true
+            continue
+        }
+
+        var y = mgetValue(perimiters.ptr + i * 4, 'float')
+        i++;
+        var dax = x * S2H_SCALE + S2H_XOFFSET;
+        var day = y * S2H_SCALE + S2H_YOFFSET;
+        if (start) {
+            ctx.moveTo(dax, day);
+            start = false
+        }
+        else {
+            ctx.lineTo(dax, day);
+        }
+    }
 
 }
 
-Triangle.prototype.isInside = function(x, y) {
-    return false;
+
+function Rectangle(ax, ay, bx, by) {
+    this.ax = ax; this.ay = ay;
+    this.bx = bx; this.by = by;
+    this.makeDCoord()
 }
-Triangle.prototype.isInRect = function(rect) {
-    return false;
+Rectangle.prototype.makeDCoord = function () {
+    this.dax = this.ax * S2H_SCALE + S2H_XOFFSET; this.day = this.ay * S2H_SCALE + S2H_YOFFSET;
+    this.dbx = this.bx * S2H_SCALE + S2H_XOFFSET; this.dby = this.by * S2H_SCALE + S2H_YOFFSET;
+}
+Rectangle.prototype.draw1 = function () {
+    var w = this.dbx - this.dax
+    var h = this.dby - this.day
+        
+    ctx.lineWidth = 1
+    ctx.strokeStyle = "#ff5555"
+    ctx.strokeRect(this.dax, this.day, w, h)
+    ctx.save()
+    ctx.translate(this.dax, this.day); // I want the fill texture to move with me
+    ctx.fillStyle = errrect_pattern 
+    ctx.fillRect(0, 0, w, h)
+    ctx.restore()
 }
 
-function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
-    var obj = new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf")
+
+
+function register_tri(obj, ptr, zOrder) {
     obj.ptr = ptr;
     obj.zOrder = zOrder;
     triangles[ptr] = obj;
@@ -576,7 +736,24 @@ function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
     needDraw = true
 }
 
-// feedback from c++
+function add_tri(ptr, zOrder, ax, ay, bx, by, cx, cy) {
+    register_tri(new Triangle(ax, ay, bx, by, cx, cy, "#b8ffbf"),  ptr, zOrder)
+}
+
+function add_rect(ptr, zOrder, ax, ay, bx, by) {
+    register_tri(new Rectangle(ax, ay, bx, by), ptr, zOrder)
+}
+
+function change_rect(ptr, ax, ay, bx, by) {
+    var r = triangles[ptr];
+    r.ax = ax; r.ay = ay;
+    r.bx = bx; r.by = by;
+    r.makeDCoord()
+    needDraw = true
+}
+
+// feedback from c++, agents moving
+// called for building center items that are moved automatically from C++
 function move_circle(ptr, x, y) {
     var o = circles[ptr];
     if (o.x == x && o.y == y)
@@ -586,8 +763,21 @@ function move_circle(ptr, x, y) {
     o.makeDCoord()
     needDraw = true
 }
+
+function move_orient_circle(ptr, x, y, rot) {
+    var o = circles[ptr];
+    if (o.x == x && o.y == y && o.rot == rot)
+        return
+    o.x = x;
+    o.y = y;
+    o.rot = rot
+    o.degrot = (Math.round(rot * 180 / Math.PI / ROTATIONS_RESOLUTION) * ROTATIONS_RESOLUTION + 360) % 360  // make it not negative
+    o.makeDCoord()
+    needDraw = true        
+}
+
 function changed_size(ptr, r) {
-    o = circles[ptr]
+    var o = circles[ptr]
     if (o.radius == r)
         return
     o.radius = r
@@ -595,7 +785,7 @@ function changed_size(ptr, r) {
     needDraw = true
 }
 function updated_goal(ptr, r, color) {
-    o = circles[ptr];
+    var o = circles[ptr];
     if (o.secondRadius == r && o.color == color)
         return
     o.secondRadius = r
@@ -629,20 +819,31 @@ function draw() {
     //ctx.translate(S2H_XOFFSET, S2H_YOFFSET)
     //ctx.scale(S2H_SCALE, S2H_SCALE);
 
-    for (var z in drawTriangles) {
-        for (var p in drawTriangles[z]) {
-            drawTriangles[z][p].draw1();
+    drawPerimiters()
+
+    if (showTri.checked) {
+        for (var z in drawTriangles) {
+            for (var p in drawTriangles[z]) {
+                drawTriangles[z][p].draw1();
+            }
         }
     }
-    for (var z in drawCircles) {
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw1();
+    if (showPolyPoint.checked || editPolyPnt) {
+        for (var z in drawCircles) {
+            for (var p in drawCircles[z]) {
+                drawCircles[z][p].draw3();
+            }
         }
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw2();
+    }
+    for (var z in drawAgents) {
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw1();
         }
-        for (var p in drawCircles[z]) {
-            drawCircles[z][p].draw3();
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw2();
+        }
+        for (var p in drawAgents[z]) {
+            drawAgents[z][p].draw3();
         }        
     }
     
@@ -666,6 +867,10 @@ function draw() {
     ctx.stroke();*/
 }
 
+var framesThisSecond = 0
+var doFps = true
+var lastFpsPrintTime = new Date().getTime();
+
 function progress() {
     if (isPlaying) {
         cpp_progress(0.25) // 0.4
@@ -674,6 +879,16 @@ function progress() {
     if (needDraw)
         draw();
     needDraw = false
+
+    if (doFps) {
+        framesThisSecond++;
+        var nowTime = new Date().getTime()
+        if (nowTime - lastFpsPrintTime > 1000) {
+            lastFpsPrintTime = nowTime
+            fpsDisp.innerHTML = "" + framesThisSecond + " FPS"
+            framesThisSecond = 0
+        }
+    }
 
     window.requestAnimationFrame(progress)
 }
@@ -695,27 +910,34 @@ function readScene() { // into the html, called whenever the scene changes
 }
 
 function triggerPolyline() {
-    addingPoly = !addingPoly;
-    if (addingAgent && addingPoly) {
-        triggerAgent();
-        checkboxAgent.checked = false
+    if (addingPoly.checked) {
+        addingAgent.checked = false
+        addingBuilding.checked = false
     }
     
     var label = document.getElementById("polyLabel")
-    /*if (addingPoly)
-        label.innerHTML = "End Polyline"
-    else
-        label.innerHTML = "Start Polyline"
-        */
-    started_new_poly();    
+    started_new_poly();
+    editPolyPnt = addingPoly.checked
 }
 
 function triggerAgent() {
-    addingAgent = !addingAgent;
-    if (addingAgent && addingPoly) {
-        triggerPolyline();
-        checkboxPoly.checked = false
+    if (addingAgent.checked) {
+        if (addingPoly.checked) {
+            addingPoly.checked = false
+            triggerPolyline();
+        }
+        addingBuilding.checked = false
     }
+}
+function triggerBuilding() {
+    if (addingBuilding.checked) {
+        addingAgent.checked = false
+        if (addingPoly.checked) {
+            addingPoly.checked = false
+            triggerPolyline();
+        }
+    }
+    editPolyPnt = addingBuilding.checked
 }
 
 function adjustPlaceSize(s) {
@@ -723,6 +945,13 @@ function adjustPlaceSize(s) {
     world_height = canvas_cont.clientHeight * WORLD_FACTOR 
     canvas_place.style.width = world_width * s;
     canvas_place.style.height = world_height * s;
+}
+
+function makeDCoordAll() {
+    for (var ci in circles)
+        circles[ci].makeDCoord()
+    for (var ti in triangles)
+        triangles[ti].makeDCoord()
 }
 
 function resize() {
@@ -739,19 +968,32 @@ function resize() {
     var s = zoomValue()
     adjustPlaceSize(s)
 
-    S2H_XOFFSET = world_width * 0.5 // 0,0 should be in the center
-    S2H_YOFFSET = world_height * 0.5
-    for (var ci in circles)
-        circles[ci].makeDCoord()
-    for (var ti in triangles)
-        triangles[ti].makeDCoord()    
+    //S2H_XOFFSET = world_width * 0.5 // 0,0 should be in the center
+    //S2H_YOFFSET = world_height * 0.5
+    set_scene_extents(lastExtents.mnx, lastExtents.mny, lastExtents.mxx, lastExtents.mxy)
+    makeDCoordAll()
         
     //out("sz=" + canvas_cont.clientWidth + " " + canvas_cont.clientHeight)
     needDraw = true
 }
 
-function set_scene_extents(mnx, mny, mxx, mxy) {
+var lastExtents = { mnx: -INIT_SQUARE_SIZE, mny: -INIT_SQUARE_SIZE, mxx: INIT_SQUARE_SIZE, mxy: INIT_SQUARE_SIZE }
 
+function set_scene_extents(mnx, mny, mxx, mxy) {
+    var dx = mxx - mnx, dy = mxy - mny
+    var scalex = world_width / dx
+    var scaley = world_height / dy
+   // out("d=" + dx + " " + dy) // + " scale=" + scalex + " " + scaley)
+   // out("world=" + world_width + " " + world_height + " HALF " + (world_width * 0.5) + " " + (world_height * 0.5))
+   // out("scale=" + scalex + " " + scaley)
+    S2H_SCALE = Math.min(scalex, scaley) * 0.95
+    S2H_XOFFSET = world_width * 0.5 - (mxx + mnx) * 0.5 * S2H_SCALE
+    S2H_YOFFSET = world_height * 0.5 - (mxy + mny) * 0.5 * S2H_SCALE
+
+    makeDCoordAll()
+
+   // out("offs=" + S2H_XOFFSET + " " + S2H_YOFFSET);
+    needDraw = true
 }
 
 function readPlayStop() {
@@ -844,10 +1086,17 @@ function frameChange() {
 
 function agentSizeChange() {
     for (var i in multiSelected) {
-        change_size(multiSelected[i].ptr, parseInt(agentSize.value))
-        readScene();
+        update_agent(multiSelected[i].ptr, parseFloat(agentSize.value), -1)
     }
+    readScene();
     setCookie("agentSize", agentSize.value)
+}
+function agentSpeedChange() {
+    for (var i in multiSelected) {
+        update_agent(multiSelected[i].ptr, -1, parseFloat(agentSpeed.value))
+    }
+    readScene();
+    setCookie("agentSpeed", agentSpeed.value)
 }
 
 function triggerShowTri() {
@@ -859,6 +1108,10 @@ function triggerShowTex() {
 function triggerShowGoalRadius() {
     setCookie("showGoalRadius", showGoalRadius.checked);
 }
+function triggerShowPolyPoint() {
+    setCookie("showPolyPoint", showPolyPoint.checked);
+}
+
 function canvasScroll() {
     needDraw = true
 }
@@ -887,7 +1140,7 @@ function goalRadiusChange() {
     setCookie("goalRadius", goalRadius.value)
     if (selectedGoal == null)
         return;
-    update_goal(selectedGoal.ptr, parseInt(goalRadius.value), -1)
+    update_goal(selectedGoal.ptr, parseFloat(goalRadius.value), -1)
 }
 
 function playDelFrames() {
@@ -919,19 +1172,22 @@ var demos = [ // set the order of the load list
 ]
 var demosIndex = {} // map name to func
 
+// called when an item in the demo menu is pressed                
 function onLoad(name) {
     loadFrame.style.visibility = "hidden"
     document.onclick = null
     loadBut.checked = false
 
     var text = demosIndex[name]()
-    add_imported(name, text)
-    scene_edit.value = "i," + name
-    syncScene()
+    if (text != null) {
+        add_imported(name, text)
+        scene_edit.value = "i," + name
+        syncScene()
+    }
 }
 
 function demoCircle(count, radius) {
-    text = ""
+    var text = ""
     for (var i = 0; i < count; ++i) {
         var x = Math.round(Math.cos(i / count * 2 * Math.PI) * radius)
         var y = Math.round(Math.sin(i / count * 2 * Math.PI) * radius)
@@ -942,7 +1198,7 @@ function demoCircle(count, radius) {
     return INIT_SQUARE + "\n" + text
 }
 function demoGrid(n, d) {
-    text = ""
+    var text = ""
     var s = -n*d/2
     for (var i = 0; i < n; ++i) {
         for (var j = 0; j < n; ++j) {
@@ -956,7 +1212,7 @@ function demoGrid(n, d) {
 
 
 function sceneLoadFromServer(name) {
-    var url = "http://" + urlArgs["loadFrom"] + "/" + name + ".txt";
+    var url = "http://" + urlArgs["loadFrom"] + "/" + name + ".txt+" + new Date().getTime(); // anyt cache
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function () {
         if (xhttp.readyState != 4)
@@ -971,7 +1227,7 @@ function sceneLoadFromServer(name) {
     }
     xhttp.open("GET", url, true);
     xhttp.send();
-    return INIT_SQUARE
+    return null
 }
 
 function initDemos() {
@@ -987,8 +1243,8 @@ function initDemos() {
                 fhtml += demos[n][nm] // add as <hr> html
         }
         loadFrame.innerHTML = fhtml;
-        var h = parseInt(window.getComputedStyle(loadFrame).fontSize) * demos.length + 12
-        loadFrame.style.height = h + "px"
+        //var h = parseInt(window.getComputedStyle(loadFrame).fontSize) * demos.length + 12 not needed
+        //loadFrame.style.height = h + "px"
     }
     dispDemos();
 
@@ -1006,6 +1262,8 @@ function initDemos() {
             for (var i in names) {
                 var d = {}
                 var on = names[i]
+                if (on.length == 0)
+                    continue
                 d[on] = makeFunc(on)
                 addDemos.push(d)
             }
@@ -1035,6 +1293,11 @@ body { /* disable selection so the double click will not select */
 #canvas {
     position: absolute;
     background: #fff;
+    left: 8px;
+    top: 8px;
+}
+#fpsDisp {
+    position: absolute;
     left: 8px;
     top: 8px;
 }
@@ -1070,7 +1333,7 @@ body { /* disable selection so the double click will not select */
 #zoom_scroll {
     position: absolute;
     left: 8px;
-    top: 140px;
+    top: 170px;
     height:30px;
     width: 132px;
     //-webkit-appearance: slider-vertical;
@@ -1212,37 +1475,57 @@ body { /* disable selection so the double click will not select */
 }
 
 
-#checkboxPoly {
+#addingPoly {
     top: 8px;
     left: 2px;
 }
-#checkboxPoly:before {
+#addingPoly:before {
   content: "Start Polyline";
 }
-#checkboxPoly:checked:before {
+#addingPoly:checked:before {
   content: "End Polyline";
 }
 
-#checkboxAgent {
+#addingAgent {
     width: 120px;
-    top: 50px;
+    top: 80px;
     left: 12px;
 }
-#checkboxAgent:before {
+#addingAgent:before {
   content: "Add Agents";
+}
+
+#addingBuilding {
+    top: 40px;
+    left: 2px;
+}
+#addingBuilding:before {
+  content: "Add Building";
 }
 
 #agentSize {
     position: absolute;
-    top: 90px;
+    top: 115px;
     left: 80px;
     width: 55px;
 }
 #agentSizeLabel {
     position: absolute;
-    top: 90px;
+    top: 118px;
     left: 22px;
 }
+#agentSpeed {
+    position: absolute;
+    top: 140px;
+    left: 80px;
+    width: 55px;
+}
+#agentSpeedLabel {
+    position: absolute;
+    top: 143px;
+    left: 22px;
+}
+
 .frame {
     position: absolute;
     border: 2px solid #777;
@@ -1250,63 +1533,75 @@ body { /* disable selection so the double click will not select */
     width: 132;
 }
 #agentsFrame {
-    top: 45px;
-    height: 80px;
+    top: 75px;
+    height: 90px;
 }
 #showTri {
     position: absolute;
-    top: 171px;
+    top: 201px;
     left: 8px;
     width: 15px;
     height: 15px;
 }
 #showTriLabel {
     position: absolute;
-    top: 171px;
+    top: 201px;
     left: 31px;
 }
 #showTex {
     position: absolute;
-    top: 190px;
+    top: 220px;
     left: 8px;
     width: 15px;
     height: 15px;
 }
 #showTexLabel {
     position: absolute;
-    top: 190px;
+    top: 220px;
+    left: 31px;
+}
+#showPolyPoint {
+    position: absolute;
+    top: 239px;
+    left: 8px;
+    width: 15px;
+    height: 15px;
+}
+#showPPLabel {
+    position: absolute;
+    top: 239px;
     left: 31px;
 }
 #goalFrame {
-    top: 220px;
+    top: 269px;
     height: 80px;
 }
 #goalFrameText {
     position: absolute;
-    top: 212px;
+    top: 261px;
     left: 20px;
     background: #cbcfff;
 }
 #goalRadius {
     position: absolute;
-    top: 233px;
+    top: 282px;
     left: 85px;
     width: 50px;
 }
 #goalRadiusLabel {
     position: absolute;
-    top: 235px;
+    top: 284px;
     left: 33px;
 }
 #showGoalRadius {
     position: absolute;
-    top: 233px;
+    top: 282px;
     left: 10px;
     width: 15px;
     height: 15px;
 }
 #goalPoint {
-    top: 260px;
+    top: 309px;
     left: 12px;
     width: 55px;
 }
@@ -1314,7 +1609,7 @@ body { /* disable selection so the double click will not select */
   content: "Point";
 }
 #goalAttack {
-    top: 260px;
+    top: 309px;
     left: 75px;
     width: 55px;
 }
@@ -1326,16 +1621,16 @@ body { /* disable selection so the double click will not select */
     content: "Load...";
 }
 #loadBut {
-    top: 310px;
+    top: 359px;
     left: 8px;
     width: 63px;
 }
 #loadFrame {
     position: absolute;
-    top: 335px;
+    top: 384px;
     left: 8px;
     width: 120px;
-    height: 100px;
+    /*height: 100px;*/
     border: 3px outset #A9A7A7;
     padding: 4px;
     background: linear-gradient(to bottom, #fff 0%,#ddd 100%);
@@ -1354,29 +1649,33 @@ body { /* disable selection so the double click will not select */
 </head>
 
 <body onload="init()" onresize="resize()">
-<!--<script>
+<script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
   })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
   ga('create', 'UA-2231125-4', 'auto');
   ga('send', 'pageview');
-</script>-->
+</script>
 
   <canvas id="canvas" width="200" height="200"></canvas>
   <div id="canvas_cont" onscroll="canvasScroll()">
     <div id="canvas_place"></div>
   </div>
+  <div id="fpsDisp"></div>
 
   <div id="but_ctrl"><div id="but_rel" style="position:relative; width:100%; height:100%">
-      <input id="checkboxPoly" class="sc-btn" type="checkbox" onclick="triggerPolyline()"/>
+      <input id="addingPoly" class="sc-btn" type="checkbox" onclick="triggerPolyline()"/>
+      <input id="addingBuilding" class="sc-btn" type="checkbox" onclick="triggerBuilding()"/>
       <div id="agentsFrame" class="frame"></div>
-      <input id="checkboxAgent" class="sc-btn" type="checkbox" onclick="triggerAgent()"/>
+      <input id="addingAgent" class="sc-btn" type="checkbox" onclick="triggerAgent()"/>
       <input id="agentSize" type="number" value="3" min="1" max="100" oninput="agentSizeChange()"><span id="agentSizeLabel">Radius:</span>
+      <input id="agentSpeed" type="number" value="1.0" min="0.1" max="20.0" step="0.1" oninput="agentSpeedChange()"><span id="agentSpeedLabel">Speed:</span>
 
       <input id="zoom_scroll" type="range" name="zoom" min="-75" max="200" value="0" oninput="zoomChanged()" onmousedown="zoomStart()"/> 
       <input id="showTri" type="checkbox" onclick="triggerShowTri()" /><label id="showTriLabel" for="showTri">Triangulation</label>
       <input id="showTex" type="checkbox" onclick="triggerShowTex()" /><label id="showTexLabel" for="showTex">Textures</label>
+      <input id="showPolyPoint" type="checkbox" onclick="triggerShowPolyPoint()" /><label id="showPPLabel" for="showPolyPoint">Poly Markers</label>
 
       <div id="goalFrame" class="frame"></div><div id="goalFrameText">&nbsp;Goal&nbsp;</div>
       <input id="goalRadius" type="number" value="20" min="1" max="100" oninput="goalRadiusChange()">
@@ -1452,7 +1751,22 @@ body { /* disable selection so the double click will not select */
       <rect style="fill:#72300d;filter:url(#filter_grass3)" width="400" height="400" x="0" y="0"/> <!--512006-->
     </svg></div>
     <img id="rock_img" style="display:none;"/>
-
+    
+    <div id="errrect_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" version="1.1">
+        <defs><filter id="lineblur"><feGaussianBlur stdDeviation="1.4" /></filter></defs>
+        <path style="stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-opacity:1;filter:url(#lineblur)"
+           d="m -1,11 12,-12"/>
+        <path style="stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-opacity:1;filter:url(#lineblur)"
+           d="m 9,21 12,-12"/>
+        <rect style="fill:#ff6666;fill-opacity:0.4;stroke:none"
+           width="20" height="20" x="0" y="0" />
+    </svg></div>
+    <img id="errrect_img" style="display:none;"/>
+    
+    <div id="agent_cont" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" version="1.1">
+       <path style="fill:#a33232;" transform="scale(1.0 1.0) rotate(0.00 35 35)"
+       d="m 13.284071,11.005171 c -0.458262,0.03398 -0.799553,0.235728 -0.997276,0.64167 -2.087493,4.285832 7.868469,27.265374 8.961108,29.923336 C 22.340543,44.228137 32.85558,67 35.04086,67 37.226138,67 47.861566,44.904537 48.954208,42.246483 50.046847,39.588522 59.499737,15.794016 57.794925,11.646841 56.059983,7.426388 37.226138,26.113583 35.04086,26.113583 c -1.980412,0 -17.326922,-15.43693 -21.756789,-15.108412 z"/>
+    </svg></div>
 </body>
 
 </html>

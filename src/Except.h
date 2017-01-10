@@ -1,6 +1,7 @@
 #pragma once
 #include <exception>
 #include <string>
+#include <iostream>
 #include <sstream>
 
 #ifndef _MSC_VER
@@ -9,8 +10,10 @@
 #define NOEXCEPT
 #endif
 
+using namespace std;
+
 extern void cpp_out(const char* s);
-#define OUT(strm) { std::ostringstream ss; ss << strm; cpp_out(ss.str().c_str()); }
+#define OUT(strm) { cout << strm << endl; }
 
 
 class Exception : public std::exception {

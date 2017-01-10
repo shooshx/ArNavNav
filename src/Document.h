@@ -51,7 +51,7 @@ public:
     void removeGoal(Goal* g);
 
     void clearSegMinDist();
-    bool doStep(float deltaTime, bool doUpdate);
+    bool doStep(float deltaTime, bool doUpdate, int dbg_frameNum);
 
     void updatePlan(RVO::Agent* agent);
     bool shouldReplan(RVO::Agent* agent);

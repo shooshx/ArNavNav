@@ -37,6 +37,7 @@ public:
     float lengthSq = 0;
     float passToNextSq = FLT_MAX; // distance squared between the 'to' point to the segment of the other two points in the tri, or FLT_MAX if projection is outside the segment
                                   // used for detecting if an agent can pass through this trignagle to the HalfEdge in 'next'
+    Vec2 _midPnt; // not referenced directly, pointed to by curMidPntPtr
 
     void clearData() {
         //midPnt = Vec2();
@@ -48,7 +49,6 @@ public:
 
     // mutable data in Astar 
     Vec2* curMidPntPtr = nullptr; // points to midPnt or to an override in astar
-    Vec2 _midPnt; // not referenced directly
     HalfEdge* cameFrom = nullptr; 
     float costSoFar = FLT_MAX;
 };
@@ -71,9 +71,15 @@ public:
 
 struct Polyline
 {
-    // never owns
-    vector<Vertex*> m_d;
+    vector<Vertex*> m_d; // never owns
     vector<int> m_di;
+    bool m_fromBox = false; // should be removed when redoing the boxes
+};
+
+struct AABox
+{
+    Vertex *v[4];
+    bool intersectError = false;
 };
 
 class MapDef
@@ -92,8 +98,10 @@ public:
     Vertex* addToLast(const Vec2& p, const string& module = string()) {
         if (m_pl.empty())
             add(module);
-        auto v = new Vertex(m_vtx.size(), p);
-        m_vtx.push_back(unique_ptr<Vertex>(v));
+        auto v = addVtx(p);
+        return addToLast(v, module);
+    }
+    Vertex* addToLast(Vertex* v, const string& module = string()) {
         Polyline* pl = m_pl.back().get();
         pl->m_d.push_back(v);
         pl->m_di.push_back(m_vtx.size() - 1);
@@ -101,6 +109,10 @@ public:
             m_objModules[v] = module;
         return v;
     }
+
+    void popIfLinear(Vertex* nextv);
+    void delFirstIfLinear();
+
     bool isLastEmpty() {
         return m_pl.empty() || m_pl.back()->m_d.empty();
     }
@@ -108,12 +120,40 @@ public:
         m_vtx.clear();
         m_pl.clear();
         m_objModules.clear();
+        m_bx.clear();
+        m_boxAddedVtx.clear();
     }
+
+    Vertex* addVtx(const Vec2& p) {
+        auto v = new Vertex(m_vtx.size(), p);
+        m_vtx.push_back(unique_ptr<Vertex>(v));
+        return v;
+    }
+    Vertex* addBoxVtx(const Vec2& p) {
+        auto v = new Vertex(m_vtx.size() + m_boxAddedVtx.size(), p);
+        m_boxAddedVtx.push_back(unique_ptr<Vertex>(v));
+        return v;
+    }
+
+    AABox* addBox(const Vec2& pa, const Vec2& pb) {
+        AABox* b = new AABox;
+        b->v[0] = addVtx(pa);
+        b->v[1] = addVtx(Vec2(pa.x, pb.y));
+        b->v[2] = addVtx(pb);
+        b->v[3] = addVtx(Vec2(pb.x, pa.y));
+        m_bx.push_back(unique_ptr<AABox>(b));
+        return b;
+    }
+
+    void makeBoxPoly();
 
     vector<unique_ptr<Vertex>> m_vtx; // owns the objects. don't know how much are going to be so can't preallocate
                            // needs to be pointers since display items reference them
     vector<unique_ptr<Polyline>> m_pl;
+    vector<unique_ptr<AABox>> m_bx;
+    vector<unique_ptr<Vertex>> m_boxAddedVtx; // vertices added when parsing the boxes, should be discarded when boxes are reparsed
     
+    // pointer of Polyline or Vertex to module it came from
     map<void*, string> m_objModules; // defined objects can have optional string modules where they came from
 };
 

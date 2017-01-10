@@ -15,8 +15,8 @@ int main(int argc, char *argv[])
     //return 0;
 
     QApplication a(argc, argv);
-    //qui::NavDialog w;
-    NavWeb w;
+    //qui::NavDialog w;  // qt app
+    NavWeb w;  // webkit wrapper
     w.show();
     return a.exec();
 }
