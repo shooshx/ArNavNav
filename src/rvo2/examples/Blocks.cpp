@@ -53,7 +53,7 @@ bool reachedGoal(RVO::RVOSimulator *sim)
 	return true;
 }
 
-int mainx()
+int main()
 {
 	RVO::RVOSimulator sim;
 	sim.setupBlocks();
@@ -74,7 +74,7 @@ int mainx()
 }
 
 
-int main()
+int mainx()
 {
     for(int t = 0; t < 20; ++t)
     {

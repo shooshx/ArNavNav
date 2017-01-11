@@ -4,6 +4,7 @@
 
 #include "KdTree.h"
 #include "Obstacle.h"
+#include "../mtrig.h"
 
 namespace RVO 
 {
@@ -413,6 +414,34 @@ namespace RVO
 		}
 	}
 
+#define MAX_ANGULAR_SPEED 0.5f  // rad/sec
+#define I_PI (3.1415926535897932384626433832795)
+
+    void Agent::updateOrientation(float deltaTime)
+    {
+        float prevo = m_orientation;
+	    float nexto = mtrig::atan2(m_velocity.y, m_velocity.x);
+        float d = prevo - nexto;
+        float maxd = MAX_ANGULAR_SPEED * deltaTime;
+        float absd = iabs(d);
+        if (absd > maxd) {
+            //OUT("orientDelta=" << d << " o=" << m_orientation)
+            if ((d > 0) != (absd > I_PI))
+                m_orientation = prevo - maxd;
+            else 
+                m_orientation = prevo + maxd;
+
+            // the range of atan2
+            if (m_orientation < -I_PI)
+                m_orientation += (float)(2.0 * I_PI);
+            if (m_orientation > I_PI)
+                m_orientation -= (float)(2.0 * I_PI);
+        }
+        else {
+            m_orientation = nexto;
+        }
+    }
+
 	bool Agent::update(float timeStep)
 	{
 		m_velocity = newVelocity_;
@@ -434,6 +463,8 @@ namespace RVO
                 m_velocity = Vec2();*/
             }
         }
+
+        updateOrientation(timeStep);
 
         return reachedEnd;
 
@@ -586,7 +617,7 @@ namespace RVO
     	std::vector<Line> projLines;
         projLines.reserve(numObstLines * 2); 
         projLines.insert(projLines.begin(), lines.begin(), lines.begin() + static_cast<ptrdiff_t>(numObstLines));
-        int initProjSize = projLines.size();        
+        int initProjSize = (int)projLines.size();        
 
 		for (size_t i = beginLine; i < lines.size(); ++i) 
         {

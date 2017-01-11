@@ -21,7 +21,7 @@ inline float atan2(float y, float x)
 {
     if (x == 0.0f && y == 0.0f)
         return 0.0f;
-    float t0, t1, t2, t3, t4;
+    float t0, t1, t3, t4;
 
     t3 = iabs(x);
     t1 = iabs(y);
@@ -49,14 +49,14 @@ inline float atan2(float y, float x)
 inline float asin(float x) {
     float negate = float(x < 0);
     x = iabs(x);
-    float ret = -0.0187293;
+    float ret = -0.0187293f;
     ret *= x;
-    ret += 0.0742610;
+    ret += 0.0742610f;
     ret *= x;
-    ret -= 0.2121144;
+    ret -= 0.2121144f;
     ret *= x;
-    ret += 1.5707288;
-    ret = 3.14159265358979*0.5 - sqrt(1.0 - x)*ret;
+    ret += 1.5707288f;
+    ret = (float)(3.14159265358979*0.5 - sqrt(1.0 - x)*ret);
     return ret - 2 * negate * ret;
 }
 

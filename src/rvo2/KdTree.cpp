@@ -13,6 +13,14 @@ namespace RVO {
 		deleteObstacleTree(obstacleTree_);
 	}
 
+    void KdTree::clear()
+    {
+        deleteObstacleTree(obstacleTree_);
+        obstacleTree_ = nullptr;
+        agents_.clear();
+        agentTree_.clear();
+    }
+
 	void KdTree::buildAgentTree()
 	{
 		if (agents_.size() < sim_->agents_.size()) {
@@ -24,18 +32,18 @@ namespace RVO {
 		}
 
 		if (!agents_.empty()) {
-			buildAgentTreeRecursive(0, agents_.size(), 0);
+			buildAgentTreeRecursive(0, (int)agents_.size(), 0);
 		}
 	}
 
-	void KdTree::buildAgentTreeRecursive(size_t begin, size_t end, size_t node)
+	void KdTree::buildAgentTreeRecursive(int begin, int end, int node)
 	{
 		agentTree_[node].begin = begin;
 		agentTree_[node].end = end;
 		agentTree_[node].minX = agentTree_[node].maxX = agents_[begin]->m_position.x;
 		agentTree_[node].minY = agentTree_[node].maxY = agents_[begin]->m_position.y;
 
-		for (size_t i = begin + 1; i < end; ++i) {
+		for (auto i = begin + 1; i < end; ++i) {
 			agentTree_[node].maxX = std::max(agentTree_[node].maxX, agents_[i]->m_position.x);
 			agentTree_[node].minX = std::min(agentTree_[node].minX, agents_[i]->m_position.x);
 			agentTree_[node].maxY = std::max(agentTree_[node].maxY, agents_[i]->m_position.y);
@@ -47,8 +55,8 @@ namespace RVO {
 			const bool isVertical = (agentTree_[node].maxX - agentTree_[node].minX > agentTree_[node].maxY - agentTree_[node].minY);
 			const float splitValue = (isVertical ? 0.5f * (agentTree_[node].maxX + agentTree_[node].minX) : 0.5f * (agentTree_[node].maxY + agentTree_[node].minY));
 
-			size_t left = begin;
-			size_t right = end;
+			int left = begin;
+			int right = end;
 
 			while (left < right) {
 				while (left < right && (isVertical ? agents_[left]->m_position.x : agents_[left]->m_position.y) < splitValue) {
@@ -188,7 +196,7 @@ namespace RVO {
 					newObstacle->isConvex_ = true;
 					newObstacle->unitDir_ = obstacleJ1->unitDir_;
 
-					newObstacle->id_ = sim_->obstacles_.size();
+					newObstacle->id_ = (int)sim_->obstacles_.size();
 
 					sim_->obstacles_.push_back(newObstacle);
 

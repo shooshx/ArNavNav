@@ -16,11 +16,11 @@ public:
 	//explicit Agent(RVOSimulator *sim);
 
 	Agent(int id, const Vec2 &position, const GoalDef& goalPos,
-            float neighborDist, size_t maxNeighbors, float timeHorizon, 
+            float neighborDist, int maxNeighbors, float timeHorizon, 
             float timeHorizonObst, float radius, float maxSpeed)
 	{
         id_ = id;
-        m_endGoalPos = goalPos;
+        setEndGoal(goalPos, nullptr);
        // sim_ = sim;
 		m_position = position;
 		maxNeighbors_ = maxNeighbors;
@@ -52,6 +52,7 @@ public:
     }
     void setEndGoal(const GoalDef& g, void* gid) {
         m_endGoalPos = g;
+        m_endGoalPos.p += Vec2(0.001 * (rand()%100), 0.001 * (rand()%100)); // random small pertrub to break symmetry
         m_endGoalId = gid; // actually a pointer to Goal
         m_reached = false;
         m_goalIsReachable = false;
@@ -59,19 +60,21 @@ public:
 
     void setSpeed(float speed) {
         //m_prefSpeed = speed;
-        m_maxSpeed = speed;// * 2;
+        maxSpeed_ = speed;// * 2;
     }
 
     void setTrivialPlan(bool goalIsReachable);
 
     void computePreferredVelocity(float deltaTime);
 
+    void updateOrientation(float deltaTime);
+
 public:
 	//RVOSimulator *sim_;
-    size_t id_;
+    int id_;
 
     // configs
-	size_t maxNeighbors_;
+	int maxNeighbors_;
 	float maxSpeed_;
 	float neighborDist_;
 	Vec2 prefVelocity_;

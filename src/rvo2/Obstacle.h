@@ -7,9 +7,9 @@
 
 namespace RVO {
 
-	class Obstacle {
-	private:
-
+	class Obstacle 
+    {
+    public:
 		Obstacle() : isConvex_(false), nextObstacle_(NULL), prevObstacle_(NULL), id_(0) { }
 
 		bool isConvex_;
@@ -18,11 +18,7 @@ namespace RVO {
 		Obstacle *prevObstacle_;
 		Vec2 unitDir_;
 
-		size_t id_;
-
-		friend class Agent;
-		friend class KdTree;
-		friend class RVOSimulator;
+		int id_;
 	};
 }
 

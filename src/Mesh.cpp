@@ -120,6 +120,19 @@ void Mesh::connectTri()
         he.curMidPntPtr = &he._midPnt;
     }
 
+    // perminiters CW or CCW? http://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
+    for(auto& pr: m_perimiters)
+    {
+        float sum = 0;
+        int sz = pr.m_d.size();
+        for(int i = 0; i < sz; ++i) {
+            auto* v0 = pr.m_d[i];
+            auto* v1 = pr.m_d[(i+1) % sz ];
+            float segmentArea = (v0->p.x - v1->p.x)*(v0->p.y + v1->p.y);
+            sum += segmentArea;
+        }
+        pr.m_isCW = sum > 0;
+    }
 }
 
 

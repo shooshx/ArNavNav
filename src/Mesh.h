@@ -72,8 +72,9 @@ public:
 struct Polyline
 {
     vector<Vertex*> m_d; // never owns
-    vector<int> m_di;
+    vector<int> m_di;  // indices of the vertices
     bool m_fromBox = false; // should be removed when redoing the boxes
+    bool m_isCW = false; // for determining if it's an obstacle and for ordering in the GUI
 };
 
 struct AABox

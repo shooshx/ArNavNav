@@ -280,7 +280,7 @@ public:
         m_quiteCount = 0;
     }
 
-    void changedAgentPos(Agent* a) {
+    void changedAgentPos(RVO::Agent* a) {
         m_doc.updatePlan(a);
         m_quiteCount = 0;
     }
@@ -481,6 +481,7 @@ static float isign(float v) {
 
 void orderPerimiters(vector<Polyline>& p, vector<Polyline*>& o); 
 
+// instead of sending all the triangles, I'm sending only permiters that need to be circled
 void NavCtrl::sendPerminiters()
 {
     static vector<float> v;
@@ -489,21 +490,12 @@ void NavCtrl::sendPerminiters()
     orderPerimiters(m_doc.m_mesh.m_perimiters, polyorder);
     for(const auto* pr: polyorder)
     {
-        // CW or CCW? http://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-        float sum = 0;
-        int sz = pr->m_d.size();
-        for(int i = 0; i < sz; ++i) {
-            auto* v0 = pr->m_d[i];
-            auto* v1 = pr->m_d[(i+1) % sz ];
-            float segmentArea = (v0->p.x - v1->p.x)*(v0->p.y + v1->p.y);
-            sum += segmentArea;
-        }
         for(const auto* vtx: pr->m_d) {
             v.push_back(vtx->p.x);
             v.push_back(vtx->p.y);
         }
         // end of polygon marker
-        v.push_back(isign(sum) * numeric_limits<float>::infinity());
+        v.push_back((pr->m_isCW ? 1:-1) * numeric_limits<float>::infinity());
     }
     float* p = nullptr;
     if (v.size() > 0)

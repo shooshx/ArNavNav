@@ -49,8 +49,7 @@ namespace RVO {
 	public:
 		RVOSimulator();
 		~RVOSimulator();
-        void clearAgents();
-        void clearObstacles();
+        void clear();
 
 		/**
 		 * \brief      Adds a new obstacle to the simulation.
@@ -63,6 +62,7 @@ namespace RVO {
 		 *             order.
 		 */
 		size_t addObstacle(const std::vector<Vec2> &vertices);
+        void clearObstacles();
 
         void addAgent(Agent* agent);
 
@@ -80,12 +80,10 @@ namespace RVO {
 		//Agent *defaultAgent_;
 		float globalTime_;
 		KdTree kdTree_;
-		std::vector<Obstacle *> obstacles_;
+		std::vector<Obstacle*> obstacles_;
 		//float timeStep_;
 
-		friend class Agent;
-		friend class KdTree;
-		friend class Obstacle;
+
 	};
 }
 

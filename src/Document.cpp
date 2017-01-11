@@ -14,7 +14,7 @@ Document::Document() : m_agents(m_sim.agents_)
     for(int i = 0;i < 100; ++i)
         m_markers.push_back(new Vertex(0, Vec2(-200, -200)));
 
-   // m_sim.setupBlocks();
+    m_sim.setupBlocks();
 
 }
 
@@ -241,10 +241,11 @@ void Document::runTriangulate()
     m_mesh.clear();
     runTri(&m_mapdef, m_mesh);
 
-    m_mesh.connectTri();
+    m_mesh.connectTri(); // also creates permiters
 
     clearObst();
 
+    // segments for planner
     m_multisegs.clear();
     m_multisegs.resize(m_mesh.m_perimiters.size()); // elements will not change address
     m_seggoals.clear();
@@ -257,6 +258,21 @@ void Document::runTriangulate()
         MultiSegMaker ms(poly.m_d, this, &m_multisegs[i]); 
         ms.makeSegments();
     }
+
+
+    // sim obstacles
+    m_sim.clearObstacles();
+    for(const auto& pr: m_mesh.m_perimiters) {
+        vector<Vec2> ob;
+        ob.reserve(pr.m_d.size());
+        for(int i = pr.m_d.size()-1; i >= 0; --i)  {
+            ob.push_back(pr.m_d[i]->p);
+        } // sim needs to get them CW but here there are CCW
+        m_sim.addObstacle(ob);
+    }
+
+    m_sim.processObstacles();
+
 
     // redo the radiuses
     m_mesh.m_altVtxPosByRadius.clear();
@@ -366,8 +382,9 @@ void Document::updatePlan(RVO::Agent* agent)
         //    cout << sg.p << "  ";
 
         // set agent to the start of the plan
-        agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // DEBUG end of the plan, disables plan
-        //agent->m_indexInPlan = 0;
+        //agent->m_indexInPlan = agent->m_plan.m_d.size()-1; // DEBUG end of the plan, disables plan
+        agent->m_indexInPlan = 0;
+
         agent->m_curGoalPos = agent->m_plan.m_d[agent->m_indexInPlan];
         agent->m_goalIsReachable = true;
     }
@@ -387,8 +404,7 @@ void Document::clearAllObj()
         delete obj;
     m_objs.clear();
     //m_agents.clear();
-    m_sim.clearAgents();
-    m_sim.clearObstacles();
+    m_sim.clear();
     m_prob = nullptr;
 }
 
@@ -588,7 +604,7 @@ void Document::serialize(ostream& os)
     }
     for(auto* agent: m_agents)
         os << "a," << agent->m_position.x << "," << agent->m_position.y << "," << ((agentToGoal.find(agent) != agentToGoal.end())?agentToGoal[agent]:-1)
-           << "," << agent->m_velocity.x << "," << agent->m_velocity.y << "," << agent->m_radius << "," << "," << agent->maxSpeed_ << ",\n";
+           << "," << agent->m_velocity.x << "," << agent->m_velocity.y << "," << agent->m_radius << "," << agent->maxSpeed_ << ",\n";
 
     //cout << "Saved " << count << " vertices, " << m_doc->m_mapdef.m_pl.size() << " polylines" << endl;
 }
@@ -673,6 +689,7 @@ void Document::readStream(istream& is, map<string, string>& imported, const stri
 
 void Document::deserialize(istream& is, map<string, string>& imported)
 {
+    srand(0); // random pertrub in goals to be consistent
     m_mapdef.clear();
     clearAllObj();
     m_goals.clear();

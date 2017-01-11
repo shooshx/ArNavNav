@@ -11,36 +11,38 @@ using namespace std;
 namespace RVO {
 	RVOSimulator::RVOSimulator() :  globalTime_(0.0f), kdTree_(this)
 	{
-
 	}
-
 
 
 	RVOSimulator::~RVOSimulator()
 	{
-        clearAgents();
-		clearObstacles();
+        clear();
 	}
 
-    void RVOSimulator::clearAgents()
-    {
-		for (size_t i = 0; i < agents_.size(); ++i) {
-			delete agents_[i];
-		}
-        agents_.clear();
-    }
     void RVOSimulator::clearObstacles()
     {
-		for (size_t i = 0; i < obstacles_.size(); ++i) {
+        for (size_t i = 0; i < obstacles_.size(); ++i) {
 			delete obstacles_[i];
 		}
         obstacles_.clear();
     }
 
+    void RVOSimulator::clear()
+    {
+		for (size_t i = 0; i < agents_.size(); ++i) {
+			delete agents_[i];
+		}
+        agents_.clear();
+        clearObstacles();
+
+        kdTree_.clear();
+    }
+
+
 
     void RVOSimulator::addAgent(Agent* agent)
     {
-		agent->id_ = agents_.size();
+		agent->id_ = (int)agents_.size();
 		agents_.push_back(agent);
     }
 
@@ -53,7 +55,8 @@ namespace RVO {
 
 		const size_t obstacleNo = obstacles_.size();
 
-		for (size_t i = 0; i < vertices.size(); ++i) {
+		for (size_t i = 0; i < vertices.size(); ++i) 
+        {
 			Obstacle *obstacle = new Obstacle();
 			obstacle->point_ = vertices[i];
 
@@ -76,7 +79,7 @@ namespace RVO {
 				obstacle->isConvex_ = (leftOf(vertices[(i == 0 ? vertices.size() - 1 : i - 1)], vertices[i], vertices[(i == vertices.size() - 1 ? 0 : i + 1)]) >= 0.0f);
 			}
 
-			obstacle->id_ = obstacles_.size();
+			obstacle->id_ = (int)obstacles_.size();
 
 			obstacles_.push_back(obstacle);
 		}

@@ -2,10 +2,6 @@
 #ifndef RVO_KD_TREE_H_
 #define RVO_KD_TREE_H_
 
-/**
- * \file       KdTree.h
- * \brief      Contains the KdTree class.
- */
 
 #include "Definitions.h"
 
@@ -17,98 +13,34 @@ namespace RVO {
 	class KdTree 
     {
 	public:
-		/**
-		 * \brief      Defines an agent <i>k</i>d-tree node.
-		 */
 		class AgentTreeNode {
 		public:
-			/**
-			 * \brief      The beginning node number.
-			 */
-			size_t begin;
-
-			/**
-			 * \brief      The ending node number.
-			 */
-			size_t end;
-
-			/**
-			 * \brief      The left node number.
-			 */
-			size_t left;
-
-			/**
-			 * \brief      The maximum x-coordinate.
-			 */
+			int begin;
+			int end;
+			int left;
 			float maxX;
-
-			/**
-			 * \brief      The maximum y-coordinate.
-			 */
 			float maxY;
-
-			/**
-			 * \brief      The minimum x-coordinate.
-			 */
 			float minX;
-
-			/**
-			 * \brief      The minimum y-coordinate.
-			 */
 			float minY;
-
-			/**
-			 * \brief      The right node number.
-			 */
-			size_t right;
+			int right;
 		};
 
-		/**
-		 * \brief      Defines an obstacle <i>k</i>d-tree node.
-		 */
 		class ObstacleTreeNode {
 		public:
-			/**
-			 * \brief      The left obstacle tree node.
-			 */
 			ObstacleTreeNode *left;
-
-			/**
-			 * \brief      The obstacle number.
-			 */
 			const Obstacle *obstacle;
-
-			/**
-			 * \brief      The right obstacle tree node.
-			 */
 			ObstacleTreeNode *right;
 		};
 
-		/**
-		 * \brief      Constructs a <i>k</i>d-tree instance.
-		 * \param      sim             The simulator instance.
-		 */
 		explicit KdTree(RVOSimulator *sim);
+        void clear();
 
-		/**
-		 * \brief      Destroys this kd-tree instance.
-		 */
 		~KdTree();
-
-		/**
-		 * \brief      Builds an agent <i>k</i>d-tree.
-		 */
 		void buildAgentTree();
-
-		void buildAgentTreeRecursive(size_t begin, size_t end, size_t node);
-
-		/**
-		 * \brief      Builds an obstacle <i>k</i>d-tree.
-		 */
+		void buildAgentTreeRecursive(int begin, int end, int node);
 		void buildObstacleTree();
 
-		ObstacleTreeNode *buildObstacleTreeRecursive(const std::vector<Obstacle *> &
-													 obstacles);
+		ObstacleTreeNode *buildObstacleTreeRecursive(const std::vector<Obstacle *> &obstacles);
 
 		/**
 		 * \brief      Computes the agent neighbors of the specified agent.
