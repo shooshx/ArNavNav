@@ -250,9 +250,9 @@ Transform.prototype.transformPoint = function(px, py) {
 var mouseTargets = {} // zOrder -> {ptr -> objects}
 var drawCircles = {} // zOrder -> {ptr -> objects}
 var drawAgents = {} // zOrder -> {ptr -> objects}
-var drawTriangles = {}
+var drawTriangles = {}  // zOrder -> {ptr -> object }
 var circles = {} // ptr -> object
-var triangles = {}
+var triangles = {} // also quads
 
 var pressedObject = null; // object that is currently pressed down
 var pressedStart = null; // offset x,y from the center of the selection
@@ -262,7 +262,7 @@ var mouseDownOffset = {x:0, y:0} ;
 //var addingAgent = false;
 var selectSquare = null; // x1, y1, x2, y2, isActive
 var multiSelected = []; // agents that were multi selected
-var activeGoals = {}; // ptr -> true  goals that have agents
+var activeGoals = {}; // ptr -> true  goals that have agents, managed in GoalItem ctor and dtor
 var selectedGoal = null;
 var isPlaying = true;
 //var dt = new Transform()
@@ -510,7 +510,7 @@ function remove_triangle(ptr) {
 
 function setGoal(x, y, selAgents) {
     var goalPtr = add_goal(x, y, parseFloat(goalRadius.value), goalAttack.checked ? 1:0) // will do add_circle
-    activeGoals[goalPtr] = true
+
     for (var i in selAgents) {
         selAgents[i].goalPtr = goalPtr
         set_goal(selAgents[i].ptr, goalPtr);
@@ -523,7 +523,6 @@ function setGoal(x, y, selAgents) {
     for (var i in activeGoals) {
         if (!(i in usedGoals)) {
             remove_goal(i);
-            delete activeGoals[i];
         }
     }
 }
@@ -821,13 +820,16 @@ function draw() {
 
     drawPerimiters()
 
-    if (showTri.checked) {
-        for (var z in drawTriangles) {
-            for (var p in drawTriangles[z]) {
-                drawTriangles[z][p].draw1();
-            }
+    var hideTri = !showTri.checked
+    for (var z in drawTriangles) {
+        for (var p in drawTriangles[z]) {
+            var t = drawTriangles[z][p]
+            if (t instanceof Triangle && hideTri)
+                continue
+            t.draw1();
         }
     }
+
     if (showPolyPoint.checked || editPolyPnt) {
         for (var z in drawCircles) {
             for (var p in drawCircles[z]) {

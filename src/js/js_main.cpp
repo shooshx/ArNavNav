@@ -36,23 +36,27 @@ class Item
 public:
     Item(NavCtrl* ctrl) : m_ctrl(ctrl)
     {}
-    virtual ~Item() {
-        if (m_isCircle)
-            EM_ASM_( remove_circle($0), this );
-        else 
-            EM_ASM_( remove_triangle($0), this );
-    }
     virtual void setPos(const Vec2& p) 
     {}
 
     NavCtrl* m_ctrl;
-    bool m_isCircle = true;
 };
 
-class PolyPointItem : public Item
+class CircleItem : public Item
 {
 public:
-    PolyPointItem(NavCtrl* ctrl, Vertex* v, int pli, int vi) :Item(ctrl), m_v(v), m_plindex(pli), m_vindex(vi)
+    CircleItem(NavCtrl* ctrl) : Item(ctrl)
+    {}
+    virtual ~CircleItem() {
+        EM_ASM_( remove_circle($0), this );
+    }
+};
+
+
+class PolyPointItem : public CircleItem
+{
+public:
+    PolyPointItem(NavCtrl* ctrl, Vertex* v, int pli, int vi) :CircleItem(ctrl), m_v(v), m_plindex(pli), m_vindex(vi)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(50,50,50)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y);
     }
@@ -68,21 +72,23 @@ class TriItem  : public Item
 public:
     TriItem(NavCtrl* ctrl, Triangle* t) :Item(ctrl), m_t(t)
     {
-        m_isCircle = false;
         const Vec2& a = m_t->v[0]->p;
         const Vec2& b = m_t->v[1]->p;
         const Vec2& c = m_t->v[2]->p;
         //EM_ASM_( out("tri (" + $0 + " " + $1 + ") (" + $2 + " " + $3 + ") (" + $4 + " " + $5 + ")"), a.x, a.y, b.x, b.y, c.x, c.y);
         EM_ASM_( add_tri($0, $1, $2, $3, $4, $5, $6, $7), this, Z_TRI, a.x, a.y, b.x, b.y, c.x, c.y);
     }
+    virtual ~TriItem() {
+        EM_ASM_( remove_triangle($0), this );
+    }
 
     Triangle* m_t;
 };
 
-class AgentItem : public Item
+class AgentItem : public CircleItem
 {
 public:
-    AgentItem(NavCtrl* ctrl, RVO::Agent* a) :Item(ctrl), m_a(a)
+    AgentItem(NavCtrl* ctrl, RVO::Agent* a) :CircleItem(ctrl), m_a(a)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, $4, COLOR_AGENT, ObjSelType.MULTI, ObjType.AGENT, null), this, Z_AGENT, m_a->m_position.x, m_a->m_position.y, m_a->m_radius);
     }
@@ -98,13 +104,18 @@ public:
     RVO::Agent* m_a;
 };
 
-class GoalItem : public Item
+class GoalItem : public CircleItem
 {
 public:
-    GoalItem(NavCtrl* ctrl, Goal* g) :Item(ctrl), m_g(g)
+    GoalItem(NavCtrl* ctrl, Goal* g) :CircleItem(ctrl), m_g(g)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_GOAL, ($4 == 0) ? COLOR_POINT_GOAL : COLOR_ATTACK_GOAL, ObjSelType.SINGLE, ObjType.GOAL, $5), 
                  this, Z_GOAL, m_g->def.p.x, m_g->def.p.y, m_g->def.type, m_g->def.radius);
+        EM_ASM_( activeGoals[$0] = true, (ptr_t)this);
+    }
+    ~GoalItem()
+    {
+        EM_ASM_( delete activeGoals[$0], (ptr_t)this);
     }
     virtual void setPos(const Vec2& p);
     void update() {
@@ -114,11 +125,11 @@ public:
 };
 
 class BuildingMoveItem;
-class BuildingPointItem : public Item
+class BuildingPointItem : public CircleItem
 {
 public:
     BuildingPointItem(NavCtrl* ctrl, Vertex* v, Vertex* onlyx, Vertex* onlyy, BuildingMoveItem* centerItem)
-        :Item(ctrl), m_v(v), m_onlyx(onlyx), m_onlyy(onlyy), m_centerItem(centerItem)
+        :CircleItem(ctrl), m_v(v), m_onlyx(onlyx), m_onlyy(onlyy), m_centerItem(centerItem)
     {
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(50,50,50)', ObjSelType.SINGLE, ObjType.BUILDING_PNT, null), this, Z_POLYPOINT, m_v->p.x, m_v->p.y);
     }
@@ -137,8 +148,10 @@ public:
     ErrorBoxItem(NavCtrl* ctrl, AABox* b) 
         :Item(ctrl), m_box(b)
     {
-        m_isCircle = false;
         EM_ASM_( add_rect($0, $1, $2, $3, $4, $5), this, Z_ERRBOX, b->v[0]->p.x, b->v[0]->p.y, b->v[2]->p.x, b->v[2]->p.y);
+    }
+    virtual ~ErrorBoxItem() {
+        EM_ASM_( remove_triangle($0), this );
     }
     virtual void update() {
         EM_ASM_( change_rect($0, $1, $2, $3, $4), this, m_box->v[0]->p.x, m_box->v[0]->p.y, m_box->v[2]->p.x, m_box->v[2]->p.y);
@@ -147,11 +160,11 @@ public:
 };
 
 // center circle that moves the building
-class BuildingMoveItem : public Item 
+class BuildingMoveItem : public CircleItem 
 {
 public:
     BuildingMoveItem(NavCtrl* ctrl, AABox* b)
-        :Item(ctrl), m_boxCp(b)
+        :CircleItem(ctrl), m_boxCp(b)
     {
         calcCenter();
         EM_ASM_( add_circle($0, $1, $2, $3, RADIUS_POLYPOINT, 'rgb(180,100,100)', ObjSelType.NONE, ObjType.POLYPOINT, null), this, Z_POLYPOINT, m_center.x, m_center.y);
@@ -545,6 +558,9 @@ void NavCtrl::readDoc()
     m_goalitems.clear();
     m_polypointitems.clear();
     m_buildingitems.clear();
+    m_buildingCenterItems.clear();
+    m_meshitems.clear();
+
     //OUT("AItems " << m_doc.m_agents.size());
     for(auto* agent: m_doc.m_sim.agents_) {
         m_agentitems.push_back(shared_ptr<AgentItem>(new AgentItem(this, agent)));
