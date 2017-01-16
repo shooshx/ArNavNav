@@ -118,6 +118,10 @@ inline float distSq(const Vec2& a, const Vec2& b) {
     return absSq(a - b);
 }
 
+inline float dist(const Vec2& a, const Vec2& b) {
+    return sqrt(absSq(a - b));
+}
+
 inline float length(const Vec2& v) {
     return std::sqrt(v * v);
 }

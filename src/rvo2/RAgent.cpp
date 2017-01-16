@@ -457,11 +457,58 @@ namespace RVO
                 m_curGoalPos = m_plan.m_d[m_indexInPlan];
             }
             else {
-                reachedEnd = true;
+                m_reached = true;
               /*  m_curGoalPos = nullptr;
                 m_indexInPlan = -1;
                 m_velocity = Vec2();*/
             }
+        }
+
+        float a = 0.0, b = 0.0;
+        bool tooFar = false;
+        // we can be close enough to the goal without being in the last leg (if the last leg is really short)
+        // check close enough to goal
+        if (!m_reached && m_endGoalId != nullptr && m_endGoalId->def.type == GOAL_POINT)// &&  absSq(m_velocity) < 0.1*0.1 ) 
+        {
+            float mydist = dist(m_position, m_endGoalId->def.p);// m_endGoalPos.p);
+            a = mydist;
+            m_lastGoalDists.add(mydist);
+            float didChange = FLT_MAX;
+            for(int i = 1; i <= 3; ++i)
+                didChange = min(didChange, abs(mydist - m_lastGoalDists.getPrev(i)));
+            b = didChange;
+            if (didChange < 0.05) // didn't change distance to goal in the last two frames (oscilating movement)
+            {
+                if (mydist < m_endGoalId->minDistForStop + m_radius + 1.0)  // 1.0 for some leeway
+                { 
+                    m_reached = true;
+                    float myUpdate;
+                    if (mydist < m_radius) // the goal is inside me
+                        myUpdate = m_radius * 2; // might step a full diameter from the goal
+                    else // update the distance of the touch towards the goal
+                        myUpdate = mydist + m_radius; // goal min is with the agent radius
+
+                    if (myUpdate > m_endGoalId->minDistForStop) {
+                        m_endGoalId->minDistForStop = myUpdate;
+                        cout << this << " Stopped-And-Update my=" << mydist << " up=" << myUpdate << " minD=" << m_endGoalId->minDistForStop << " minChange=" << didChange << endl;
+                    }
+                    else {
+                        cout << this << " Stopped my=" << mydist << " minD=" << m_endGoalId->minDistForStop << " up=" << myUpdate << " minChange=" << didChange << endl;
+                    }
+                }
+                else
+                    tooFar = true;
+            }
+        }
+
+/*        if (!m_reached)
+            cout << this << " Going " << absSq(m_velocity) << " pos=" << m_position << " dist=" << a << " change3=" << abs(a - m_lastGoalDists.getPrev(3)) <<
+                 " change2=" << abs(a - m_lastGoalDists.getPrev(2)) << " change1=" << abs(a - m_lastGoalDists.getPrev(1)) << 
+                 "  minChange=" << b <<
+                 "  minD=" << m_endGoalId->minDistForStop << " minDP=" << m_endGoalId->minDistForStop + m_radius + 1.0 << " tooFar=" << tooFar << endl;
+  */      
+        if (m_reached) {
+            prefVelocity_ = Vec2(0,0);
         }
 
         updateOrientation(timeStep);

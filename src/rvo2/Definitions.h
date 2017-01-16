@@ -64,15 +64,7 @@ namespace RVO {
 		return det(a - c, b - a);
 	}
 
-	/**
-	 * \brief      Computes the square of a float.
-	 * \param      a               The float to be squared.
-	 * \return     The square of the float.
-	 */
-	inline float sqr(float a)
-	{
-		return a * a;
-	}
+
 }
 
 #endif /* RVO_DEFINITIONS_H_ */

@@ -546,19 +546,23 @@ bool Document::doStep(float deltaTime, bool doUpdate, int dbg_frameNum)
     {
         if (agent->m_curGoalPos == nullptr)
             continue;
+        if (agent->m_reached)
+            continue;
 
-        agent->m_reached = agent->update(deltaTime);
+        agent->update(deltaTime);
+        //cout << agent << " POS=" << agent->m_position << " VEL=" << agent->m_velocity << " RCH=" << agent->m_reached << endl;
         reachedGoals &= agent->m_reached;
 
         // detect need to replay
         auto velSq = absSq(agent->m_velocity);
-        if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH) 
+   /*     if (!agent->m_reached && velSq < REPLAN_VEL_THRESH * REPLAN_VEL_THRESH)  // TBD-conflics with goal reach resolution
         {
+            cout << "what-replan " << agent->m_reached << endl;
             if (shouldReplan(agent)) {
                 OUT("f" << dbg_frameNum << " Agent " << agent->id_ << " replan");
                 updatePlan(agent);
             }
-        }
+        }*/
     }
 
     //m_globalTime += deltaTime;

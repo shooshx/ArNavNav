@@ -62,7 +62,8 @@ public:
         return p;
     }
     virtual bool isPassed(const Vec2& amAt) const {
-        return (distSq(amAt, p) < radiusSq);
+        //return (distSq(amAt, p) < radiusSq);
+        return false;
     }
     virtual bool isPoint() const {
         return true;
@@ -182,5 +183,9 @@ public:
     {}
     GoalDef def;
     std::vector<RVO::Agent*> agents; // agents that have this goal
+
+    // for a POINT goal, this is the distance an agent can be in to be allowed to stop
+    // it is updated as agents gather around the point
+    float minDistForStop = 0.0; 
 };
 

@@ -288,7 +288,7 @@ public:
 
     // also called from GoalItem::setPos
     void setAgentGoalPos(RVO::Agent* a, Goal* g) {
-        a->setEndGoal(g->def, (void*)g);
+        a->setEndGoal(g->def, g);
         m_doc.updatePlan(a);
         m_quiteCount = 0;
     }
@@ -298,7 +298,8 @@ public:
         m_quiteCount = 0;
     }
 
-    void setGoal(AgentItem* a, GoalItem* g) {
+    void setGoal(AgentItem* a, GoalItem* g) 
+    {
         setAgentGoalPos(a->m_a, g->m_g);
         g->m_g->agents.push_back(a->m_a);
 

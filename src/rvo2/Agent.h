@@ -10,6 +10,27 @@
 
 namespace RVO {
 
+
+template<typename T, int N>
+class CyclicBuffer
+{
+    T m_buf[N];
+    int m_ind;
+
+public:
+    void init(T v) {
+        for(int i = 0; i < N; ++i)
+            m_buf[i] = v;
+    }
+    void add(T v) {
+        m_ind = (m_ind + 1) % N;
+        m_buf[m_ind] = v;
+    }
+    T getPrev(int howBack) {
+        return m_buf[ (m_ind + N - howBack) % N ];
+    }
+};
+
 class Agent 
 {
 public:
@@ -30,6 +51,8 @@ public:
 		timeHorizon_ = timeHorizon;
 		timeHorizonObst_ = timeHorizonObst;
 		m_velocity = Vec2();
+
+        m_lastGoalDists.init(FLT_MAX);
     }
 
 	void computeNeighbors(KdTree& kdTree);
@@ -50,7 +73,7 @@ public:
         //size = Vec2(r * 2, r * 2);
         neighborDist_ = r * NEI_DIST_RADIUS_FACTOR;
     }
-    void setEndGoal(const GoalDef& g, void* gid) {
+    void setEndGoal(const GoalDef& g, Goal* gid) {
         m_endGoalPos = g;
         m_endGoalPos.p += Vec2(0.001 * (rand()%100), 0.001 * (rand()%100)); // random small pertrub to break symmetry
         m_endGoalId = gid; // actually a pointer to Goal
@@ -85,7 +108,7 @@ public:
     // goal config
     // Vec2 goal_;
     GoalDef m_endGoalPos; // end of the plan, if invalid, there's no current goal, for knowing if we reached the end
-    void* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)
+    Goal* m_endGoalId = 0; // used for knowing if my neighbors are heading the same way for replanning. type erased since Agent does not know Goal (it's actually Goal*)
 
     // running vars
 	Vec2 m_position;
@@ -106,6 +129,8 @@ public:
     bool m_goalIsReachable = false; //determined in updatePlan
     int m_indexInPlan = -1;
     Plan m_plan;
+
+    CyclicBuffer<float, 4> m_lastGoalDists;
 };
 
 
